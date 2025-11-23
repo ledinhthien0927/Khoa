@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 0a851430cb9a7154c9b51288ca4fbfea
+timeCreated: 1545080214
+licenseType: Store
+NativeFormatImporter:
+  mainObjectFileID: 100100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 92579
+  packageName: Pirate Pack - Synty POLYGON - 477 Assets!
+  packageVersion: 1.5.0
+  assetPath: Assets/PolygonPirates/Prefabs/Characters/FixedScaleCharacter/Character_English_Govenor_02_FixedScale.prefab
+  uploadId: 736247

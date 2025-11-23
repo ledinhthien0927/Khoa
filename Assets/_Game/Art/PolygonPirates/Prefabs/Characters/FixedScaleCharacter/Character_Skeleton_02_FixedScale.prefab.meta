@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: c2c0f67a5016e1448a02a52083dbe372
+timeCreated: 1545080177
+licenseType: Store
+NativeFormatImporter:
+  mainObjectFileID: 100100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 92579
+  packageName: Pirate Pack - Synty POLYGON - 477 Assets!
+  packageVersion: 1.5.0
+  assetPath: Assets/PolygonPirates/Prefabs/Characters/FixedScaleCharacter/Character_Skeleton_02_FixedScale.prefab
+  uploadId: 736247

@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 6e44ebe905692d34dafbf0304f60527b
+timeCreated: 1545080205
+licenseType: Store
+NativeFormatImporter:
+  mainObjectFileID: 100100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 92579
+  packageName: Pirate Pack - Synty POLYGON - 477 Assets!
+  packageVersion: 1.5.0
+  assetPath: Assets/PolygonPirates/Prefabs/Characters/FixedScaleCharacter/Character_Gentleman_01
+    1_FixedScale.prefab
+  uploadId: 736247
