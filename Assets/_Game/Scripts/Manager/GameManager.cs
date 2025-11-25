@@ -40,7 +40,17 @@ public class GameManager : MonoBehaviour
         if (model.dangTrongTranChien) return;
 
         model.thoiGianDemNguoc -= Time.deltaTime;
+        
+        // Cập nhật text đồng hồ
         view.HienThiThoiGian(model.thoiGianDemNguoc, false);
+
+        // --- CODE MỚI: Tính phần trăm thời gian để quay mặt trời ---
+        // Ví dụ: Còn 8 phút / 10 phút => 0.8 (80%)
+        float phanTram = model.thoiGianDemNguoc / model.thoiGianGiuaCacDot;
+        
+        // Gọi View cập nhật đèn
+        view.CapNhatAnhSang(phanTram);
+        // -----------------------------------------------------------
 
         if (model.thoiGianDemNguoc <= 0)
         {

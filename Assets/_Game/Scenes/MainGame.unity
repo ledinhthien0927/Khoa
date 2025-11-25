@@ -74659,7 +74659,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
   model:
-    thoiGianGiuaCacDot: 200
+    thoiGianGiuaCacDot: 10
     danSoToiDa: 4
     thoiGianDemNguoc: 0
     soDotDaVao: 0
@@ -74687,6 +74687,7 @@ MonoBehaviour:
   txtThoiGian: {fileID: 1552739329}
   txtDanSo: {fileID: 1387668308}
   panelCanhBao: {fileID: 2036962284}
+  anhSangMatTroi: {fileID: 1511470061}
 --- !u!1001 &1430180385
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -109391,15 +109392,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 0, b: 0, a: 0.27450982}
+  m_Color: {r: 1, g: 0, b: 0, a: 0.87058824}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
-  m_Type: 1
+  m_Sprite: {fileID: 21300000, guid: cb251efaff8c68041a054046a722fb01, type: 3}
+  m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
