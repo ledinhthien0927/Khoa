@@ -9,6 +9,11 @@ public class GameView : MonoBehaviour
     [SerializeField] private TextMeshProUGUI txtDanSo;
     [SerializeField] private GameObject panelCanhBao; // Panel đỏ khi có Wave
 
+    [SerializeField] private GameObject panelGameOver;
+
+    [SerializeField] private TextMeshProUGUI txtGo;
+    [SerializeField] private TextMeshProUGUI txtVang;
+
     [Header("--- Environment References (MỚI) ---")]
     [SerializeField] private Light anhSangMatTroi; // Kéo Directional Light vào đây
 
@@ -27,6 +32,12 @@ public class GameView : MonoBehaviour
         }
     }
 
+    public void HienThiTaiNguyen(int go, int vang)
+    {
+        if (txtGo != null) txtGo.text = $"{go}";
+        if (txtVang != null) txtVang.text = $"{vang}";
+    }
+
     public void HienThiDanSo(int hienTai, int toiDa)
 {
     // Thêm dòng này để test xem hàm có chạy không
@@ -34,13 +45,21 @@ public class GameView : MonoBehaviour
 
     if (txtDanSo != null)
     {
-        txtDanSo.text = $"Dân số: {hienTai} / {toiDa}";
+        txtDanSo.text = $"{hienTai} / {toiDa}";
     }
     else
     {
         Debug.LogError("LỖI: Chưa kéo Txt_DanSo vào script GameView!");
     }
 }
+
+    public void HienThiGameOver(bool kichHoat)
+    {
+        if (panelGameOver != null) 
+        {
+            panelGameOver.SetActive(kichHoat);
+        }
+    }
 
     public void CapNhatAnhSang(float phanTramThoiGian)
     {

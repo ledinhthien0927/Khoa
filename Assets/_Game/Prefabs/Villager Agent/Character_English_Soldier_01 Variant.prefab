@@ -61,7 +61,7 @@ PrefabInstance:
       addedObject: {fileID: 3902382062365976512}
     - targetCorrespondingSourceObject: {fileID: 186328, guid: d24bb65e9cbd4f34d8d7c86cdec254e1, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1928638877143698598}
+      addedObject: {fileID: -5539704780613985968}
   m_SourcePrefab: {fileID: 100100000, guid: d24bb65e9cbd4f34d8d7c86cdec254e1, type: 3}
 --- !u!1 &2193448489970782256 stripped
 GameObject:
@@ -90,7 +90,7 @@ NavMeshAgent:
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
---- !u!114 &1928638877143698598
+--- !u!114 &-5539704780613985968
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -99,7 +99,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 2193448489970782256}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2f2e58fc418557546a5895fe5d1d54ef, type: 3}
+  m_Script: {fileID: 11500000, guid: d375a1108471c6b45adbb603a8e8d3ae, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::VillagerAI
-  thoiGianVoGiaCu: 30
+  m_EditorClassIdentifier: Assembly-CSharp::VillagerAgent
+  navMeshAgent: {fileID: 0}
