@@ -1,25 +1,34 @@
 using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine.EventSystems;
 
 public class BuildingManager : MonoBehaviour
 {
     public static BuildingManager Instance { get; private set; }
-    [SerializeField] private LayerMask layerVatCan;
-
-    [Header("--- Visual ---")]
-    [SerializeField] private Material matXanh; // Material trong suốt màu xanh
-    [SerializeField] private Material matDo;   // Material trong suốt màu đỏ
 
     [Header("--- Cấu Hình ---")]
-    [SerializeField] private LayerMask layerMatDat; // Layer để nhận diện mặt đất (Ground)
-    [SerializeField] private Material vatLieuXayDungHople; // Màu xanh (khi đặt được)
-    [SerializeField] private Material vatLieuXayDungSai;   // Màu đỏ (khi không đủ tiền)
+    [SerializeField] private LayerMask layerMatDat;
+    [SerializeField] private LayerMask layerVatCan;
+    
+    [Header("--- Camera System (MỚI) ---")]
+    [SerializeField] private Camera mainCamera;  // Kéo Main Camera vào
+    [SerializeField] private Camera buildCamera; // Kéo BuildCamera vào
+
+    [Header("--- UI Controller (MỚI) ---")]
+    [SerializeField] private BuildingControlsUI uiControls; // Kéo script UI vừa tạo vào
+
+    [Header("--- Visual ---")]
+    [SerializeField] private Material matXanh; 
+    [SerializeField] private Material matDo;   
 
     // Trạng thái nội bộ
     private BuildingData congTrinhDangChon;
-    private GameObject doiTuongPreview; // Cái bóng mờ đang đi theo chuột
+    private GameObject doiTuongPreview;
     private bool dangOCheDoXay = false;
     private bool viTriHopLe = false;
+    
+    // Biến lưu góc xoay hiện tại
+    private float gocXoayHienTai = 0f; 
 
     private void Awake()
     {
@@ -32,132 +41,180 @@ public class BuildingManager : MonoBehaviour
         if (!dangOCheDoXay || congTrinhDangChon == null) return;
 
         XuLyPreview();
-        XuLyInputDatNha();
-        XuLyHuyXay();
+        // Lưu ý: Ta ĐÃ BỎ hàm XuLyInputDatNha() cũ đi 
+        // vì bây giờ ta dùng nút bấm UI (V/X) chứ không click chuột nữa.
     }
 
-    // 1. Hàm gọi từ nút bấm UI để bắt đầu xây
     public void ChonCongTrinhDeXay(BuildingData data)
     {
-        if (dangOCheDoXay) HuyCheDoXay(); // Reset nếu đang chọn cái khác
+        if (dangOCheDoXay) HuyCheDoXay();
 
         dangOCheDoXay = true;
         congTrinhDangChon = data;
+        gocXoayHienTai = 0f; // Reset góc xoay
 
-        // Tạo bóng mờ
+        // 1. Chuyển Camera
+        DoiCamera(true);
+
+        // 2. Hiện UI điều khiển
+        if (uiControls != null) uiControls.HienThiPanel(true);
+
+        // 3. Tạo bóng mờ
         doiTuongPreview = Instantiate(data.prefabGoc);
-        
-        // 1. Tắt tất cả script logic trên bóng mờ (để nó không chạy lung tung)
-        foreach (var script in doiTuongPreview.GetComponentsInChildren<MonoBehaviour>())
-            script.enabled = false;
-
-        // 2. Tắt Collider vật lý (để chuột không bị Raycast trúng chính nó)
-        foreach (var coll in doiTuongPreview.GetComponentsInChildren<Collider>())
-            coll.enabled = false;
+        foreach (var script in doiTuongPreview.GetComponentsInChildren<MonoBehaviour>()) script.enabled = false;
+        foreach (var coll in doiTuongPreview.GetComponentsInChildren<Collider>()) coll.enabled = false;
     }
 
-    // 2. Di chuyển bóng mờ theo chuột
+    private void DoiCamera(bool cheDoXay)
+    {
+        if (mainCamera != null) mainCamera.gameObject.SetActive(!cheDoXay);
+        if (buildCamera != null) buildCamera.gameObject.SetActive(cheDoXay);
+    }
+
     private void XuLyPreview()
     {
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        RaycastHit hit;
-
-        if (Physics.Raycast(ray, out hit, 1000f, layerMatDat))
+        // --- PHẦN 1: LUÔN CẬP NHẬT GÓC XOAY ---
+        // Phải làm việc này đầu tiên, để khi bấm nút là thấy xoay ngay
+        if (doiTuongPreview != null)
         {
-            // Di chuyển bóng mờ
-            doiTuongPreview.transform.position = hit.point;
-            doiTuongPreview.SetActive(true);
+            doiTuongPreview.transform.rotation = Quaternion.Euler(0, gocXoayHienTai, 0);
+        }
 
-            // --- KIỂM TRA VA CHẠM (MỚI) ---
-            KiemTraViTriXayDung(hit.point);
+        // --- PHẦN 2: CẬP NHẬT VỊ TRÍ (CHỈ KHI KHÔNG CHẠM UI) ---
+        // Nếu chuột không đè lên nút thì mới cho di chuyển nhà
+        if (!IsPointerOverUI())
+        {
+            Ray ray = buildCamera.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+
+            if (Physics.Raycast(ray, out hit, 1000f, layerMatDat))
+            {
+                // Tính toán độ cao (Offset)
+                float chieuCaoOffset = 0f;
+                BoxCollider boxCol = congTrinhDangChon.prefabGoc.GetComponent<BoxCollider>();
+                if (boxCol != null)
+                {
+                    chieuCaoOffset = (boxCol.size.y / 2) + boxCol.center.y;
+                }
+
+                Vector3 viTriDat = hit.point + new Vector3(0, chieuCaoOffset, 0);
+                
+                // Cập nhật vị trí mới
+                doiTuongPreview.transform.position = viTriDat;
+                doiTuongPreview.SetActive(true);
+            }
+        }
+
+        // --- PHẦN 3: LUÔN KIỂM TRA HỢP LỆ (XANH/ĐỎ) ---
+        // Dù nhà đứng yên (do đang bấm nút), nhưng khi xoay nó có thể va vào vật cản
+        // nên ta phải check lại màu sắc ngay tại vị trí hiện tại.
+        if (doiTuongPreview.activeSelf)
+        {
+            KiemTraViTriXayDung(doiTuongPreview.transform.position);
+        }
+    }
+
+    // Hàm gọi từ nút Mũi tên UI
+    public void XoayNha(float goc)
+    {
+        gocXoayHienTai += goc;
+    }
+
+    // Hàm gọi từ nút "V"
+    public void XacNhanXayDung()
+    {
+        if (!viTriHopLe || !dangOCheDoXay) 
+        {
+            Debug.Log("Vị trí không hợp lệ!");
+            return;
+        }
+
+        bool duTien = GameManager.Instance.ThayDoiTaiNguyen(-congTrinhDangChon.giaGo, -congTrinhDangChon.giaVang);
+        if (duTien)
+        {
+            // Xây thật tại vị trí và góc xoay của Preview
+            GameObject nhaMoi = Instantiate(congTrinhDangChon.prefabGoc, doiTuongPreview.transform.position, Quaternion.Euler(0, gocXoayHienTai, 0));
+            SetLayerRecursive(nhaMoi, LayerMask.NameToLayer("Obstacle"));
+
+            HouseLogic logic = nhaMoi.GetComponent<HouseLogic>();
+            if (logic == null) logic = nhaMoi.AddComponent<HouseLogic>();
+            logic.soChoOThem = congTrinhDangChon.tangDanSoToiDa;
+
+            // Xây xong thì thoát
+            HuyCheDoXay();
         }
         else
         {
-            doiTuongPreview.SetActive(false); // Ra khỏi đất thì ẩn đi
-        }
-    }
-    private void KiemTraViTriXayDung(Vector3 center)
-    {
-        // Lấy kích thước của ngôi nhà (Dựa vào Collider có sẵn trong Prefab gốc)
-        // Lưu ý: Ta lấy BoxCollider từ Prefab gốc trong Data, chứ không phải từ doiTuongPreview (vì ta đã tắt collider của nó rồi)
-        BoxCollider boxCol = congTrinhDangChon.prefabGoc.GetComponent<BoxCollider>();
-        
-        Vector3 size = Vector3.one; // Mặc định 1x1x1 nếu không tìm thấy collider
-        if (boxCol != null) size = boxCol.size;
-
-        // Bắn một cái hộp ảo để kiểm tra va chạm
-        // size / 2 vì hàm OverlapBox dùng HalfExtents (bán kính)
-        Collider[] vaCham = Physics.OverlapBox(center + new Vector3(0, size.y/2, 0), size / 2, Quaternion.identity, layerVatCan);
-
-        // Nếu va chạm > 0 tức là trúng vật cản -> Không hợp lệ
-        viTriHopLe = (vaCham.Length == 0);
-
-        // Đổi màu
-        DoiMauPreview(viTriHopLe ? matXanh : matDo);
-    }
-
-    private void DoiMauPreview(Material matMoi)
-    {
-        // Lấy tất cả Renderer trong bóng mờ để đổi màu
-        Renderer[] renderers = doiTuongPreview.GetComponentsInChildren<Renderer>();
-        foreach (Renderer r in renderers)
-        {
-            r.material = matMoi;
+            Debug.Log("Không đủ tiền!");
         }
     }
 
-    // 3. Click chuột để đặt
-    private void XuLyInputDatNha()
-    {
-        // MỚI: Thêm điều kiện && viTriHopLe
-        if (Input.GetMouseButtonDown(0) && doiTuongPreview.activeSelf && viTriHopLe)
-        {
-            bool duTien = GameManager.Instance.ThayDoiTaiNguyen(-congTrinhDangChon.giaGo, -congTrinhDangChon.giaVang);
-
-            if (duTien)
-            {
-                // Xây thật
-                GameObject nhaMoi = Instantiate(congTrinhDangChon.prefabGoc, doiTuongPreview.transform.position, Quaternion.identity);
-                
-                // Set Layer cho nhà mới thành "Obstacle" hoặc "Building" để nhà sau không xây đè lên
-                SetLayerRecursive(nhaMoi, LayerMask.NameToLayer("Obstacle"));
-
-                HouseLogic logic = nhaMoi.GetComponent<HouseLogic>();
-                if (logic == null) logic = nhaMoi.AddComponent<HouseLogic>();
-                logic.soChoOThem = congTrinhDangChon.tangDanSoToiDa;
-
-                // Xây xong thì thoát chế độ xây luôn (hoặc giữ nguyên tùy bạn)
-                HuyCheDoXay(); 
-            }
-            else
-            {
-                Debug.Log("Không đủ tiền!");
-            }
-        }
-    }
-
-        private void SetLayerRecursive(GameObject obj, int newLayer)
-    {
-        obj.layer = newLayer;
-        foreach (Transform child in obj.transform)
-        {
-            SetLayerRecursive(child.gameObject, newLayer);
-        }
-    }
-
-    private void XuLyHuyXay()
-    {
-        // Bấm chuột phải để hủy xây
-        if (Input.GetMouseButtonDown(1))
-        {
-            HuyCheDoXay();
-        }
-    }
-
-    private void HuyCheDoXay()
+    // Hàm gọi từ nút "X"
+    public void HuyCheDoXay()
     {
         dangOCheDoXay = false;
         congTrinhDangChon = null;
         if (doiTuongPreview != null) Destroy(doiTuongPreview);
+
+        // Trả lại Camera chính
+        DoiCamera(false);
+
+        // Ẩn UI điều khiển
+        if (uiControls != null) uiControls.HienThiPanel(false);
+    }
+
+    private void KiemTraViTriXayDung(Vector3 center)
+    {
+        BoxCollider boxCol = congTrinhDangChon.prefabGoc.GetComponent<BoxCollider>();
+        Vector3 size = (boxCol != null) ? boxCol.size : Vector3.one;
+
+        // Quét va chạm (Lưu ý phải xoay hộp quét theo góc xoay của nhà)
+        Collider[] vaCham = Physics.OverlapBox(center, size / 2 * 0.9f, Quaternion.Euler(0, gocXoayHienTai, 0), layerVatCan);
+
+        viTriHopLe = (vaCham.Length == 0);
+        DoiMauPreview(viTriHopLe ? matXanh : matDo);
+    }
+    
+    private void DoiMauPreview(Material matMoi)
+    {
+        Renderer[] renderers = doiTuongPreview.GetComponentsInChildren<Renderer>();
+        foreach (Renderer r in renderers) r.material = matMoi;
+    }
+
+    private void SetLayerRecursive(GameObject obj, int newLayer)
+    {
+        obj.layer = newLayer;
+        foreach (Transform child in obj.transform) SetLayerRecursive(child.gameObject, newLayer);
+    }
+
+    // Hàm chính để kiểm tra (Gồm cả chuột và đa điểm cảm ứng)
+    private bool IsPointerOverUI()
+    {
+        // 1. Kiểm tra vị trí chuột (Cho PC/Editor)
+        if (IsPointerOverUIObject(Input.mousePosition)) return true;
+
+        // 2. Kiểm tra tất cả các ngón tay (Cho Mobile)
+        if (Input.touchCount > 0)
+        {
+            for (int i = 0; i < Input.touchCount; i++)
+            {
+                if (IsPointerOverUIObject(Input.GetTouch(i).position)) return true;
+            }
+        }
+        return false;
+    }
+
+    // Hàm phụ: Tự bắn tia Raycast vào hệ thống UI để kiểm tra va chạm
+    private bool IsPointerOverUIObject(Vector2 screenPos)
+    {
+        PointerEventData eventData = new PointerEventData(EventSystem.current);
+        eventData.position = screenPos;
+        
+        List<RaycastResult> results = new List<RaycastResult>();
+        
+        // Bắn tia kiểm tra xem tại vị trí màn hình này có trúng cái UI nào không
+        EventSystem.current.RaycastAll(eventData, results);
+        
+        return results.Count > 0;
     }
 }
