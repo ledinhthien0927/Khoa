@@ -13,4 +13,13 @@ public class NewMonoBehaviourScript : MonoBehaviour
     {
         
     }
+
+    public interface IDamageable
+{
+    // Hàm nhận sát thương
+    void NhanSatThuong(int luongSatThuong);
+    
+    // Kiểm tra xem đã chết chưa
+    bool DaChet();
+}
 }
