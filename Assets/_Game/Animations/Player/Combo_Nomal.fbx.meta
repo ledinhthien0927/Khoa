@@ -90,32 +90,32 @@ ModelImporter:
           - serializedVersion: 3
             time: 0
             value: 0
-            inSlope: 0.050959315
-            outSlope: 0.050959315
-            tangentMode: 34
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
             weightedMode: 0
             inWeight: 0
-            outWeight: 0.33333334
-          - serializedVersion: 3
-            time: 99.81102
-            value: 5.0863013
-            inSlope: 0.0012308545
-            outSlope: 0.0012308545
-            tangentMode: 34
-            weightedMode: 0
-            inWeight: 0.33333334
-            outWeight: 0.33333334
-          - serializedVersion: 3
-            time: 203.01326
-            value: 0.08123958
-            inSlope: -0.048497606
-            outSlope: -0.048497606
-            tangentMode: 34
-            weightedMode: 0
-            inWeight: 0.33333334
             outWeight: 0
-          preInfinity: 2
-          postInfinity: 2
+          - serializedVersion: 3
+            time: 0.49985456
+            value: 5.0167108
+            inSlope: 0.0029182434
+            outSlope: 0.0029182434
+            tangentMode: 34
+            weightedMode: 0
+            inWeight: 0.33333334
+            outWeight: 0.33333334
+          - serializedVersion: 3
+            time: 1
+            value: 0
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          preInfinity: 3
+          postInfinity: 3
           rotationOrder: 4
       events: []
       transformMask: []
