@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 8fac32b51d0658b4992cc836e330f92d
+guid: d7f50454f5188714fa40cdd3f623d7a6
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
@@ -60,11 +60,11 @@ ModelImporter:
       maskSource: {instanceID: 0}
       additiveReferencePoseFrame: 0
     - serializedVersion: 16
-      name: atk_nm1.com
+      name: Block.com
       takeName: mixamo.com
       internalID: -203655887218126122
       firstFrame: 0
-      lastFrame: 68
+      lastFrame: 40
       wrapMode: 0
       orientationOffsetY: 0
       level: 0
