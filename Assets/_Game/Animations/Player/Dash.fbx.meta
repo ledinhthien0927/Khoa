@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 9d80626611030824eb25bf7fde2665a6
+guid: 45cf6527a151e0f449f4f9f42df9a4f2
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
@@ -60,11 +60,11 @@ ModelImporter:
       maskSource: {instanceID: 0}
       additiveReferencePoseFrame: 0
     - serializedVersion: 16
-      name: atkBlock.com
+      name: Dash.com
       takeName: mixamo.com
       internalID: -203655887218126122
       firstFrame: 0
-      lastFrame: 75
+      lastFrame: 26
       wrapMode: 0
       orientationOffsetY: 0
       level: 0
