@@ -1,190 +1,294 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
+// Đảm bảo có CharacterController và Animator
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(Animator))]
 public class PlayerHammerController : MonoBehaviour, IDamageable, ICombatState
 {
-    #region 1. CONFIGURATION (Cấu hình chỉ số)
-    [Header("Movement Stats")]
+    // =========================================================
+    // 1. CẤU HÌNH (SETTINGS)
+    // =========================================================
+    [Header("--- Movement ---")]
     public float moveSpeed = 5f;
-    public float rotationSpeed = 10f;
+    public float rotationSpeed = 15f; 
     public float gravity = -9.81f;
-    [Tooltip("Thời gian để đạt tốc độ tối đa (tạo cảm giác nặng)")]
-    public float accelerationTime = 0.2f; 
 
-    [Header("Dash / Dodge Stats")]
+    [Header("--- Dash ---")]
     public float dashSpeed = 15f;
     public float dashDuration = 0.4f;
     public float dashCooldown = 0.8f;
-    
-    [Header("Combat Stats")]
-    public string impulseCurveName = "ForwardImpulse"; // Tên Curve trong Animation
 
-    // Các biến nội bộ
+    [Header("--- Combat ---")]
+    public LayerMask enemyLayer;      // NHỚ CHỌN LAYER 'Enemy' Ở INSPECTOR
+    public float attackRadius = 1.5f; 
+    public float damageBase = 10f;
+    
+    // Tên các Parameter trong Animator (Phải trùng khớp 100%)
+    private readonly int hashSpeed = Animator.StringToHash("Speed");
+    private readonly int hashAttack = Animator.StringToHash("Attack");
+    private readonly int hashComboIndex = Animator.StringToHash("ComboIndex");
+    private readonly int hashDash = Animator.StringToHash("Dash");
+    private readonly int hashIsBlocking = Animator.StringToHash("IsBlocking");
+    private readonly int hashBlockHit = Animator.StringToHash("BlockHit");
+    private readonly int hashHit = Animator.StringToHash("Hit");
+
+    // =========================================================
+    // 2. BIẾN TRẠNG THÁI (STATE VARIABLES)
+    // =========================================================
+    public enum State { Idle, Moving, Attacking, Blocking, Dashing, Stunned }
+    [Header("--- Debug Info ---")]
+    public State currentState;
+
+    // Logic Combo & Hit-Run
+    public int comboIndex = 0;
+    private bool inputBuffered = false; 
+    private bool canMoveCancel = false; // Cho phép Hit & Run
+    private bool hasHitEnemy = false;
+    private List<GameObject> hitEnemies = new List<GameObject>();
+
+    // Logic Vật lý & Dash
+    private Vector3 gravityVelocity;
+    private float lastDashTime;
+    private bool isInvincible = false;
+
+    // Components
     private CharacterController characterController;
     private Animator animator;
     private Camera mainCam;
-    
-    private Vector3 currentVelocity; // Dùng cho SmoothDamp di chuyển
-    private Vector3 gravityVelocity;
-    private float smoothVelocityX, smoothVelocityZ; // Biến phụ cho SmoothDamp
-    #endregion
-
-    #region 2. STATE MANAGEMENT (Quản lý trạng thái)
-    public enum State { Idle, Moving, Attacking, Blocking, Dashing, Stunned }
-    [Header("Debug Info")]
-    public State currentState;
-    
-    // Trạng thái chiến đấu
-    private bool isInvincible = false; // Bất tử khi Dash
-    private bool isBlocking = false;
-    private float lastDashTime;
-    #endregion
 
     void Start()
     {
         characterController = GetComponent<CharacterController>();
         animator = GetComponent<Animator>();
-        mainCam = Camera.main;
+        mainCam = Camera.main; // Cần MainCamera trong Scene
         
-        // Khóa con trỏ chuột
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        // Ẩn chuột đi cho giống game hành động
+        // Cursor.lockState = CursorLockMode.Locked;
+        // Cursor.visible = false;
     }
 
     void Update()
     {
         if (currentState == State.Stunned) return;
 
-        // Xử lý trọng lực luôn luôn chạy
         HandleGravity();
 
-        // Máy trạng thái (State Machine)
         switch (currentState)
         {
             case State.Idle:
             case State.Moving:
-                HandleLocomotion(); // Đi lại bình thường
-                HandleActionInput(); // Nghe lệnh Đánh/Dash/Đỡ
+                HandleLocomotion(); // Xử lý di chuyển thường
+                HandleInput();      // Xử lý bấm nút Đánh/Dash/Đỡ
                 break;
 
             case State.Attacking:
-                ProcessAnimationMovement(); // Di chuyển theo Curve của Animation
-                // Không cho phép di chuyển WASD, nhưng có thể Dash để hủy đòn
-                if (Input.GetKeyDown(KeyCode.Space)) TryDash(); 
+                // [HIT AND RUN]: Nếu animation cho phép hủy (canMoveCancel) VÀ người chơi bấm đi
+                if (canMoveCancel && IsTryingToMove())
+                {
+                    EndCombo(); // Ngắt chiêu ngay lập tức
+                    return;
+                }
+                
+                ProcessAnimationMovement(); // Lao tới theo lực Animation Curve
+
+                if (Input.GetMouseButtonDown(0)) inputBuffered = true; // Lưu lệnh combo
+                if (Input.GetKeyDown(KeyCode.Space)) TryDash(); // Cho phép Dash hủy chiêu
                 break;
 
             case State.Blocking:
-                HandleBlockingMovement(); // Di chuyển chậm kiểu Strafe
-                HandleActionInput();
+                if (Input.GetMouseButtonUp(1)) EndBlock();
                 break;
 
             case State.Dashing:
-                // Logic Dash được xử lý trong Coroutine, ở đây không làm gì
+                // Dash chạy trong Coroutine riêng nên Update không cần làm gì
                 break;
         }
     }
 
-    // ----------------------------------------------------------------------
-    // PHẦN 3: LOCOMOTION (Di chuyển & Vật lý)
-    // ----------------------------------------------------------------------
+    // =========================================================
+    // 3. LOGIC DI CHUYỂN (CAMERA RELATIVE)
+    // =========================================================
     
-    void HandleLocomotion()
+    // Kiểm tra xem người chơi có đang bấm WASD không
+    bool IsTryingToMove()
     {
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
-        Vector3 inputDir = new Vector3(h, 0, v).normalized;
+        return new Vector3(h, 0, v).magnitude > 0.1f;
+    }
 
-        if (inputDir.magnitude >= 0.1f)
+    void HandleLocomotion()
+    {
+        if (IsTryingToMove())
         {
-            // 1. Xoay nhân vật theo hướng Camera
-            float targetAngle = Mathf.Atan2(inputDir.x, inputDir.z) * Mathf.Rad2Deg + mainCam.transform.eulerAngles.y;
-            float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref rotationSpeed, 0.1f);
-            transform.rotation = Quaternion.Euler(0, angle, 0);
+            float h = Input.GetAxisRaw("Horizontal");
+            float v = Input.GetAxisRaw("Vertical");
 
-            // 2. Tính hướng di chuyển
-            Vector3 moveDir = Quaternion.Euler(0, targetAngle, 0) * Vector3.forward;
+            // Tính hướng đi dựa trên Camera (để không bị ngược hướng khi lùi)
+            Vector3 camForward = mainCam.transform.forward;
+            Vector3 camRight = mainCam.transform.right;
+            camForward.y = 0; // Giữ nhân vật trên mặt đất
+            camRight.y = 0;
+            camForward.Normalize();
+            camRight.Normalize();
 
-            // 3. Di chuyển có gia tốc (SmoothDamp) -> Tạo cảm giác nặng
-            // Thay vì gán thẳng velocity, ta dùng SmoothDamp để tăng tốc từ từ
-            float targetSpeed = moveSpeed;
-            // (Bạn có thể thêm logic nhấn Shift để chạy nhanh ở đây)
+            Vector3 moveDir = (camForward * v + camRight * h).normalized;
 
-            characterController.Move(moveDir * targetSpeed * Time.deltaTime);
+            if (moveDir.magnitude > 0.1f)
+            {
+                // Xoay nhân vật
+                Quaternion targetRotation = Quaternion.LookRotation(moveDir);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
+
+                // Di chuyển
+                characterController.Move(moveDir * moveSpeed * Time.deltaTime);
+            }
 
             currentState = State.Moving;
-            animator.SetFloat("Speed", 1f, 0.1f, Time.deltaTime); // Blend animation mượt
+            animator.SetFloat(hashSpeed, 1f, 0.1f, Time.deltaTime);
         }
         else
         {
             currentState = State.Idle;
-            animator.SetFloat("Speed", 0f, 0.1f, Time.deltaTime);
+            animator.SetFloat(hashSpeed, 0f, 0.1f, Time.deltaTime);
         }
     }
 
     void HandleGravity()
     {
-        if (characterController.isGrounded && gravityVelocity.y < 0)
-        {
-            gravityVelocity.y = -2f; // Giữ nhân vật dính đất
-        }
+        if (characterController.isGrounded && gravityVelocity.y < 0) gravityVelocity.y = -2f;
         gravityVelocity.y += gravity * Time.deltaTime;
         characterController.Move(gravityVelocity * Time.deltaTime);
     }
 
-    // Hàm quan trọng: Đẩy nhân vật đi dựa trên Animation Curve
+    // Đọc Curve "ForwardImpulse" từ Animation để đẩy nhân vật tới
     void ProcessAnimationMovement()
     {
-        float speedFromCurve = animator.GetFloat(impulseCurveName);
-        if (speedFromCurve > 0.1f)
+        float speed = animator.GetFloat("ForwardImpulse");
+        if (speed > 0.01f)
         {
-            characterController.Move(transform.forward * speedFromCurve * Time.deltaTime);
+            characterController.Move(transform.forward * speed * Time.deltaTime);
         }
     }
 
-    void HandleBlockingMovement()
+    // =========================================================
+    // 4. LOGIC CHIẾN ĐẤU (COMBAT)
+    // =========================================================
+
+    void HandleInput()
     {
-        // Khi đỡ, nhân vật luôn hướng về phía trước camera (Strafe)
-        // Code xử lý di chuyển chậm sẽ thêm sau...
-        if (Input.GetMouseButtonUp(1)) 
-        {
-            currentState = State.Idle;
-            animator.SetBool("IsBlocking", false);
-        }
+        if (Input.GetKeyDown(KeyCode.Space)) { TryDash(); return; }
+        if (Input.GetMouseButtonDown(0)) StartAttack();
+        if (Input.GetMouseButton(1)) StartBlock();
     }
 
-    // ----------------------------------------------------------------------
-    // PHẦN 4: ACTION INPUT (Tấn công & Dash)
-    // ----------------------------------------------------------------------
-
-    void HandleActionInput()
+    void StartAttack()
     {
-        // --- DASH (Ưu tiên cao nhất) ---
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            TryDash();
-            return;
-        }
+        currentState = State.Attacking;
+        inputBuffered = false;
+        canMoveCancel = false; // Mới vào đánh thì khóa di chuyển
+        hitEnemies.Clear();
 
-        // --- ATTACK ---
-        if (Input.GetMouseButtonDown(0))
+        // Reset trigger Attack cũ để tránh lỗi spam
+        animator.ResetTrigger(hashAttack);
+        
+        animator.SetInteger(hashComboIndex, comboIndex);
+        animator.SetTrigger(hashAttack);
+    }
+
+    // --- CÁC HÀM SỰ KIỆN (ANIMATION EVENTS) ---
+
+    // [EVENT 1] OpenHitbox: Gọi tại frame bắt đầu vung búa
+    public void OpenHitbox()
+    {
+        CheckWeaponHit();
+    }
+
+    // [EVENT 2] OnRecoveryStart: Gọi ngay sau khi búa đi qua mục tiêu (Hit & Run)
+    public void OnRecoveryStart()
+    {
+        canMoveCancel = true; 
+    }
+
+    // [EVENT 3] CheckComboWindow: Gọi gần cuối animation
+    public void CheckComboWindow()
+    {
+        canMoveCancel = false;
+
+        // IN RA LOG ĐỂ KIỂM TRA GIÁ TRỊ TẠI THỜI ĐIỂM CHECK
+        Debug.Log($"CHECK COMBO: Đã bấm nút = {inputBuffered} | Đã trúng địch = {hasHitEnemy}");
+
+        if (inputBuffered && hasHitEnemy) 
         {
+            Debug.Log("--> ĐIỀU KIỆN THỎA MÃN! TĂNG COMBO.");
+            comboIndex++;
+            if (comboIndex > 2) comboIndex = 0;
             StartAttack();
         }
-
-        // --- BLOCK ---
-        if (Input.GetMouseButton(1))
+        else
         {
-            currentState = State.Blocking;
-            animator.SetBool("IsBlocking", true);
+            Debug.Log("--> KHÔNG ĐỦ ĐIỀU KIỆN. VỀ IDLE.");
+            // Cho phép Hit & Run lần cuối
+            canMoveCancel = true;
         }
     }
 
+    // [EVENT 4] EndCombo: Gọi ở Frame cuối cùng (SỬA LỖI MẤT RECEIVER)
+    public void EndCombo()
+    {
+        currentState = State.Idle;
+        comboIndex = 0;
+        animator.SetInteger(hashComboIndex, 0);
+        canMoveCancel = false;
+        inputBuffered = false;
+        hasHitEnemy = false;
+        
+        // Cưỡng chế về Idle animation để tránh kẹt
+        // animator.Play("Idle", 0, 0.2f); 
+    }
+
+    // --- XỬ LÝ VA CHẠM VŨ KHÍ ---
+    void CheckWeaponHit()
+    {
+        Vector3 center = transform.position + transform.forward * 1.0f;
+        Collider[] hits = Physics.OverlapSphere(center, attackRadius, enemyLayer);
+
+        foreach (var hit in hits)
+        {
+            if (!hitEnemies.Contains(hit.gameObject))
+            {
+                IDamageable damageable = hit.gameObject.GetComponent<IDamageable>();
+                if (damageable != null)
+                {
+                    // Đòn 3 dam to hơn
+                    float dmg = (comboIndex == 2) ? damageBase * 3f : damageBase;
+                    DamageType type = (comboIndex == 2) ? DamageType.Heavy : DamageType.Physical;
+
+                    // Gửi thông tin dam
+                    DamageInfo info = new DamageInfo { 
+                        amount = dmg, 
+                        attacker = gameObject, 
+                        hitPoint = hit.ClosestPoint(transform.position),
+                        hitDirection = transform.forward,
+                        knockbackForce = 5f,
+                        type = type
+                    };
+                    damageable.TakeDamage(info);
+                }
+                hitEnemies.Add(hit.gameObject);
+            }
+        }
+    }
+
+    // =========================================================
+    // 5. DASH & BLOCK
+    // =========================================================
+    
     void TryDash()
     {
         if (Time.time < lastDashTime + dashCooldown) return;
-
         StartCoroutine(DashRoutine());
     }
 
@@ -192,65 +296,67 @@ public class PlayerHammerController : MonoBehaviour, IDamageable, ICombatState
     {
         lastDashTime = Time.time;
         currentState = State.Dashing;
-        isInvincible = true; // BẬT BẤT TỬ (I-FRAME)
-        
-        animator.SetTrigger("Dash");
+        isInvincible = true;
+        animator.SetTrigger(hashDash);
 
-        // Hướng Dash: Theo hướng đang di chuyển hoặc lùi lại nếu đứng yên
+        // Hướng Dash (theo hướng di chuyển hoặc lùi lại)
         Vector3 dashDir = transform.forward;
         if (Input.GetAxisRaw("Vertical") < -0.1f) dashDir = -transform.forward;
-        // (Có thể mở rộng dash trái phải sau)
 
         float startTime = Time.time;
-
         while (Time.time < startTime + dashDuration)
         {
-            // Di chuyển Dash (Trượt nhanh)
             characterController.Move(dashDir * dashSpeed * Time.deltaTime);
             yield return null;
         }
 
-        isInvincible = false; // TẮT BẤT TỬ
+        isInvincible = false;
         currentState = State.Idle;
     }
 
-    void StartAttack()
+    void StartBlock()
     {
-        currentState = State.Attacking;
-        animator.SetTrigger("Attack");
-        // Logic Combo chi tiết sẽ thêm vào ở bước sau
+        currentState = State.Blocking;
+        animator.SetBool(hashIsBlocking, true);
     }
 
-    // ----------------------------------------------------------------------
-    // PHẦN 5: INTERFACE IMPLEMENTATION (Hợp đồng với Boss)
-    // ----------------------------------------------------------------------
+    void EndBlock()
+    {
+        currentState = State.Idle;
+        animator.SetBool(hashIsBlocking, false);
+    }
+
+    // =========================================================
+    // 6. INTERFACE & GIZMOS
+    // =========================================================
     
+    // Nhận sát thương (Interface)
     public HitResult TakeDamage(DamageInfo info)
     {
-        // 1. Check I-Frame (Dash)
         if (isInvincible) return HitResult.Miss;
 
-        // 2. Check Block
         if (currentState == State.Blocking)
         {
-            // Kiểm tra góc đỡ (ví dụ 120 độ phía trước)
             Vector3 dirToAttacker = (info.attacker.transform.position - transform.position).normalized;
             if (Vector3.Angle(transform.forward, dirToAttacker) < 60f)
             {
-                // Hiệu ứng đẩy lùi khi đỡ
-                animator.SetTrigger("BlockHit");
+                animator.SetTrigger(hashBlockHit);
                 return HitResult.Blocked;
             }
         }
 
-        // 3. Dính đòn
-        Debug.Log("Player hộc máu!");
-        animator.SetTrigger("Hit"); // Animation bị đánh
+        animator.SetTrigger(hashHit);
         return HitResult.Hit;
     }
 
-    // Interface ICombatState
     public bool IsInvincible() => isInvincible;
     public bool IsBlocking() => currentState == State.Blocking;
     public bool IsStunned() => currentState == State.Stunned;
+
+    // Vẽ vòng tròn tầm đánh
+    void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position + transform.forward * 1.0f, attackRadius);
+    }
 }
