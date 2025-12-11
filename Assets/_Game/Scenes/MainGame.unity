@@ -89309,7 +89309,12 @@ MonoBehaviour:
     m_Bits: 256
   attackRadius: 1.5
   damageBase: 10
+  requireHitToCombo: 0
   currentState: 0
+  comboIndex: 0
+  clickCount: 0
+  hasHitEnemy: 0
+  canMoveCancel: 1
 --- !u!1001 &1307156566
 PrefabInstance:
   m_ObjectHideFlags: 0
