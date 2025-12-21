@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(Animator))]
-public class PlayerHammerController : MonoBehaviour // Giả sử IDamageable, ICombatState nằm ở file khác
+public class PlayerHammerController : MonoBehaviour 
 {
     // =========================================================
     // 1. CẤU HÌNH (SETTINGS)
@@ -23,16 +23,17 @@ public class PlayerHammerController : MonoBehaviour // Giả sử IDamageable, I
     public LayerMask enemyLayer;
     public float attackRadius = 1.5f;
     public float damageBase = 10f;
-    public bool requireHitToCombo = false; // Tùy chọn: Có cần đánh trúng mới được combo không?
+    public bool requireHitToCombo = false; 
 
     // Hash Animator
     private readonly int hashSpeed = Animator.StringToHash("Speed");
+    private readonly int hashHorizontal = Animator.StringToHash("Horizontal"); // Dùng cho Blend Tree 2D
+    private readonly int hashVertical = Animator.StringToHash("Vertical");     // Dùng cho Blend Tree 2D
     private readonly int hashAttack = Animator.StringToHash("Attack");
     private readonly int hashComboIndex = Animator.StringToHash("ComboIndex");
     private readonly int hashDash = Animator.StringToHash("Dash");
     private readonly int hashBlocking = Animator.StringToHash("IsBlocking");
     private readonly int hashHit = Animator.StringToHash("Hit");
-    private readonly int hashBlockHit = Animator.StringToHash("BlockHit");
 
     // =========================================================
     // 2. BIẾN TRẠNG THÁI (STATE)
@@ -49,8 +50,6 @@ public class PlayerHammerController : MonoBehaviour // Giả sử IDamageable, I
     public bool canMoveCancel = false;
 
     private List<GameObject> hitEnemies = new List<GameObject>();
-    
-    // Tối ưu Physics: Dùng mảng cố định để tránh rác bộ nhớ
     private Collider[] hitCollidersBuffer = new Collider[10]; 
 
     // Components
@@ -76,20 +75,6 @@ public class PlayerHammerController : MonoBehaviour // Giả sử IDamageable, I
 
         ApplyGravity();
 
-        // --- CƠ CHẾ AN TOÀN (FAIL-SAFE) ---
-        // Nếu Code nghĩ là đang đánh, nhưng Animator đã về Idle/Run -> Reset ngay.
-        if (currentState == State.Attacking)
-        {
-            AnimatorStateInfo info = animator.GetCurrentAnimatorStateInfo(0);
-            // Kiểm tra nếu animation không phải là Attack và không đang chuyển tiếp
-            if (!info.IsTag("Attack") && !animator.IsInTransition(0) && info.normalizedTime > 0.9f) 
-            {
-                 // Đôi khi Event EndAttack bị miss, đây là chốt chặn cuối cùng
-                 // Tuy nhiên, cẩn thận kẻo nó reset khi animation vừa mới bắt đầu
-            }
-        }
-        // ------------------------------------
-
         switch (currentState)
         {
             case State.Idle:
@@ -99,19 +84,13 @@ public class PlayerHammerController : MonoBehaviour // Giả sử IDamageable, I
                 break;
 
             case State.Attacking:
-                // Hit & Run: Di chuyển để hủy hoạt ảnh thừa
                 if (canMoveCancel && IsTryingToMove())
                 {
-                    EndAttack(); // Reset ngay lập tức
-                    return;      // Xuống Update sau để bắt đầu logic di chuyển
+                    EndAttack(); 
+                    return;      
                 }
-
                 ProcessAnimationMove();
-
-                // Input Buffering: Đang đánh vẫn nhận lệnh bấm cho đòn sau
                 if (Input.GetMouseButtonDown(0)) clickCount++;
-                
-                // Dash hủy chiêu khẩn cấp
                 if (Input.GetKeyDown(KeyCode.Space)) TryDash();
                 break;
 
@@ -120,13 +99,12 @@ public class PlayerHammerController : MonoBehaviour // Giả sử IDamageable, I
                 break;
 
             case State.Dashing:
-                // Logic nằm trong Coroutine
                 break;
         }
     }
 
     // =========================================================
-    // 3. LOGIC DI CHUYỂN
+    // 3. LOGIC DI CHUYỂN (STRAFE MOVEMENT)
     // =========================================================
 
     Vector3 GetCameraRelativeInput()
@@ -142,26 +120,39 @@ public class PlayerHammerController : MonoBehaviour // Giả sử IDamageable, I
         return (camFwd * v + camRight * h).normalized;
     }
 
-    bool IsTryingToMove() => GetCameraRelativeInput().magnitude > 0.1f;
+    bool IsTryingToMove() => new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical")).magnitude > 0.1f;
 
     void HandleLocomotion()
     {
+        float h = Input.GetAxis("Horizontal"); // Giá trị mượt để Blend hoạt ảnh
+        float v = Input.GetAxis("Vertical");
         Vector3 moveDir = GetCameraRelativeInput();
 
+        // Xoay nhân vật: LUÔN HƯỚNG MẶT THEO CAMERA
+        Vector3 lookDir = mainCam.transform.forward;
+        lookDir.y = 0;
+        if (lookDir.magnitude > 0.1f)
+        {
+            Quaternion targetRotation = Quaternion.LookRotation(lookDir);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
+        }
+
+        // Di chuyển thực tế
         if (moveDir.magnitude > 0.1f)
         {
-            Quaternion targetRotation = Quaternion.LookRotation(moveDir);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
             characterController.Move(moveDir * moveSpeed * Time.deltaTime);
-
             currentState = State.Moving;
-            animator.SetFloat(hashSpeed, 1f, 0.1f, Time.deltaTime);
         }
         else
         {
             currentState = State.Idle;
-            animator.SetFloat(hashSpeed, 0f, 0.1f, Time.deltaTime);
         }
+
+        // Cập nhật Animator cho Blend Tree 2D
+        // h, v sẽ điều khiển việc đi tiến, lùi, trái, phải trong Blend Tree
+        animator.SetFloat(hashHorizontal, h, 0.1f, Time.deltaTime);
+        animator.SetFloat(hashVertical, v, 0.1f, Time.deltaTime);
+        animator.SetFloat(hashSpeed, new Vector2(h, v).magnitude, 0.1f, Time.deltaTime);
     }
 
     void ApplyGravity()
@@ -175,8 +166,7 @@ public class PlayerHammerController : MonoBehaviour // Giả sử IDamageable, I
 
     void ProcessAnimationMove()
     {
-        // Root Motion giả: Animator điều khiển tốc độ lướt tới
-        float speed = animator.GetFloat("ForwardImpulse"); // Cần set param này trong Animation Curve
+        float speed = animator.GetFloat("ForwardImpulse");
         if (speed > 0.01f)
             characterController.Move(transform.forward * speed * Time.deltaTime);
     }
@@ -188,14 +178,12 @@ public class PlayerHammerController : MonoBehaviour // Giả sử IDamageable, I
     void HandleCombatInput()
     {
         if (Input.GetKeyDown(KeyCode.Space)) { TryDash(); return; }
-
         if (Input.GetMouseButtonDown(0))
         {
             clickCount++; 
             comboIndex = 0;
             StartAttack();
         }
-
         if (Input.GetMouseButton(1)) StartBlock();
     }
 
@@ -206,12 +194,9 @@ public class PlayerHammerController : MonoBehaviour // Giả sử IDamageable, I
         canMoveCancel = false;
         hitEnemies.Clear();
 
-        // Tiêu thụ 1 lượt bấm
         clickCount = Mathf.Max(0, clickCount - 1);
-
         animator.SetInteger(hashComboIndex, comboIndex);
 
-        // Chỉ trigger cho đòn đầu tiên để bắt đầu State Machine
         if (comboIndex == 0)
         {
             animator.ResetTrigger(hashAttack);
@@ -219,12 +204,9 @@ public class PlayerHammerController : MonoBehaviour // Giả sử IDamageable, I
         }
     }
 
-    // [ANIMATION EVENT]
-    public void OpenHitbox()
+    public void OpenHitbox() // Animation Event
     {
         Vector3 center = transform.position + transform.forward * 1.0f;
-        
-        // Tối ưu: Dùng NonAlloc để không sinh rác bộ nhớ
         int hitCount = Physics.OverlapSphereNonAlloc(center, attackRadius, hitCollidersBuffer, enemyLayer);
 
         for(int i = 0; i < hitCount; i++)
@@ -232,53 +214,38 @@ public class PlayerHammerController : MonoBehaviour // Giả sử IDamageable, I
             GameObject hitObj = hitCollidersBuffer[i].gameObject;
             if (!hitEnemies.Contains(hitObj))
             {
-                // Giả lập Interface gây damage
-                // var damageable = hitObj.GetComponent<IDamageable>();
-                // if (damageable != null) { ... }
-                
-                Debug.Log($"Hit: {hitObj.name} | Damage: {(comboIndex == 2 ? damageBase * 3 : damageBase)}");
-
+                Debug.Log($"Hit: {hitObj.name} | Damage: {damageBase}");
                 hitEnemies.Add(hitObj);
                 hasHitEnemy = true;
             }
         }
     }
 
-    // [ANIMATION EVENT]
-    public void AllowEarlyExit()
-    {
-        canMoveCancel = true;
-    }
+    public void AllowEarlyExit() => canMoveCancel = true;
 
-    // [ANIMATION EVENT] CheckCombo
-    public void CheckCombo()
+    public void CheckCombo() // Animation Event
     {
         canMoveCancel = false;
-
-        // Logic cải tiến: Cho phép đánh trượt vẫn combo nếu tắt `requireHitToCombo`
         bool hitCondition = !requireHitToCombo || hasHitEnemy;
 
         if (clickCount > 0 && hitCondition)
         {
             comboIndex++;
             if (comboIndex > 2) comboIndex = 0;
-            StartAttack(); // Animator sẽ tự chuyển state dựa trên Int ComboIndex thay đổi
+            StartAttack(); 
         }
         else
         {
-            // Hết combo -> Cho phép hủy động tác thừa
             clickCount = 0;
             canMoveCancel = true;
         }
     }
 
-    // [ANIMATION EVENT]
-    public void EndAttack()
+    public void EndAttack() // Animation Event
     {
-        // Reset toàn bộ về trạng thái gốc
         currentState = State.Idle;
         comboIndex = 0;
-        clickCount = 0; 
+        clickCount = 0;
         animator.SetInteger(hashComboIndex, 0);
         canMoveCancel = false;
         hasHitEnemy = false;
@@ -291,8 +258,6 @@ public class PlayerHammerController : MonoBehaviour // Giả sử IDamageable, I
     void TryDash()
     {
         if (Time.time < lastDashTime + dashCooldown) return;
-        
-        // Ngắt coroutine cũ nếu có
         if (dashCoroutine != null) StopCoroutine(dashCoroutine);
         dashCoroutine = StartCoroutine(DashRoutine());
     }
@@ -303,80 +268,42 @@ public class PlayerHammerController : MonoBehaviour // Giả sử IDamageable, I
         currentState = State.Dashing;
         isInvincible = true;
 
-        animator.ResetTrigger(hashDash);
         animator.SetTrigger(hashDash);
 
-        // Xác định hướng Dash ngay lúc bấm
         Vector3 inputDir = GetCameraRelativeInput();
         Vector3 dashDir = (inputDir.magnitude > 0.1f) ? inputDir : transform.forward;
-        
-        // Xoay nhân vật theo hướng dash ngay lập tức
         transform.rotation = Quaternion.LookRotation(dashDir);
 
         float startTime = Time.time;
         while (Time.time < startTime + dashDuration)
         {
-            // AN TOÀN: Nếu bị choáng giữa chừng -> Ngắt Dash ngay
-            if (currentState == State.Stunned)
-            {
-                isInvincible = false;
-                yield break; 
-            }
-
+            if (currentState == State.Stunned) { isInvincible = false; yield break; }
             characterController.Move(dashDir * dashSpeed * Time.deltaTime);
             yield return null;
         }
 
         isInvincible = false;
-        
-        // Chỉ reset về Idle nếu chưa bị chuyển sang trạng thái khác (như Stun)
-        if (currentState == State.Dashing)
-        {
-            EndAttack(); // Gọi hàm này để dọn dẹp biến số luôn
-        }
+        if (currentState == State.Dashing) EndAttack();
     }
 
     void StartBlock() 
     { 
-        // Không block khi đang dash hoặc tấn công (trừ khi cho phép cancel)
         if(currentState == State.Dashing) return;
-        
-        currentState = State.Blocking; 
-        animator.SetBool(hashBlocking, true); 
-        // Reset trigger attack để tránh lỗi visual
+        currentState = State.Blocking;
+        animator.SetBool(hashBlocking, true);
         animator.ResetTrigger(hashAttack);
-        comboIndex = 0; // Hủy combo nếu block
+        comboIndex = 0;
     }
     
     void EndBlock() 
     { 
-        currentState = State.Idle; 
-        animator.SetBool(hashBlocking, false); 
+        currentState = State.Idle;
+        animator.SetBool(hashBlocking, false);
     }
 
-    // =========================================================
-    // 6. DEBUG & GIZMOS
-    // =========================================================
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position + transform.forward * 1.0f, attackRadius);
-    }
-    
-    // Hàm nhận damage giả lập
-    public void TakeDamageFromEnemy()
-    {
-        if (isInvincible) return;
-        // Logic tính toán block hướng...
-        // Nếu dính đòn:
-        currentState = State.Stunned;
-        animator.SetTrigger(hashHit);
-        // Cần có logic để thoát khỏi Stun (ví dụ sau 1 khoảng thời gian)
-        Invoke(nameof(RecoverFromStun), 0.5f);
-    }
-
-    void RecoverFromStun()
-    {
-        currentState = State.Idle;
     }
 }
