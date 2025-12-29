@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: b05d95b51b382d049beaa75b3da11724
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 164638
+  packageName: 2D Glowy Dissolve Shader Graph
+  packageVersion: 1.0
+  assetPath: Assets/Binary Lunar/Dissolve Shader Graph/Scenes/SampleScene/Main Camera
+    Profile.asset
+  uploadId: 357009

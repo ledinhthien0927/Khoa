@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: a72da17a16139604db738485e4e275dc
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 164638
+  packageName: 2D Glowy Dissolve Shader Graph
+  packageVersion: 1.0
+  assetPath: Assets/Binary Lunar/Dissolve Shader Graph/RenderPipeLine/2D Renderer_Renderer.asset
+  uploadId: 357009

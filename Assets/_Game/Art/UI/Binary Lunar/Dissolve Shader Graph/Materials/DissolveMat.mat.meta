@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 2aa7128bdd2dd9746933cd7f394bd7c7
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 164638
+  packageName: 2D Glowy Dissolve Shader Graph
+  packageVersion: 1.0
+  assetPath: Assets/Binary Lunar/Dissolve Shader Graph/Materials/DissolveMat.mat
+  uploadId: 357009
