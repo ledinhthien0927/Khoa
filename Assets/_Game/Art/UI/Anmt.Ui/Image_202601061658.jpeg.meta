@@ -1,12 +1,5 @@
 fileFormatVersion: 2
-guid: 921c75c47302777408ad7f46100c789a
-AssetOrigin:
-  serializedVersion: 1
-  productId: 160253
-  packageName: Classic RPG GUI
-  packageVersion: 1.1
-  assetPath: Assets/Classic_RPG_GUI/Parts/Mini_arrow_left2_t.png
-  uploadId: 445012
+guid: 79f8d75d57daafb49898a2b629895b0a
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -46,7 +39,7 @@ TextureImporter:
     mipBias: 0
     wrapU: 1
     wrapV: 1
-    wrapW: 1
+    wrapW: 0
   nPOTScale: 0
   lightmap: 0
   compressionQuality: 50
@@ -70,9 +63,9 @@ TextureImporter:
   compressionQualitySet: 0
   textureFormatSet: 0
   ignorePngGamma: 0
-  applyGammaDecoding: 1
+  applyGammaDecoding: 0
   swizzle: 50462976
-  cookieLightType: 1
+  cookieLightType: 0
   platformSettings:
   - serializedVersion: 4
     buildTarget: DefaultTexturePlatform
@@ -89,9 +82,9 @@ TextureImporter:
     forceMaximumCompressionQuality_BC6H_BC7: 0
   - serializedVersion: 4
     buildTarget: Standalone
-    maxTextureSize: 1024
+    maxTextureSize: 2048
     resizeAlgorithm: 0
-    textureFormat: 12
+    textureFormat: 10
     textureCompression: 1
     compressionQuality: 50
     crunchedCompression: 0
@@ -120,7 +113,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 0eca444f8057f7a4fb5eaa6e118ddcf7
+    spriteID: 5e97eb03825dee720800000000000000
     internalID: 0
     vertices: []
     indices: 

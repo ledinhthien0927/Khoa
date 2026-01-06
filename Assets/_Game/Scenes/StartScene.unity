@@ -225,6 +225,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ba27455c764e7eb4dbe0f17c19eeaab4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SceneLoader
+  startButton: {fileID: 509051052}
   loadingScreenPrefab: {fileID: 6419366514360943561, guid: 6cc136e24b7819145950300aae0fe175, type: 3}
   sceneName: LobbyScene
 --- !u!4 &297315551
