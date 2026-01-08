@@ -1,14 +1,11 @@
 using UnityEngine;
-using System; // Bắt buộc để dùng Action
+using System; 
 
 public class PlayerView : MonoBehaviour
 {
     [SerializeField] private Animator animator;
-
-    // Sự kiện gửi tín hiệu kèm Mật khẩu (Int) sang Controller
     public Action<int> OnAttackImpact; 
 
-    // Cập nhật Blend Tree Di chuyển
     public void UpdateMovementAnimation(float horizontal, float vertical)
     {
         if (animator == null) return;
@@ -16,30 +13,36 @@ public class PlayerView : MonoBehaviour
         animator.SetFloat("Vertical", vertical, 0.1f, Time.deltaTime);
     }
 
-    // Trigger Tấn công
     public void TriggerAttack()
     {
         if (animator) 
         {
-            animator.ResetTrigger("Attack"); // Reset để tránh kẹt
+            animator.ResetTrigger("Attack");
+            animator.ResetTrigger("CounterAttack"); 
             animator.SetTrigger("Attack");
         }
     }
 
-    // Bool Đỡ đòn
+    public void TriggerCounterAttack()
+    {
+        if (animator)
+        {
+            animator.ResetTrigger("Attack");
+            animator.SetTrigger("CounterAttack"); 
+        }
+    }
+
     public void SetBlocking(bool isBlocking)
     {
         if (animator) animator.SetBool("IsBlocking", isBlocking);
     }
 
-    // Trigger Nhảy/Lướt
     public void TriggerDash()
     {
         if (animator) animator.SetTrigger("Dash");
     }
 
-    // --- HÀM ANIMATION EVENT (QUAN TRỌNG) ---
-    // Gắn hàm này vào Animation Đòn 3, điền Int = 1
+    // Nhận Event từ Animation (Int = 1: Combo cuối, Int = 2: Phản kích)
     public void AE_TriggerImpact(int type)
     {
         OnAttackImpact?.Invoke(type);
