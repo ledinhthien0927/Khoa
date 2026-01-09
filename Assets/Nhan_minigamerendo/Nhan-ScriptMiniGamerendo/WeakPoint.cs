@@ -8,46 +8,36 @@ public class WeakPoint : MonoBehaviour
     public float endScale = 0.2f;
 
     [Header("References")]
-    // SỬA: Biến này dùng để tham chiếu đến thằng Con (Visual)
     public Transform visualTransform; 
     public SpriteRenderer targetSprite;
-    // MÀU SẮC
+    
+    [Header("Colors")]
     public Color startColor = new Color(0.8f, 1f, 1f, 1f);
     public Color perfectColor = Color.green;
     public Color lateColor = Color.yellow;
-    public Color failColor = Color.red;
-
+    
     private float timer;
     private bool isClicked = false;
 
-    // SỬA: Dùng OnEnable để Reset khi tái sử dụng
     void OnEnable()
     {
         timer = 0;
         isClicked = false;
         
-        // SỬA: Reset scale của thằng CON, chứ không phải thằng Cha
-        if (visualTransform != null)
-        {
-            visualTransform.localScale = Vector3.one * startScale;
-        }
-        
-        // Đảm bảo Reset Collider của thằng Cha về kích thước chuẩn (1)
+        if (visualTransform != null) visualTransform.localScale = Vector3.one * startScale;
         transform.localScale = Vector3.one; 
 
         if(targetSprite != null) targetSprite.color = startColor;
         gameObject.SetActive(true);
     }
-   void Update()
+
+    void Update()
     {
         if (isClicked) return;
 
         timer += Time.deltaTime;
         float progress = timer / lifetime;
 
-        // --- SỬA QUAN TRỌNG NHẤT ---
-        // Chỉ co nhỏ thằng Visual (Hình ảnh)
-        // Collider nằm ở "gameObject" (Cha) nên nó sẽ KHÔNG bị co lại
         if (visualTransform != null)
         {
             float currentScale = Mathf.Lerp(startScale, endScale, progress);
@@ -56,70 +46,75 @@ public class WeakPoint : MonoBehaviour
 
         UpdateColor(progress);
 
-        if (progress >= 1.0f) OnStrike(0);
+        // --- HẾT GIỜ (TIMEOUT) ---
+        if (progress >= 1.0f) 
+        {
+            // Báo cho Manager biết là bị Timeout để spawn cái mới
+            if (SmithingManager.Instance != null)
+            {
+                SmithingManager.Instance.HandleTimeout();
+            }
+            // Tự hủy
+            gameObject.SetActive(false);
+        }
     }
 
     void UpdateColor(float progress)
     {
         if (targetSprite == null) return;
-
-        // Logic đổi màu giữ nguyên, chỉ thay targetRing thành targetSprite
-        // (Copy lại logic ngưỡng perfectStart, lateStart... của bạn vào đây)
-        // Ví dụ rút gọn:
         if (progress < 0.5f) targetSprite.color = Color.Lerp(startColor, perfectColor, progress / 0.5f);
         else if (progress < 0.75f) targetSprite.color = perfectColor;
         else targetSprite.color = Color.Lerp(perfectColor, lateColor, (progress - 0.75f) / 0.15f);
     }
 
-    // SỬA: Dùng hàm này để bắt click chuột trực tiếp trên vật thể 3D/2D
-    // Yêu cầu vật thể phải có Collider (Xem Bước 2)
     void OnMouseDown()
     {
-        Debug.Log("Đã bấm trúng!");
         if (isClicked) return;
-        
-        // Tính điểm ở đây (Copy logic tính điểm cũ vào)
-        // Ví dụ:
+        isClicked = true;
+
         float progress = timer / lifetime;
-        int score = 10;
-        if (progress >= 0.3f && progress < 0.8f) // Ví dụ vùng Perfect
+        int score = 0; // Mặc định là trượt/kém
+        
+        // Vùng Perfect: 0.3 đến 0.8
+        if (progress >= 0.3f && progress < 0.8f) 
         {
-            score = 100; // <--- PHẢI LÀ 100 THÌ MỚI ĐƯỢC TÍNH
+            score = 100; 
         }
         else 
         {
-            score = 10; // Cái này đập chơi thôi, không tính vào điều kiện thắng
+            score = 10; // Đánh trúng nhưng không chuẩn
         }
 
-        OnStrike(score);
+        // Bắn Raycast lấy hướng
+        Vector3 hitNormal = Vector3.up;
+        Vector3 hitPoint = transform.position;
+
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        // Nếu dùng camera riêng:
+        // Ray ray = SmithingManager.Instance.smithingCamera.GetComponent<Camera>().ScreenPointToRay(Input.mousePosition);
+        
+        RaycastHit hit;
+        if (Physics.Raycast(ray, out hit))
+        {
+            hitNormal = hit.normal;
+            hitPoint = hit.point;
+        }
+
+        OnStrike(score, hitNormal);
     }
 
-  void OnStrike(int score)
+    void OnStrike(int score, Vector3 normal)
     {
-        if (score > 0)
+        // Luôn gọi Player để thực hiện hành động đập
+        // Kể cả điểm thấp cũng đập (để tạo hiệu ứng)
+        if (PlayerSmithing.Instance != null)
         {
-            // GỌI PLAYER THAY VÌ GỌI HAMMER CŨ
-            if (PlayerSmithing.Instance != null)
-            {
-                // Truyền vị trí của vòng tròn vào để Player xoay tới đó
-                PlayerSmithing.Instance.SmashAt(transform.position, score);
-            }
-        }
-        else
-        {
-            Debug.Log("Miss!");
+            PlayerSmithing.Instance.SmashAt(transform.position, normal, score);
         }
 
         gameObject.SetActive(false);
     }
-    void OnMouseEnter()
-    {
-        if(targetSprite != null) targetSprite.color = Color.red;
-    }
 
-    // Di chuột ra thì trả lại màu trắng
-    void OnMouseExit()
-    {
-        if(targetSprite != null) targetSprite.color = Color.white;
-    }
+    void OnMouseEnter() { if(targetSprite != null) targetSprite.color = Color.red; }
+    void OnMouseExit() { if(targetSprite != null) targetSprite.color = Color.white; }
 }
