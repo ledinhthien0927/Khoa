@@ -14,6 +14,11 @@ public class AudioManager : MonoBehaviour
 	public AudioClip portalIn;
 	public AudioClip portalOut;
 
+	[Header("------ UI SFX ------")]
+	public AudioClip buttonClickSound;
+	public AudioClip uvClickSound;
+
+
 	public static AudioManager instance;
 
 	private void Awake()
@@ -34,13 +39,28 @@ public class AudioManager : MonoBehaviour
 
 	private void Start()
 	{
+		if(musicSoucre != null && background != null)
+		{
 		musicSoucre.clip = background;
 		musicSoucre.Play();
-
+		}
 	}
 	
+	/// --------Play SFX chung -------
 	public void PlaySFX(AudioClip clip)
 	{
+		if (clip == null || SFXSoucre == null) return;
 		SFXSoucre.PlayOneShot(clip);
+	}
+
+	// ------ UI Button -----
+	public void Play_Button_Click()
+	{
+		PlaySFX(buttonClickSound);
+	}
+
+	public void Play_UV_Click()
+	{
+		PlaySFX(uvClickSound);
 	}
 }
