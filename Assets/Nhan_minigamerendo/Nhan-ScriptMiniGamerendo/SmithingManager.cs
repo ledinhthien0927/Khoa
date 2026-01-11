@@ -10,6 +10,11 @@ public class SmithingManager : MonoBehaviour
 
     [Header("--- UI & CAMERAS ---")]
     public GameObject smithingCanvas; 
+    
+    // --- MỚI: Biến chứa Canvas cần ẩn (ví dụ Lobby/Menu) ---
+    public GameObject otherCanvasToHide; 
+    // ------------------------------------------------------
+
     public GameObject heatingCanvas;  
     public GameObject heatingCamera;    
     public GameObject smithingCamera;   
@@ -26,7 +31,7 @@ public class SmithingManager : MonoBehaviour
     public TextMeshProUGUI countdownText; 
     public TextMeshProUGUI rankText;      
     public GameObject failPanel;         
-
+    public static bool IsLegendary = false;
     [Header("--- CƠ CHẾ BÓC VỎ (CUBE) ---")]
     public Transform rawIronBlock;      
     private Vector3 initialBlockScale;    
@@ -38,10 +43,8 @@ public class SmithingManager : MonoBehaviour
     public ParticleSystem completionVFX; 
     public AudioSource countAudio; 
 
-    // --- MỚI: BIẾN MÀU SẮC ĐỂ BẠN TỰ CHỈNH ---
-    public Color normalBlockColor = new Color(0.3f, 0.3f, 0.3f); // Mặc định là Xám Đậm
-    public Color failBlockColor = Color.black; // Màu khi thua (cháy đen)
-    // -----------------------------------------
+    public Color normalBlockColor = new Color(0.3f, 0.3f, 0.3f); 
+    public Color failBlockColor = Color.black; 
 
     [Header("--- POOLING ---")]
     public GameObject weakPointPrefab;   
@@ -74,6 +77,7 @@ public class SmithingManager : MonoBehaviour
         if (smithingCanvas != null) smithingCanvas.SetActive(false);
         if (smithingCamera != null) smithingCamera.SetActive(false);
 
+        // Lưu ý: Nếu bạn gọi StartHeatingPhase ở đây, nó cũng sẽ ẩn Canvas kia bên HeatingManager
         if (HeatingManager.Instance != null) HeatingManager.Instance.StartHeatingPhase();
     }
 
@@ -83,6 +87,11 @@ public class SmithingManager : MonoBehaviour
 
         if (heatingCanvas != null) heatingCanvas.SetActive(false);
         if (smithingCanvas != null) smithingCanvas.SetActive(true);
+
+        // --- MỚI: Ẩn Canvas phụ khi bắt đầu đập ---
+        if (otherCanvasToHide != null) otherCanvasToHide.SetActive(false);
+        // ------------------------------------------
+
         if (heatingCamera != null) heatingCamera.SetActive(false);
         if (smithingCamera != null) smithingCamera.SetActive(true);
 
@@ -98,7 +107,6 @@ public class SmithingManager : MonoBehaviour
             rawIronBlock.localScale = initialBlockScale; 
         }
 
-        // --- ÁP DỤNG MÀU MỚI BẠN CHỌN ---
         if (blockRenderer != null) 
             blockRenderer.material.color = normalBlockColor; 
 
@@ -211,10 +219,10 @@ public class SmithingManager : MonoBehaviour
             if (rawIronBlock != null) rawIronBlock.gameObject.SetActive(false);
 
             string rank = "COMMON"; Color c = Color.gray;
-            if (currentTime >= totalTime * 0.6f) { rank = "HUYỀN THOẠI"; c = Color.cyan; }
-            else if (currentTime >= totalTime * 0.3f) { rank = "SỬ THI"; c = Color.magenta; }
+            if (currentTime >= totalTime * 0.6f) { rank = "HUYỀN THOẠI"; c = Color.cyan;IsLegendary = true; }
+            else if (currentTime >= totalTime * 0.3f) { rank = "SỬ THI"; c = Color.magenta; IsLegendary = false;}
             
-            if (rankText != null) { rankText.text = rank; rankText.color = c; rankText.gameObject.SetActive(true); }
+            if (rankText != null) { rankText.text = rank; rankText.color = c; rankText.gameObject.SetActive(true); IsLegendary = false;}
             if (completionVFX != null) completionVFX.Play();
 
             Debug.Log("WIN - Rank: " + rank);
@@ -223,7 +231,6 @@ public class SmithingManager : MonoBehaviour
         else
         {
             Debug.Log("LOSE");
-            // Đổi thành màu Fail bạn chọn
             if (blockRenderer != null) blockRenderer.material.color = failBlockColor; 
             if (failPanel != null) failPanel.SetActive(true);
             Invoke("RestartHeating", 2.0f);

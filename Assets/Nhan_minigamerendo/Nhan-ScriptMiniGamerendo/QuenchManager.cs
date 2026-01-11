@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro; 
 using System.Collections;
+using System.Collections.Generic; 
 
 public class QuenchManager : MonoBehaviour
 {
@@ -9,92 +10,151 @@ public class QuenchManager : MonoBehaviour
 
     [Header("Connection")]
     public ShowcaseResult showcaseManager; 
-    
-    [Header("Item Data")]
-    // Kéo Prefab vật phẩm hoàn chỉnh vào đây (Ví dụ: Prefab cây kiếm đẹp)
     public GameObject finishedItemPrefab; 
 
-    public float hammerScore = 85f; 
-    public float heatScore = 90f;
-
-    [Header("UI References")]
+    [Header("UI - Main")]
     public GameObject quenchCanvas;
+    public GameObject backgroundCanvas; 
     
-    [Header("Cinematic & Camera")]
-    public GameObject mainCamera;    
-    public GameObject quenchCamera;  
-    public GameObject tongsAndItem;  
-    public Animator tongsAnimator;   
-    public TextMeshProUGUI countdownText; 
+    [Header("UI - Gameplay Bar")]
+    public GameObject quenchPanel;      
+    public RectTransform barBG;         
+    public RectTransform targetZone;    
+    public RectTransform perfectLine;   
+    public RectTransform cursor;        
+    public TextMeshProUGUI rangePreviewText; 
+
+    [Header("UI - Stat Panel (QUAN TRỌNG)")]
+    public RectTransform statPanelRect; // Kéo cái bảng chứa 3 dòng chỉ số vào đây
     
-    // --- QUAN TRỌNG: Cần bật lại cái này để hiện Rank lúc chờ 2s ---
-    public TextMeshProUGUI localRankText; 
+    [Header("UI - REWARD BUTTONS")]
+    public GameObject[] rewardButtons; 
+    public TextMeshProUGUI[] statLines; 
+    public Image[] skullImages; 
+    public GameObject[] hoverFrames;
+    public GameObject[] selectedFrames;
 
-    [Header("UI References - Minigame")]
-    public RectTransform barBG;       
-    public RectTransform cursor;      
-    public RectTransform targetZone;  
-    public GameObject quenchPanel;    
-    public AudioSource hissAudio;
-    public AudioSource countAudio;    
+    [Header("UI - SPRITES & TEXT")]
+    public Sprite skullNormalSprite;   
+    public Sprite skullGlowingSprite;  
+    public TextMeshProUGUI resultText; 
+    public TextMeshProUGUI titleText;  
 
-    [Header("Game Settings")]
-    public float moveSpeed = 300f;    
-    public int requiredSuccess = 3;   
+    [Header("Visuals & Audio")]
+    public GameObject mainCamera;       
+    public GameObject quenchCamera;     
+    public GameObject tongsAndItem;     
+    public Animator tongsAnimator;      
+    public Renderer ingotRenderer;      
+    public ParticleSystem steamEffect;  
+    public AudioSource hissAudio;       
+    public AudioSource hitAudio;        
+    public AudioSource missAudio;
+    public AudioSource bonusAudio; 
+    public Button confirmButton; 
 
-    [Header("Visuals")]
-    public Renderer ingotRenderer;    
-    public ParticleSystem steamEffect;
+    [Header("Settings")]
+    public float moveSpeed = 500f;      
+    public int minBaseStat = 10;
+    public int maxBaseStat = 50;
+    
+    [Tooltip("Độ phóng to: 1.5 là to gấp rưỡi")]
+    public float panelScaleEnd = 1.5f; 
+    [Tooltip("Thời gian bảng bay ra")]
+    public float animDuration = 0.8f;
 
-    // Biến nội bộ
     private bool movingRight = true;
-    private int currentSuccess = 0;
-    private int currentScore = 100; 
+    private List<string> collectedStats = new List<string>(); 
     private bool isGameActive = false; 
     private bool readyToQuench = false; 
-    private Color hotColor = Color.red; 
-    private Color coolColor = Color.black; 
+    private float barWidth;
+    private bool isBonusActive = false; 
+    
+    // Lưu vị trí và scale ban đầu để reset khi chơi lại
+    private Vector2 startPanelPos;
+    private Vector3 startPanelScale; 
+    
+    private int picksAllowed = 1;     
+    private int currentPicks = 0;     
+    private bool[] isLineSelected = new bool[3]; 
 
     void Awake() { Instance = this; }
 
     void Start()
     {
+        // Lưu lại vị trí ban đầu của bảng (Vị trí bạn đặt trong Editor)
+        if (statPanelRect != null) 
+        {
+            startPanelPos = statPanelRect.anchoredPosition;
+            startPanelScale = statPanelRect.localScale;
+        }
+
         if (quenchPanel != null) quenchPanel.SetActive(false);
-        if (countdownText != null) countdownText.gameObject.SetActive(false);
-        if (localRankText != null) localRankText.gameObject.SetActive(false); // Ẩn rank text ban đầu
-        
         if (quenchCamera != null) quenchCamera.SetActive(false);
         if (tongsAndItem != null) tongsAndItem.SetActive(false);
+        if (barBG != null) barWidth = barBG.rect.width;
+        if (confirmButton != null) {
+            confirmButton.gameObject.SetActive(false); 
+            confirmButton.onClick.AddListener(OnConfirmClicked);
+        }
+        ResetUI();
     }
-
-    // ... (Giữ nguyên phần StartQuenchSequence, Update, MoveCursor, CheckHit ...)
 
     public void StartQuenchSequence()
     {
-        // ... (Giữ nguyên code cũ của bạn) ...
         if (mainCamera != null) mainCamera.SetActive(false);         
         if (quenchCamera != null) quenchCamera.SetActive(true);
         if (quenchCanvas != null) quenchCanvas.SetActive(true);
+        if (backgroundCanvas != null) backgroundCanvas.SetActive(true);
         if (tongsAndItem != null) tongsAndItem.SetActive(true);
-        if (ingotRenderer != null) ingotRenderer.material.color = hotColor;
+
+        collectedStats.Clear();
+        ResetUI();
+        
+        // Trả bảng về vị trí cũ và kích thước cũ (Reset)
+        if (statPanelRect != null) {
+            statPanelRect.anchoredPosition = startPanelPos;
+            statPanelRect.localScale = Vector3.one; 
+        }
+
+        CheckLegendaryBonus();
+        UpdateRangeText();
+
+        if (resultText != null) {
+            resultText.text = isBonusActive ? "<color=yellow>LEGENDARY BONUS!</color>" : "NHẤN SPACE!";
+            if (isBonusActive && bonusAudio) bonusAudio.Play();
+        }
+        
+        RandomizeTargetZone();
         readyToQuench = true;
-        currentScore = 100; 
+    }
+
+    void CheckLegendaryBonus()
+    {
+        if (HeatingManager.IsLegendary && SmithingManager.IsLegendary) isBonusActive = true;
+        else isBonusActive = false;
+    }
+
+    void UpdateRangeText()
+    {
+        if (rangePreviewText != null) {
+            int min = isBonusActive ? minBaseStat + 10 : minBaseStat;
+            int max = isBonusActive ? maxBaseStat + 20 : maxBaseStat;
+            rangePreviewText.text = $"Phạm vi: <color=yellow>{min} - {max}</color>";
+        }
     }
 
     void Update()
     {
-        // ... (Giữ nguyên code cũ của bạn) ...
-        // GIAI ĐOẠN 1: CHỜ SPACE ĐẦU TIÊN
         if (readyToQuench) {
             if (Input.GetKeyDown(KeyCode.Space)) {
                 readyToQuench = false; 
                 if (tongsAnimator != null) tongsAnimator.SetTrigger("Dig");
-                StartCoroutine(CountdownRoutine());
+                StartActualGame();
             }
             return; 
         }
 
-        // GIAI ĐOẠN 2: GAMEPLAY
         if (!isGameActive) return;
 
         MoveCursor();
@@ -105,97 +165,209 @@ public class QuenchManager : MonoBehaviour
         }
     }
 
-    IEnumerator CountdownRoutine()
-    {
-        // ... (Giữ nguyên code cũ của bạn) ...
-        yield return new WaitForSeconds(1.0f);
-        if (countdownText != null) {
-            countdownText.gameObject.SetActive(true);
-            countdownText.text = "3"; yield return new WaitForSeconds(1.0f);
-            countdownText.text = "2"; yield return new WaitForSeconds(1.0f);
-            countdownText.text = "1"; yield return new WaitForSeconds(1.0f);
-            countdownText.gameObject.SetActive(false);
-        }
-        StartActualGame();
+    void MoveCursor() 
+    { 
+        if (cursor == null) return;
+        float limitX = (barWidth / 2) - (cursor.rect.width / 2); 
+        float currentX = cursor.anchoredPosition.x; 
+        
+        if (movingRight) { 
+            currentX += moveSpeed * Time.deltaTime; 
+            if (currentX >= limitX) movingRight = false; 
+        } else { 
+            currentX -= moveSpeed * Time.deltaTime; 
+            if (currentX <= -limitX) movingRight = true; 
+        } 
+        cursor.anchoredPosition = new Vector2(currentX, 0); 
     }
 
-    void StartActualGame()
+    void RandomizeTargetZone()
     {
-        // ... (Giữ nguyên code cũ của bạn) ...
-        isGameActive = true;
-        currentSuccess = 0;
-        if (quenchPanel != null) quenchPanel.SetActive(true);
+        if (targetZone == null) return;
+        float safeMargin = targetZone.rect.width / 2 + 50f;
+        float range = (barWidth / 2) - safeMargin;
+        float randomX = Random.Range(-range, range);
+        targetZone.anchoredPosition = new Vector2(randomX, 0);
+        if (perfectLine != null) perfectLine.anchoredPosition = Vector2.zero;
     }
-    
-    void MoveCursor() { /*... Giữ nguyên ...*/ float limitX = (barBG.rect.width / 2) - (cursor.rect.width / 2); float currentX = cursor.anchoredPosition.x; if (movingRight) { currentX += moveSpeed * Time.deltaTime; if (currentX >= limitX) movingRight = false; } else { currentX -= moveSpeed * Time.deltaTime; if (currentX <= -limitX) movingRight = true; } cursor.anchoredPosition = new Vector2(currentX, 0); }
 
     void CheckHit()
     {
-        float dist = Mathf.Abs(cursor.anchoredPosition.x - targetZone.anchoredPosition.x);
-        
-        if (dist <= targetZone.rect.width / 2) 
-        {
-            currentSuccess++;
-            PlayEffects(); 
-            
-            if (ingotRenderer != null) {
-                 float p = (float)currentSuccess / requiredSuccess;
-                 ingotRenderer.material.color = Color.Lerp(hotColor, coolColor, p);
-            }
+        isGameActive = false; 
+        float distance = Mathf.Abs(cursor.anchoredPosition.x - targetZone.anchoredPosition.x);
+        float perfectThreshold = (perfectLine != null) ? perfectLine.rect.width / 2 + 10f : 15f; 
+        float goodThreshold = targetZone.rect.width / 2;
+        float accuracy = 1.0f - (distance / goodThreshold);
+        accuracy = Mathf.Clamp01(accuracy);
 
-            // --- SỬA Ở ĐÂY: Gọi Coroutine thay vì hàm void ---
-            if (currentSuccess >= requiredSuccess) StartCoroutine(WinGameSequence());
-            else moveSpeed += 50f;
+        if (distance <= perfectThreshold) {
+            Debug.Log("PERFECT!");
+            if (resultText != null) { resultText.text = "PERFECT!"; resultText.color = Color.cyan; }
+            if (hitAudio != null) hitAudio.Play();
+            GenerateAndAddStat(accuracy); 
+        } else if (distance <= goodThreshold) {
+            Debug.Log("GOOD!");
+            if (resultText != null) { resultText.text = "GOOD"; resultText.color = Color.green; }
+            if (hitAudio != null) hitAudio.Play();
+            GenerateAndAddStat(accuracy);
+        } else {
+            Debug.Log("MISS!");
+            if (resultText != null) { resultText.text = "MISS!"; resultText.color = Color.red; }
+            if (missAudio != null) missAudio.Play();
+            RemoveLastStat();
         }
-        else
+
+        PlayEffects();
+        UpdateStatUI(); 
+
+        if (collectedStats.Count >= 3) StartCoroutine(WinAnimationSequence());
+        else StartCoroutine(ContinueGameDelay());
+    }
+
+    void GenerateAndAddStat(float accuracy)
+    {
+        string type = "Sát thương"; 
+        int min = minBaseStat; int max = maxBaseStat;
+        if (isBonusActive) { min += 15; max += 30; }
+        
+        float rawValue = Mathf.Lerp(min, max, accuracy);
+        int value = Mathf.RoundToInt(rawValue);
+
+        string colorHex = "#FFFFFF"; 
+        if (value >= max * 0.9f) colorHex = "#FF0000"; 
+        else if (value >= max * 0.7f) colorHex = "#A020F0"; 
+        else if (value >= max * 0.4f) colorHex = "#00FFFF"; 
+        
+        string statString = $"<color={colorHex}>+{value} {type}</color>";
+        if (collectedStats.Count < 3) collectedStats.Add(statString);
+    }
+
+    void RemoveLastStat() { if (collectedStats.Count > 0) collectedStats.RemoveAt(collectedStats.Count - 1); }
+
+    void UpdateStatUI()
+    {
+        for (int i = 0; i < 3; i++)
         {
-            currentScore -= 10; 
-            Debug.Log("Miss! Điểm còn: " + currentScore);
+            if (statLines[i] != null) statLines[i].text = (i < collectedStats.Count) ? collectedStats[i] : "---";
+            if (skullImages[i] != null)
+            {
+                skullImages[i].color = Color.white;
+                skullImages[i].sprite = (i < collectedStats.Count) ? skullGlowingSprite : skullNormalSprite;
+            }
         }
+    }
+    
+    void ResetUI()
+    {
+        currentPicks = 0;
+        for(int i=0; i<3; i++) isLineSelected[i] = false;
+        for(int i=0; i<3; i++) {
+            if (hoverFrames[i] != null) hoverFrames[i].SetActive(false);
+            if (selectedFrames[i] != null) selectedFrames[i].SetActive(false);
+        }
+        UpdateStatUI();
+    }
+
+    IEnumerator WinAnimationSequence() 
+    { 
+        isGameActive = false; 
+        if (resultText != null) resultText.text = "";
+        yield return new WaitForSeconds(0.5f);
+
+        if (quenchPanel != null) quenchPanel.SetActive(false);
+        if (tongsAndItem != null) tongsAndItem.SetActive(false);
+
+        // --- ANIMATION BAY RA GIỮA VÀ ZOOM ---
+        if (statPanelRect != null)
+        {
+            float elapsed = 0;
+            Vector2 startPos = statPanelRect.anchoredPosition;
+            Vector3 startScale = statPanelRect.localScale;
+            
+            // Đích đến: Vector2.zero (Giữa màn hình - nếu neo đúng)
+            Vector2 endPos = Vector2.zero; 
+            Vector3 targetScale = Vector3.one * panelScaleEnd; // Phóng to
+
+            while (elapsed < animDuration) {
+                float t = elapsed / animDuration;
+                t = t * t * (3f - 2f * t); // Smooth step
+
+                statPanelRect.anchoredPosition = Vector2.Lerp(startPos, endPos, t);
+                statPanelRect.localScale = Vector3.Lerp(startScale, targetScale, t);
+
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+            
+            statPanelRect.anchoredPosition = endPos;
+            statPanelRect.localScale = targetScale;
+        }
+        // -----------------------------
+
+        for (int i = 0; i < 3; i++) if(skullImages[i] != null) skullImages[i].sprite = skullNormalSprite;
+
+        picksAllowed = isBonusActive ? 3 : 1; 
+        if (titleText != null) titleText.text = $"BẠN ĐƯỢC CHỌN: {picksAllowed} DÒNG";
+
+        if (confirmButton != null) confirmButton.gameObject.SetActive(true);
+
+        foreach(var btn in rewardButtons) {
+            CanvasGroup cg = btn.GetComponent<CanvasGroup>();
+            if(cg == null) cg = btn.AddComponent<CanvasGroup>();
+            cg.blocksRaycasts = true;
+            cg.interactable = true;
+        }
+    }
+
+    public void OnRewardHoverEnter(int index)
+    {
+        if (!isLineSelected[index] && index < hoverFrames.Length && hoverFrames[index] != null)
+            hoverFrames[index].SetActive(true);
+    }
+
+    public void OnRewardHoverExit(int index)
+    {
+        if (index < hoverFrames.Length && hoverFrames[index] != null)
+            hoverFrames[index].SetActive(false);
+    }
+
+    public void OnRewardClick(int index)
+    {
+        if (isLineSelected[index]) {
+            isLineSelected[index] = false;
+            currentPicks--;
+        } else {
+            if (currentPicks < picksAllowed) {
+                isLineSelected[index] = true;
+                currentPicks++;
+            } else {
+                return; 
+            }
+        }
+        UpdateRewardVisuals(index);
+    }
+
+    void UpdateRewardVisuals(int index)
+    {
+        if (selectedFrames[index] != null) selectedFrames[index].SetActive(isLineSelected[index]);
+        if (isLineSelected[index] && hoverFrames[index] != null) hoverFrames[index].SetActive(false);
+        if (skullImages[index] != null) skullImages[index].sprite = isLineSelected[index] ? skullGlowingSprite : skullNormalSprite;
+    }
+
+    public void OnConfirmClicked()
+    {
+        if (quenchCanvas != null) quenchCanvas.SetActive(false);
+        if (backgroundCanvas != null) backgroundCanvas.SetActive(false);
+        if (showcaseManager != null) showcaseManager.ShowResult(finishedItemPrefab, 100, 100, 100); 
     }
 
     void PlayEffects() { if(hissAudio) hissAudio.PlayOneShot(hissAudio.clip); StartCoroutine(PlaySteamDelayed()); }
-    IEnumerator PlaySteamDelayed() { yield return new WaitForSeconds(1f); if(steamEffect) steamEffect.Play(); }
-
-    // --- LOGIC MỚI: Xử lý delay và swap item ---
-    IEnumerator WinGameSequence() 
-    { 
-        isGameActive = false; 
-
-        // 1. Tính toán điểm trung bình để hiện Rank tạm
-        float avgScore = (hammerScore + heatScore + currentScore) / 3f;
-        string rankString = "B";
-        Color rankColor = Color.white;
-
-        if (avgScore >= 90) { rankString = "S"; rankColor = Color.yellow; } // Orange/Gold
-        else if (avgScore >= 70) { rankString = "A"; rankColor = Color.green; }
-
-        // 2. Hiện Rank lên UI của Quench để người chơi thấy
-        if (localRankText != null)
-        {
-            localRankText.text = rankString;
-            localRankText.color = rankColor;
-            localRankText.gameObject.SetActive(true);
-            
-            // Có thể thêm hiệu ứng scale text ở đây cho đẹp
-        }
-
-        // 3. CHỜ 2 GIÂY (Theo yêu cầu)
-        yield return new WaitForSeconds(2.0f);
-
-        // --- Bắt đầu chuyển cảnh ---
-
-        // 4. Dọn dẹp hiện trường Quench (Ẩn kìm, ẩn phôi sắt)
-        if (quenchCanvas != null) quenchCanvas.SetActive(false); 
-        if (tongsAndItem != null) tongsAndItem.SetActive(false); 
-        
-        // Lưu ý: Ta không dùng ingotRenderer (phôi sắt) nữa vì sẽ spawn item mới
-        
-        // 5. GỌI SHOWCASE
-        if (showcaseManager != null)
-        {
-            // Truyền: Prefab thành phẩm, Các điểm số
-            showcaseManager.ShowResult(finishedItemPrefab, hammerScore, heatScore, (float)currentScore);
-        }
+    IEnumerator PlaySteamDelayed() { yield return new WaitForSeconds(0.5f); if(steamEffect) steamEffect.Play(); }
+    IEnumerator ContinueGameDelay() {
+        yield return new WaitForSeconds(1.0f);
+        RandomizeTargetZone(); 
+        isGameActive = true;
+        if (resultText != null) resultText.text = "...";
     }
+    void StartActualGame() { isGameActive = true; if (quenchPanel != null) quenchPanel.SetActive(true); }
 }
