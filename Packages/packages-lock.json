@@ -6,6 +6,7 @@
       "source": "builtin",
       "dependencies": {}
     },
+<<<<<<< HEAD
     "com.unity.2d.tilemap": {
       "version": "1.0.0",
       "depth": 0,
@@ -15,6 +16,8 @@
         "com.unity.modules.uielements": "1.0.0"
       }
     },
+=======
+>>>>>>> origin/nhan_dev_minigame_saufix
     "com.unity.ai.navigation": {
       "version": "2.0.9",
       "depth": 0,

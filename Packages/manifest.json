@@ -1,7 +1,10 @@
 {
   "dependencies": {
     "com.unity.2d.sprite": "1.0.0",
+<<<<<<< HEAD
     "com.unity.2d.tilemap": "1.0.0",
+=======
+>>>>>>> origin/nhan_dev_minigame_saufix
     "com.unity.ai.navigation": "2.0.9",
     "com.unity.collab-proxy": "2.10.1",
     "com.unity.ide.rider": "3.0.38",
