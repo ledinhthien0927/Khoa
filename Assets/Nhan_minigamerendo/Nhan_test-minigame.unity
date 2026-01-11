@@ -19108,11 +19108,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 23fe41f02c68f554d8e964cee0a11ec4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HammerController
-  moveSpeed: 11.4
-  strikeSpeed: 0.1
-  impactOffset: {x: 0.19, y: 0.67, z: -0.63}
-  raiseOffset: -45
-  hitOffset: 45
 --- !u!4 &696732061
 Transform:
   m_ObjectHideFlags: 0
@@ -28297,7 +28292,7 @@ MonoBehaviour:
   countAudio: {fileID: 0}
   normalBlockColor: {r: 0.3, g: 0.3, b: 0.3, a: 1}
   failBlockColor: {r: 0.12545851, g: 0.108686335, b: 0.16226411, a: 1}
-  weakPointPrefab: {fileID: 3665950559445461450, guid: 8320638434f8d7e458ba121cacdb7425, type: 3}
+  weakPointPrefab: {fileID: 3665950559445461450, guid: d5331a2f9494d844e93bf7f4001053d2, type: 3}
   poolAmount: 10
 --- !u!4 &1558056162
 Transform:
