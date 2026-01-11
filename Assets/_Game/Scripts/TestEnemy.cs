@@ -6,74 +6,75 @@ public class TestEnemy : MonoBehaviour, IDamageable
 {
     private Rigidbody _rb;
     private Renderer _renderer;
-    private Animator _animator; // Thêm biến Animator
+    private Animator _animator;
     private Color _originalColor;
     private bool _isStunned;
 
     void Awake()
     {
         _rb = GetComponent<Rigidbody>();
-        _renderer = GetComponentInChildren<Renderer>(); // Tìm ở cả con (vì Model thường là con)
+        _renderer = GetComponentInChildren<Renderer>();
         _animator = GetComponent<Animator>();
-        
         if (_renderer != null) _originalColor = _renderer.material.color;
+        _rb.constraints = RigidbodyConstraints.FreezeRotation; 
+    }
+
+    void LateUpdate()
+    {
+        // Luôn đứng thẳng
+        if (transform.rotation.x != 0 || transform.rotation.z != 0)
+        {
+            Vector3 currentRot = transform.rotation.eulerAngles;
+            transform.rotation = Quaternion.Euler(0, currentRot.y, 0);
+        }
     }
 
     public HitResult TakeDamage(DamageInfo info)
     {
         if (_isStunned) return HitResult.Ignored;
 
-        // 1. HIỆU ỨNG MÀU
         StartCoroutine(FlashColor(Color.red, 0.2f));
 
-        // 2. TẮT ANIMATOR TẠM THỜI (Để vật lý hoạt động)
-        // Nếu không tắt, Animation sẽ cố giữ nhân vật đứng yên tại chỗ
         if (_animator != null) _animator.enabled = false;
-
-        // 3. XỬ LÝ VẬT LÝ
-        _rb.linearVelocity = Vector3.zero; // Reset quán tính cũ
+        _rb.linearVelocity = Vector3.zero;
         _rb.angularVelocity = Vector3.zero;
 
-        // Đẩy!
+        // Xử lý Lực đẩy
         if (info.hitDirection == Vector3.up)
         {
-            // Hất tung
-            _rb.AddForce(Vector3.up * info.knockbackForce, ForceMode.Impulse);
+            // Hất tung (Skill E hoặc Jump Smash)
+            _rb.AddForce(Vector3.up * info.knockbackForce, ForceMode.VelocityChange);
         }
         else
         {
-            // Đẩy lùi (Giữ nguyên Y để nó nảy lên một chút cho đẹp)
-            Vector3 forceDir = info.hitDirection + Vector3.up * 0.2f; 
-            _rb.AddForce(forceDir.normalized * info.knockbackForce, ForceMode.Impulse);
+            Vector3 finalForce = info.hitDirection + (Vector3.up * 0.2f); 
+            _rb.AddForce(finalForce.normalized * info.knockbackForce, ForceMode.VelocityChange);
         }
 
-        // 4. HỒI PHỤC (Sau khi bị đẩy thì đứng dậy)
-        // Nếu là Stun thì lâu hơn, nếu đẩy thường thì 0.5s
-        float recoverTime = (info.type == DamageType.Stun) ? 2.0f : 0.6f;
+        // Xử lý thời gian hồi phục (Duration từ DamageInfo)
+        // Nếu là Skill E (EarthUp), nó sẽ truyền 2.0s vào đây
+        float recoverTime = (info.type == DamageType.EarthUp || info.type == DamageType.Stun) ? info.duration : 0.6f;
+        
         StartCoroutine(RecoverRoutine(recoverTime));
 
-        if (info.type == DamageType.Stun) StartCoroutine(StunEffectRoutine());
+        if (info.type == DamageType.Stun || info.type == DamageType.EarthUp) 
+            StartCoroutine(StunEffectRoutine(recoverTime));
 
         return HitResult.Hit;
     }
 
-    // Coroutine hồi phục trạng thái
     IEnumerator RecoverRoutine(float time)
     {
         yield return new WaitForSeconds(time);
-
-        // Dừng vật lý trôi
         _rb.linearVelocity = Vector3.zero;
-        
-        // Bật lại Animator để nó đứng dậy/múa tiếp
         if (_animator != null) _animator.enabled = true;
     }
 
-    IEnumerator StunEffectRoutine()
+    IEnumerator StunEffectRoutine(float time)
     {
         _isStunned = true;
         if (_renderer) _renderer.material.color = Color.yellow;
-        yield return new WaitForSeconds(2.0f);
+        yield return new WaitForSeconds(time);
         if (_renderer) _renderer.material.color = _originalColor;
         _isStunned = false;
     }

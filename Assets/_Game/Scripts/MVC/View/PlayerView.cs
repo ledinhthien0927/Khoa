@@ -19,6 +19,7 @@ public class PlayerView : MonoBehaviour
         {
             animator.ResetTrigger("Attack");
             animator.ResetTrigger("CounterAttack"); 
+            animator.ResetTrigger("SkillE"); // Reset Skill E
             animator.SetTrigger("Attack");
         }
     }
@@ -32,6 +33,16 @@ public class PlayerView : MonoBehaviour
         }
     }
 
+    // [MỚI] Trigger cho Skill E
+    public void TriggerSkillE()
+    {
+        if (animator)
+        {
+            animator.ResetTrigger("Attack");
+            animator.SetTrigger("SkillE"); // Bạn cần tạo Trigger này trong Animator
+        }
+    }
+
     public void SetBlocking(bool isBlocking)
     {
         if (animator) animator.SetBool("IsBlocking", isBlocking);
@@ -42,7 +53,6 @@ public class PlayerView : MonoBehaviour
         if (animator) animator.SetTrigger("Dash");
     }
 
-    // Nhận Event từ Animation (Int = 1: Combo cuối, Int = 2: Phản kích)
     public void AE_TriggerImpact(int type)
     {
         OnAttackImpact?.Invoke(type);

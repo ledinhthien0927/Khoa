@@ -391,7 +391,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 8.900024}
   m_SizeDelta: {x: 850, y: 70}
   m_Pivot: {x: 0.5, y: 0}
 --- !u!114 &2804069
@@ -11083,7 +11083,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: -200, y: -912.9}
+  m_AnchoredPosition: {x: -200, y: -904}
   m_SizeDelta: {x: 65, y: 65}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &164126671
@@ -60988,7 +60988,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: -898.1}
+  m_AnchoredPosition: {x: 0, y: -889.19995}
   m_SizeDelta: {x: 80, y: 80}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &877804576
@@ -72910,7 +72910,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: -100, y: -912.9}
+  m_AnchoredPosition: {x: -100, y: -904}
   m_SizeDelta: {x: 65, y: 65}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &1053519416
@@ -92153,6 +92153,13 @@ MonoBehaviour:
     - 1.75
     comboResetTime: 1.5
     minComboDelay: 0.2
+    skillECooldown: 5
+    skillEDuration: 1.5
+    skillERange: 8
+    skillEAngle: 45
+    skillEKnockupForce: 5
+    skillEStunTime: 2
+    skillEVfxRotation: {x: 0, y: -90, z: 0}
     enemyLayer:
       serializedVersion: 2
       m_Bits: 256
@@ -92161,11 +92168,12 @@ MonoBehaviour:
     knockbackForces:
     - 2
     - 5
-    - 25
-    - 30
+    - 5
+    - 5
     vfxCombo3: {fileID: 1758473627833946668, guid: 9b21333b068a5084ba09535839bee3c8, type: 3}
     vfxJumpSmash: {fileID: 4994997792314849709, guid: 3dd50886582244645be87adb42aa8528, type: 3}
     vfxCounter: {fileID: 3153472991145048103, guid: 3407e378c048bb5438424b28c7740b48, type: 3}
+    vfxSkillE: {fileID: 3156866507962234106, guid: 645ebd7cef59b7b40b27c29bf3e99cf2, type: 3}
     currentVelocity: {x: 0, y: 0, z: 0}
     smoothDampVelocity: {x: 0, y: 0, z: 0}
     isAttacking: 0
@@ -92177,6 +92185,7 @@ MonoBehaviour:
     lastDashTime: 0
     nextBlockTime: 0
     blockStartTime: 0
+    lastSkillETime: 0
   view: {fileID: 1306567072}
 --- !u!95 &1306567074 stripped
 Animator:
@@ -103246,7 +103255,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 206.5, y: -912.9}
+  m_AnchoredPosition: {x: 206.5, y: -904}
   m_SizeDelta: {x: 65, y: 65}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &1473688976
@@ -109373,7 +109382,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
-  m_AnchoredPosition: {x: 0, y: 39}
+  m_AnchoredPosition: {x: 0, y: 47.900024}
   m_SizeDelta: {x: 850, y: 70}
   m_Pivot: {x: 0.5, y: 0}
 --- !u!114 &1559650886
@@ -129904,7 +129913,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: -300, y: -912.9}
+  m_AnchoredPosition: {x: -300, y: -904}
   m_SizeDelta: {x: 65, y: 65}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &1858495056
@@ -146483,7 +146492,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 105, y: -912.9}
+  m_AnchoredPosition: {x: 105, y: -904}
   m_SizeDelta: {x: 65, y: 65}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &2100175642
@@ -146935,7 +146944,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 306, y: -912.9}
+  m_AnchoredPosition: {x: 306, y: -904}
   m_SizeDelta: {x: 65, y: 65}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &2104490238
