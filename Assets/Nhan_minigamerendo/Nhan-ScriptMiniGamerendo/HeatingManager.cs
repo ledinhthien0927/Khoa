@@ -7,22 +7,37 @@ public class HeatingManager : MonoBehaviour
 {
     public static HeatingManager Instance;
 
-    [Header("UI References")]
+    [Header("UI References - Main")]
     public GameObject heatingCanvas; 
+    public GameObject otherCanvasToHide; 
     
-    [Header("UI - Controls")]
-    public HoldButton heatButtonScript; 
-    public Button dropIngotButton;      
-    public GameObject dropButtonObj;    
-[Header("Effects")]
-public float soundMultiplier = 1.0f; // MỚI: Chỉnh số này lên 2 hoặc 3 để to hơn
-public float minSoundVolume = 0.2f;
+    [Header("--- TUTORIAL SYSTEM ---")]
+    public GameObject tutorialPanel;        
+    public GameObject[] tutorialPages;      
+    public Button nextBtn;                  
+    public Button prevBtn;                  
+    public Button closeBtn;                 
+    public Button helpBtn;                  
+    
+    [Header("--- PHASE BUTTONS ---")]
+    public Button dropIngotButton;          
+    public Button startPhaseButton;         
+    
+    [Header("UI - Controls (Gameplay)")]
+    public HoldButton heatButtonScript;     
+    public GameObject gameplayUIContainer;  
+    
+    [Header("Effects")]
+    public float soundMultiplier = 1.0f; 
+    public float minSoundVolume = 0.2f;
+    
     [Header("UI - Indicators")]
     public Slider tempSlider;        
     public Slider masterySlider;     
     public TextMeshProUGUI timeText; 
     public TextMeshProUGUI rankText; 
-
+    public static bool IsLegendary = false;
+    
     [Header("Cinematic & Visuals")]
     public GameObject mainCamera;       
     public GameObject furnaceCamera;    
@@ -36,9 +51,7 @@ public float minSoundVolume = 0.2f;
     public AudioClip dropSoundClip;
     
     [Space(10)]
-    // --- CÁI MỚI: Kéo VFX hoàn thành vào đây ---
     public ParticleSystem completionVFX; 
-    // -------------------------------------------
 
     public GameObject rawIngotObject;   
     public Renderer ingotRenderer;      
@@ -48,7 +61,7 @@ public float minSoundVolume = 0.2f;
     public ParticleSystem fireEffect;
     public AudioSource sizzleAudio;
 
-    [Header("CƠ CHẾ LỬA THEO VÙNG (HEAT ZONES)")]
+    [Header("CƠ CHẾ LỬA THEO VÙNG")]
     public float coolSpeed = 0.3f;          
     public float minTempToProcess = 0.3f;
     public float baseProgressSpeed = 0.2f; 
@@ -61,77 +74,275 @@ public float minSoundVolume = 0.2f;
 
     [Header("Time & Ranking Settings")]
     public float timeLimit = 90f; 
-    // Các mốc thời gian để xét Rank
-    public float rankPerfect = 25f;  // Dưới 25s là Huyền Thoại
-    public float rankGood = 35f;     // Dưới 35s là Tốt
-    public float rankNormal = 60f;   // Dưới 60s là Trung Bình
+    public float rankPerfect = 25f;  
+    public float rankGood = 35f;     
+    public float rankNormal = 60f;   
 
-    // Biến trạng thái
+    // Các trạng thái game
+    public enum GameState { 
+        IntroTutorial,      // Xem Page 1
+        ReadyToDrop,        // Chờ bấm Bỏ Phôi
+        Dropping,           // Cinematic
+        PostDropTutorial,   // Xem Page 2 (Sau khi bỏ phôi)
+        ReadyToStartHeat,   // Chờ bấm Nung
+        HeatTutorial,       // Xem Page 3 (Sau khi bấm Nung)
+        Playing,            // Đang chơi
+        Finished 
+    }
+    private GameState currentState;
+
     private float currentTemp = 0f;      
     private float currentProgress = 0f;  
     private float elapsedTime = 0f;
-    
-    private bool isHeatingActive = false;
-    private bool isGameOver = false;
-    private bool hasIngot = false;       
-    private bool isCinematic = false;    
     private bool timerStarted = false;   
+    
+    private int currentPageIndex = 0;
+    
+    // Biến kiểm soát chế độ xem Tutorial
+    private bool isSinglePageMode = false; // True = Chỉ xem 1 trang, False = Xem tự do (nút Help)
+
+    // Biến cờ (Flag) để nhớ đã xem chưa
+    private bool hasSeenIntro = false;
+    private bool hasSeenPostDrop = false;
+    private bool hasSeenHeatGuide = false;
 
     void Awake() { Instance = this; }
 
-    void Start()
+    IEnumerator Start()
     {
-        if (dropIngotButton != null) 
-            dropIngotButton.onClick.AddListener(() => StartCoroutine(DropIngotSequence()));
+        // 1. Gán sự kiện
+        if (dropIngotButton != null) dropIngotButton.onClick.AddListener(() => StartCoroutine(DropIngotSequence()));
+        if (startPhaseButton != null) startPhaseButton.onClick.AddListener(OnStartPhaseClicked);
         
+        if (nextBtn != null) nextBtn.onClick.AddListener(OnNextPage);
+        if (prevBtn != null) prevBtn.onClick.AddListener(OnPrevPage);
+        if (closeBtn != null) closeBtn.onClick.AddListener(OnCloseTutorial);
+        if (helpBtn != null) helpBtn.onClick.AddListener(OnOpenTutorialManual);
+
+        // 2. Setup ban đầu
         if (playerModelObject != null) playerModelObject.SetActive(false);
         if (fallingItemsVFX != null) fallingItemsVFX.Stop();
-        // Đảm bảo VFX hoàn thành tắt lúc đầu
         if (completionVFX != null) completionVFX.Stop(); 
+
+        yield return null; 
+        
+        StartHeatingPhase();
     }
 
     public void StartHeatingPhase()
     {
-        isHeatingActive = true;
-        isGameOver = false;
-        hasIngot = false;     
-        isCinematic = false;
-        timerStarted = false; 
-        
+        // --- Setup Canvas ---
+        if (heatingCanvas != null) heatingCanvas.SetActive(true);
+        if (otherCanvasToHide != null) otherCanvasToHide.SetActive(false);
+        if (SmithingManager.Instance != null && SmithingManager.Instance.smithingCanvas != null)
+            SmithingManager.Instance.smithingCanvas.SetActive(false);
+
+        // Reset Gameplay
         currentTemp = 0f;
         currentProgress = 0f;
         elapsedTime = 0f;
-
-        if (heatingCanvas != null) heatingCanvas.SetActive(true);
-        if (dropButtonObj != null) dropButtonObj.SetActive(true); 
+        timerStarted = false;
         
         if (tempSlider != null) tempSlider.value = 0f;
         if (masterySlider != null) masterySlider.value = 0f;
-        
-        // Reset rank text
-        if (rankText != null) {
-            rankText.text = "";
-            rankText.color = Color.white;
-        }
+        if (rankText != null) { rankText.text = ""; rankText.color = Color.white; }
         if (timeText != null) timeText.text = "Time: 0.0s"; 
-        
+
         if (mainCamera != null) mainCamera.SetActive(true);
         if (furnaceCamera != null) furnaceCamera.SetActive(false); 
         if (rawIngotObject != null) rawIngotObject.SetActive(false); 
-        
-        if (SmithingManager.Instance != null && SmithingManager.Instance.smithingCanvas != null)
-        {
-            SmithingManager.Instance.smithingCanvas.SetActive(false);
-        }
-        
         if (sizzleAudio != null) { sizzleAudio.volume = 0; sizzleAudio.Play(); }
+
+        // Ẩn hết UI Gameplay
+        if (dropIngotButton != null) dropIngotButton.gameObject.SetActive(false);
+        if (startPhaseButton != null) startPhaseButton.gameObject.SetActive(false);
+        if (gameplayUIContainer != null) gameplayUIContainer.SetActive(false);
+        if (heatButtonScript != null) heatButtonScript.gameObject.SetActive(false);
+        if (helpBtn != null) helpBtn.gameObject.SetActive(false); 
+
+        // --- GIAI ĐOẠN 1: HIỆN PAGE 1 (INTRO) ---
+        currentState = GameState.IntroTutorial;
+        ShowSpecificTutorialPage(0); // Index 0 = Page 1
+    }
+
+    // =========================================================
+    //               TUTORIAL LOGIC (ĐÃ CẬP NHẬT)
+    // =========================================================
+
+    // Hàm dùng để hiện 1 trang duy nhất và khóa nút Next/Prev
+    void ShowSpecificTutorialPage(int pageIndex)
+    {
+        if (tutorialPanel != null) tutorialPanel.SetActive(true);
+        
+        currentPageIndex = pageIndex;
+        // Đảm bảo index hợp lệ
+        if (currentPageIndex >= tutorialPages.Length) currentPageIndex = tutorialPages.Length - 1;
+        if (currentPageIndex < 0) currentPageIndex = 0;
+
+        isSinglePageMode = true; // Bật chế độ khóa trang
+        UpdateTutorialUI();
+
+        // Ẩn nút Help khi đang xem Tutorial bắt buộc
+        if (helpBtn != null) helpBtn.gameObject.SetActive(false);
+    }
+
+    // Hàm gọi khi bấm nút Help (?) -> Cho xem Full
+    void OnOpenTutorialManual()
+    {
+        if (tutorialPanel != null) tutorialPanel.SetActive(true);
+        currentPageIndex = 0; 
+        isSinglePageMode = false; // Tắt chế độ khóa -> Xem tự do
+        UpdateTutorialUI();
+    }
+
+    void OnCloseTutorial()
+    {
+        if (tutorialPanel != null) tutorialPanel.SetActive(false);
+
+        // LOGIC CHUYỂN GIAI ĐOẠN SAU KHI ĐÓNG TUTORIAL
+        switch (currentState)
+        {
+            case GameState.IntroTutorial:
+                // Đã xem Intro (Page 1) -> Hiện nút Bỏ Phôi
+                hasSeenIntro = true;
+                currentState = GameState.ReadyToDrop;
+                if (dropIngotButton != null) dropIngotButton.gameObject.SetActive(true);
+                if (helpBtn != null) helpBtn.gameObject.SetActive(true);
+                break;
+
+            case GameState.PostDropTutorial:
+                // Đã xem Hướng dẫn sau khi bỏ phôi (Page 2) -> Hiện nút Nung
+                hasSeenPostDrop = true;
+                currentState = GameState.ReadyToStartHeat;
+                if (startPhaseButton != null) startPhaseButton.gameObject.SetActive(true);
+                if (helpBtn != null) helpBtn.gameObject.SetActive(true);
+                break;
+
+            case GameState.HeatTutorial:
+                // Đã xem Hướng dẫn Nung (Page 3) -> Vào chơi
+                hasSeenHeatGuide = true;
+                StartGameplay();
+                if (helpBtn != null) helpBtn.gameObject.SetActive(true);
+                break;
+        }
+    }
+
+    void UpdateTutorialUI()
+    {
+        // 1. Hiển thị trang hiện tại
+        for (int i = 0; i < tutorialPages.Length; i++)
+        {
+            if (tutorialPages[i] != null) tutorialPages[i].SetActive(i == currentPageIndex);
+        }
+
+        // 2. Xử lý nút Next/Prev
+        if (isSinglePageMode)
+        {
+            // CHẾ ĐỘ 1 TRANG: Ẩn cả 2 nút
+            if (nextBtn != null) nextBtn.gameObject.SetActive(false);
+            if (prevBtn != null) prevBtn.gameObject.SetActive(false);
+        }
+        else
+        {
+            // CHẾ ĐỘ TỰ DO: Hiện nút bình thường
+            if (nextBtn != null) 
+            {
+                nextBtn.gameObject.SetActive(true);
+                nextBtn.interactable = (currentPageIndex < tutorialPages.Length - 1);
+            }
+            if (prevBtn != null) 
+            {
+                prevBtn.gameObject.SetActive(true);
+                prevBtn.interactable = (currentPageIndex > 0);
+            }
+        }
+    }
+
+    void OnNextPage()
+    {
+        if (isSinglePageMode) return; // Khóa
+        if (currentPageIndex < tutorialPages.Length - 1) { currentPageIndex++; UpdateTutorialUI(); }
+    }
+
+    void OnPrevPage()
+    {
+        if (isSinglePageMode) return; // Khóa
+        if (currentPageIndex > 0) { currentPageIndex--; UpdateTutorialUI(); }
+    }
+
+    // =========================================================
+    //               FLOW & GAMEPLAY
+    // =========================================================
+
+    IEnumerator DropIngotSequence()
+    {
+        currentState = GameState.Dropping;
+        if (dropIngotButton != null) dropIngotButton.gameObject.SetActive(false);
+        if (helpBtn != null) helpBtn.gameObject.SetActive(false); 
+
+        // Cinematic
+        if (mainCamera != null) mainCamera.SetActive(false);
+        if (furnaceCamera != null) furnaceCamera.SetActive(true);
+        yield return new WaitForSeconds(0.5f); 
+        if (playerModelObject != null) {
+            playerModelObject.SetActive(true); 
+            if (playerAnim != null) playerAnim.SetTrigger("DropIngot");
+        }
+        yield return new WaitForSeconds(0.5f);
+        if (fallingItemsVFX != null) {
+            if (dropPoint != null) fallingItemsVFX.transform.position = dropPoint.position;
+            fallingItemsVFX.Play(); 
+        }
+        if (dropAudioSource != null && dropSoundClip != null) dropAudioSource.PlayOneShot(dropSoundClip);
+        yield return new WaitForSeconds(3.0f);
+        if (rawIngotObject != null) rawIngotObject.SetActive(true);
+        if (playerModelObject != null) playerModelObject.SetActive(false);
+        if (fallingItemsVFX != null) fallingItemsVFX.Stop(); 
+        if (furnaceCamera != null) furnaceCamera.SetActive(false);
+        if (mainCamera != null) mainCamera.SetActive(true);
+
+        // --- GIAI ĐOẠN 2: XONG CINEMATIC -> HIỆN PAGE 2 (INDEX 1) ---
+        if (!hasSeenPostDrop)
+        {
+            currentState = GameState.PostDropTutorial;
+            ShowSpecificTutorialPage(1); // Page 2
+        }
+        else
+        {
+            // Nếu chơi lại vòng lặp sau khi thua thì bỏ qua bước này, hiện nút luôn
+            currentState = GameState.ReadyToStartHeat;
+            if (startPhaseButton != null) startPhaseButton.gameObject.SetActive(true);
+            if (helpBtn != null) helpBtn.gameObject.SetActive(true);
+        }
+    }
+
+    void OnStartPhaseClicked()
+    {
+        if (startPhaseButton != null) startPhaseButton.gameObject.SetActive(false);
+
+        // --- GIAI ĐOẠN 3: BẤM NUNG -> HIỆN PAGE 3 (INDEX 2) ---
+        if (!hasSeenHeatGuide)
+        {
+            currentState = GameState.HeatTutorial;
+            ShowSpecificTutorialPage(2); // Page 3
+        }
+        else
+        {
+            StartGameplay();
+        }
+    }
+
+    void StartGameplay()
+    {
+        currentState = GameState.Playing;
+        if (gameplayUIContainer != null) gameplayUIContainer.SetActive(true);
+        if (heatButtonScript != null) heatButtonScript.gameObject.SetActive(true);
     }
 
     void Update()
     {
-        if (!isHeatingActive || isGameOver || isCinematic) return;
+        if (currentState != GameState.Playing) return;
 
-        // Chỉ tính giờ khi biến timerStarted = true
         if (timerStarted)
         {
             elapsedTime += Time.deltaTime;
@@ -143,15 +354,9 @@ public float minSoundVolume = 0.2f;
 
         if (isHolding) 
         {
-            // Chỉ bắt đầu tính giờ nếu chưa bắt đầu VÀ ĐÃ CÓ PHÔI (hasIngot)
-            if (!timerStarted && hasIngot) 
-            {
-                timerStarted = true; 
-            }
-
+            if (!timerStarted) timerStarted = true; 
             float currentSpeed = GetCurrentHeatSpeed();
             currentTemp += currentSpeed * Time.deltaTime;
-
             if (fireEffect != null && !fireEffect.isPlaying) fireEffect.Play();
         } 
         else 
@@ -163,16 +368,13 @@ public float minSoundVolume = 0.2f;
 
         if (currentTemp >= 1.0f) { FailGame("QUÁ NHIỆT! PHÔI TAN CHẢY!"); return; }
 
-        if (hasIngot && currentTemp > minTempToProcess)
+        if (currentTemp > minTempToProcess)
         {
             float bonusSpeed = currentTemp * 2.5f; 
             currentProgress += baseProgressSpeed * bonusSpeed * Time.deltaTime;
         }
 
-        if (currentProgress >= 1.0f) 
-        {
-            FinishHeating();
-        }
+        if (currentProgress >= 1.0f) FinishHeating();
 
         UpdateVisuals();
     }
@@ -184,108 +386,47 @@ public float minSoundVolume = 0.2f;
         return speedLow;
     }
 
-    IEnumerator DropIngotSequence()
-    {
-        isCinematic = true; 
-        if (dropButtonObj != null) dropButtonObj.SetActive(false); 
-        if (mainCamera != null) mainCamera.SetActive(false);
-        if (furnaceCamera != null) furnaceCamera.SetActive(true);
-        
-        yield return new WaitForSeconds(0.5f); 
-        
-        if (playerModelObject != null) {
-            playerModelObject.SetActive(true); 
-            if (playerAnim != null) playerAnim.SetTrigger("DropIngot");
-        }
-        
-        yield return new WaitForSeconds(0.5f);
-        
-        if (fallingItemsVFX != null) {
-            if (dropPoint != null) fallingItemsVFX.transform.position = dropPoint.position;
-            fallingItemsVFX.Play(); 
-        }
-        if (dropAudioSource != null && dropSoundClip != null) dropAudioSource.PlayOneShot(dropSoundClip);
-        
-        yield return new WaitForSeconds(3.0f);
-        
-        if (rawIngotObject != null) rawIngotObject.SetActive(true);
-        if (playerModelObject != null) playerModelObject.SetActive(false);
-        if (fallingItemsVFX != null) fallingItemsVFX.Stop(); 
-        if (furnaceCamera != null) furnaceCamera.SetActive(false);
-        if (mainCamera != null) mainCamera.SetActive(true);
-        
-        hasIngot = true;     
-        isCinematic = false; 
-    }
-
     void UpdateTimerUI() { if (timeText != null) timeText.text = $"Time: {elapsedTime:F1}s"; }
     
     void UpdateVisuals() 
-{ 
-    if (tempSlider != null) tempSlider.value = currentTemp; 
-    if (masterySlider != null) masterySlider.value = currentProgress; 
-
-    if (ingotRenderer != null && hasIngot) {
-        ingotRenderer.material.color = heatColorGradient.Evaluate(currentTemp);
-        ingotRenderer.material.SetColor("_EmissionColor", heatColorGradient.Evaluate(currentTemp) * 2f); 
+    { 
+        if (tempSlider != null) tempSlider.value = currentTemp; 
+        if (masterySlider != null) masterySlider.value = currentProgress; 
+        if (ingotRenderer != null) {
+            ingotRenderer.material.color = heatColorGradient.Evaluate(currentTemp);
+            ingotRenderer.material.SetColor("_EmissionColor", heatColorGradient.Evaluate(currentTemp) * 2f); 
+        }
+        if (sizzleAudio != null) {
+            sizzleAudio.pitch = 0.8f + currentTemp * 0.5f; 
+            float newVol = (minSoundVolume + currentTemp) * soundMultiplier;
+            sizzleAudio.volume = Mathf.Clamp01(newVol);     
+        }
     }
 
-    // --- SỬA ĐOẠN ÂM THANH NÀY ---
-    if (sizzleAudio != null)
-    {
-        // Pitch (Độ cao): Sôi càng to tiếng càng rít
-        sizzleAudio.pitch = 0.8f + currentTemp * 0.5f; 
-
-        // Volume (Độ to): 
-        // Công thức: (Nền tối thiểu + Nhiệt độ) * Hệ số nhân
-        float newVol = (minSoundVolume + currentTemp) * soundMultiplier;
-
-        // Đảm bảo không vượt quá 1.0 (Unity clamp volume từ 0 đến 1)
-        sizzleAudio.volume = Mathf.Clamp01(newVol);     
-    }
-}
-
-    // --- HÀM ĐƯỢC NÂNG CẤP ---
     void FinishHeating()
     {
-        if (!isHeatingActive) return; 
+        currentState = GameState.Finished;
+        if (gameplayUIContainer != null) gameplayUIContainer.SetActive(false);
+        if (heatButtonScript != null) heatButtonScript.gameObject.SetActive(false);
 
-        isHeatingActive = false; // Dừng game logic
-
-        // 1. Tính toán Rank dựa trên thời gian
         string grade = "";
         Color gradeColor = Color.white;
 
-        if (elapsedTime <= rankPerfect) { grade = "HUYỀN THOẠI (LEGENDARY)!"; gradeColor = Color.cyan; }
-        else if (elapsedTime <= rankGood) { grade = "TỐT (GOOD)"; gradeColor = Color.green; }
-        else if (elapsedTime <= rankNormal) { grade = "TRUNG BÌNH (NORMAL)"; gradeColor = Color.yellow; }
-        else { grade = "TỆ (BAD)"; gradeColor = new Color(1f, 0.5f, 0f); } // Màu cam
+        if (elapsedTime <= rankPerfect) { grade = "HUYỀN THOẠI (LEGENDARY)!"; gradeColor = Color.cyan;IsLegendary = true; }
+        else if (elapsedTime <= rankGood) { grade = "TỐT (GOOD)"; gradeColor = Color.green;IsLegendary = false; }
+        else if (elapsedTime <= rankNormal) { grade = "TRUNG BÌNH (NORMAL)"; gradeColor = Color.yellow; IsLegendary = false;}
+        else { grade = "TỆ (BAD)"; gradeColor = new Color(1f, 0.5f, 0f); IsLegendary = false;}
 
-        // 2. Hiện Rank lên UI
-        if (rankText != null)
-        {
-            rankText.text = grade;
-            rankText.color = gradeColor;
-        }
-
-        // 3. Chạy VFX hoàn thành
-        if (completionVFX != null)
-        {
-            // Đặt vị trí VFX ngay tại cục phôi cho đẹp
+        if (rankText != null) { rankText.text = grade; rankText.color = gradeColor; }
+        if (completionVFX != null) {
             if (rawIngotObject != null) completionVFX.transform.position = rawIngotObject.transform.position;
             completionVFX.Play();
         }
-        
-        // 4. Dừng các hiệu ứng đang chạy
         if (fireEffect != null) fireEffect.Stop();
         if (sizzleAudio != null) sizzleAudio.Stop();
-
         Debug.Log($"Nung xong! Thời gian: {elapsedTime:F1}s - Rank: {grade}");
-
-        // 5. Đợi 2.5 giây để ngắm Rank và VFX rồi mới chuyển cảnh
         Invoke("GoToSmithing", 2.5f);
     }
-    // -------------------------
 
     void GoToSmithing()
     {
@@ -296,9 +437,9 @@ public float minSoundVolume = 0.2f;
 
     void FailGame(string reason)
     {
-        isGameOver = true;
+        currentState = GameState.Finished;
         if (rankText != null) { rankText.text = reason; rankText.color = Color.red; }
         Debug.Log("Thất bại: " + reason);
-        Invoke("StartHeatingPhase", 2.5f); // Tăng thời gian chờ khi thua lên xíu
+        Invoke("StartHeatingPhase", 2.5f); 
     }
 }
