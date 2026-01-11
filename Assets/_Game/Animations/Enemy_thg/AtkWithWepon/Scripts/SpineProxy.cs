@@ -9,57 +9,57 @@
 // More information: https://www.keviniglesias.com/spine-proxy.html
 // Contact Support: support@keviniglesias.com
 
-using UnityEngine;
+// using UnityEngine;
 
-namespace KevinIglesias
-{
-    public class SpineProxy : MonoBehaviour
-    {
-        //Assign 'B-spine' (or equivalent) here:
-        [SerializeField] private Transform originalSpine;
+// namespace KevinIglesias
+// {
+//     public class SpineProxy : MonoBehaviour
+//     {
+//         //Assign 'B-spine' (or equivalent) here:
+//         [SerializeField] private Transform originalSpine;
 
-        private Quaternion rotationOffset = Quaternion.identity;
+//         private Quaternion rotationOffset = Quaternion.identity;
 
-#if UNITY_EDITOR
-        //Attempting to find the original spine bone.
-        void OnValidate()
-        {
-            if(originalSpine == null)
-            {
-                Transform parent = transform.parent;
-                if(parent != null)
-                {
-                    Transform hips = parent.Find("B-hips");
-                    if(hips != null)
-                    {
-                        Transform spine = hips.Find("B-spine");
-                        if(spine != null)
-                        {
-                            originalSpine = spine;
-                        }
-                    }
-                }
-            }
-        }  
-#endif
+// #if UNITY_EDITOR
+//         //Attempting to find the original spine bone.
+//         void OnValidate()
+//         {
+//             if(originalSpine == null)
+//             {
+//                 Transform parent = transform.parent;
+//                 if(parent != null)
+//                 {
+//                     Transform hips = parent.Find("B-hips");
+//                     if(hips != null)
+//                     {
+//                         Transform spine = hips.Find("B-spine");
+//                         if(spine != null)
+//                         {
+//                             originalSpine = spine;
+//                         }
+//                     }
+//                 }
+//             }
+//         }  
+// #endif
         
-        //Match correct orientation on different character rigs
-        void Awake()
-        {
-            if(originalSpine != null)
-            {//originalSpine.rotation must be the default rotation in your character T-pose when this happens:
-                rotationOffset = Quaternion.Inverse(transform.rotation) * originalSpine.rotation;
-            }
-        }
+//         //Match correct orientation on different character rigs
+//         void Awake()
+//         {
+//             if(originalSpine != null)
+//             {//originalSpine.rotation must be the default rotation in your character T-pose when this happens:
+//                 rotationOffset = Quaternion.Inverse(transform.rotation) * originalSpine.rotation;
+//             }
+//         }
 
-        //Copy rotations from spine proxy bone to the original spine bone.
-        void LateUpdate()
-        {
-            if(originalSpine == null)
-            {
-                return;
-            }
-            originalSpine.rotation = transform.rotation * rotationOffset;
-        }
-    }
-}
+//         //Copy rotations from spine proxy bone to the original spine bone.
+//         void LateUpdate()
+//         {
+//             if(originalSpine == null)
+//             {
+//                 return;
+//             }
+//             originalSpine.rotation = transform.rotation * rotationOffset;
+//         }
+//     }
+// }
