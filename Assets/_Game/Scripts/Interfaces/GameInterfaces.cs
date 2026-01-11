@@ -3,7 +3,15 @@ using UnityEngine;
 // --------------------------------------------------------------------------
 // PHẦN 1: CÁC KHÁI NIỆM CHUNG (DATA TYPES)
 // --------------------------------------------------------------------------
-
+public enum CombatState
+{
+    Idle,       // Đứng yên
+    Chasing,    // Đuổi theo
+    Attacking,  // Tấn công
+    Blocking,   // Đỡ đòn
+    Stunned,    // Bị choáng
+    Dead        // Chết
+}
 /// <summary>
 /// Kết quả trả về sau khi một đòn đánh được tung ra.
 /// </summary>
@@ -69,3 +77,4 @@ public interface ICombatState
     bool IsBlocking();   // Đang đỡ đòn?
     bool IsStunned();    // Đang bị choáng?
 }
+
