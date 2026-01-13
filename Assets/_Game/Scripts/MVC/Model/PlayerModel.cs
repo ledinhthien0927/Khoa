@@ -51,6 +51,17 @@ public class PlayerModel
     public float damageAmount = 10f;  
     public float[] knockbackForces = { 5f, 8f, 12f, 15f }; 
 
+    // --- [MỚI] SMITHING INTERACTION ---
+    [Header("Smithing Interaction")]
+    public GameObject smithingMinigamePrefab; // Prefab UI Minigame (Rèn)
+    public LayerMask interactionLayer;        // Layer 'Interactable' của Cánh cửa
+    public float interactionRange = 3.0f;     // Khoảng cách đứng gần
+    public bool isSmithing;                   // Trạng thái đang rèn
+    
+    [Tooltip("Tên của GameObject chứa Icon F nằm bên trong Cánh Cửa")]
+    public string interactionUIName = "UI_Prompt"; // <-- QUAN TRỌNG: Đặt tên object con trong cánh cửa y hệt tên này
+    // ----------------------------------
+
     [Header("VFX Settings")]
     public GameObject vfxCombo3;
     public GameObject vfxJumpSmash;
@@ -73,8 +84,7 @@ public class PlayerModel
     public float blockStartTime;
     public float lastSkillETime;
     
-    // Skill R State
     public int currentRStacks;
     public float nextRStackTime; 
-    public bool isAimingR; // [MỚI] Đang giữ R
+    public bool isAimingR; 
 }

@@ -15,6 +15,10 @@ public class PlayerController : MonoBehaviour
     
     private GameObject _currentIndicator;
     private Transform _currentTarget; 
+    
+    // --- [MỚI] Biến lưu trữ vật thể đang tương tác hiện tại ---
+    private GameObject _currentInteractableObject; 
+    // ---------------------------------------------------------
 
     void Awake()
     {
@@ -31,26 +35,29 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         HandleSkillRCooldown();
-        
-        // --- [MỚI] CẬP NHẬT UI COOLDOWN ---
         HandleUIUpdates(); 
-        // ----------------------------------
+
+        // [MỚI] Kiểm tra tương tác mỗi frame
+        HandleInteraction();
+
+        // Nếu đang Rèn -> Khóa di chuyển, logic khác
+        if (model.isSmithing) return;
 
         if (model.isAimingR) HandleTargeting();
-        else
-        {
+        else {
             if (_currentIndicator != null) _currentIndicator.SetActive(false);
             _currentTarget = null;
         }
 
         if (Input.GetKeyDown(KeyCode.K)) DealDamage(5f, DamageType.Physical);
         if (Input.GetKeyDown(KeyCode.H) && model.isBlocking) OnBlockSuccess();
+        
         if (Time.time > model.lastAttackTime + model.comboResetTime && model.currentComboStep > 0) model.currentComboStep = 0;
 
         HandleInputPriority();
 
-        // Khóa di chuyển khi Aiming R, v.v...
-        if (model.isDashing || model.isAttacking || model.isBlocking || model.isAimingR)
+        // Khóa di chuyển khi làm việc riêng
+        if (model.isDashing || model.isAttacking || model.isBlocking || model.isAimingR || model.isSmithing)
         {
             model.currentVelocity = Vector3.zero;
             model.smoothDampVelocity = Vector3.zero;
@@ -74,139 +81,109 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // --- [MỚI] HÀM TÍNH TOÁN UI ---
+    // --- [MỚI] LOGIC TÌM NÚT F TRÊN CỬA VÀ BẬT LÊN ---
+    void HandleInteraction()
+    {
+        // 1. Nếu đang Rèn: Tắt UI Prompt, chờ thoát
+        if (model.isSmithing)
+        {
+            // Tắt UI của vật thể hiện tại nếu có
+            ToggleObjectUI(_currentInteractableObject, false);
+
+            if (Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.Escape))
+            {
+                ExitSmithingMode();
+            }
+            return;
+        }
+
+        // 2. Tìm vật thể Interactable gần nhất
+        GameObject foundObject = null;
+        Collider[] hits = Physics.OverlapSphere(transform.position, model.interactionRange, model.interactionLayer);
+        if (hits.Length > 0)
+        {
+            foundObject = hits[0].gameObject; // Lấy cái đầu tiên tìm thấy
+        }
+
+        // 3. Xử lý logic Bật/Tắt khi thay đổi mục tiêu
+        if (foundObject != _currentInteractableObject)
+        {
+            // Tắt UI của cái cũ (nếu có)
+            if (_currentInteractableObject != null) ToggleObjectUI(_currentInteractableObject, false);
+
+            // Bật UI của cái mới (nếu có)
+            if (foundObject != null) ToggleObjectUI(foundObject, true);
+
+            // Cập nhật biến lưu trữ
+            _currentInteractableObject = foundObject;
+        }
+
+        // 4. Input vào chế độ rèn
+        if (_currentInteractableObject != null && Input.GetKeyDown(KeyCode.F))
+        {
+            EnterSmithingMode();
+        }
+    }
+
+    // Hàm phụ: Tìm con có tên trong model và bật/tắt nó
+    void ToggleObjectUI(GameObject rootObj, bool isActive)
+    {
+        if (rootObj == null) return;
+        
+        // Tìm object con có tên giống trong Model (Vd: "UI_Prompt")
+        Transform uiTransform = rootObj.transform.Find(model.interactionUIName);
+        
+        if (uiTransform != null)
+        {
+            uiTransform.gameObject.SetActive(isActive);
+        }
+    }
+    // ---------------------------------------------------
+
+    void EnterSmithingMode()
+    {
+        model.isSmithing = true;
+        // Reset Combat states
+        model.isAttacking = false;
+        model.isBlocking = false;
+        model.isAimingR = false;
+        view.SetBlocking(false);
+        view.ResumeAnimator(); 
+
+        model.currentVelocity = Vector3.zero;
+        view.ToggleSmithingUI(true, model.smithingMinigamePrefab);
+    }
+
+    public void ExitSmithingMode()
+    {
+        model.isSmithing = false;
+        view.ToggleSmithingUI(false, null);
+        // Khi thoát rèn, UI Prompt sẽ tự bật lại ở frame tiếp theo nhờ HandleInteraction()
+    }
+
     void HandleUIUpdates()
     {
         if (view == null) return;
-
-        // 1. Tính thời gian Dash còn lại
-        // Logic: (Thời điểm dash lần cuối + Cooldown) - Thời gian hiện tại. Nếu âm thì về 0.
         float dashTimeLeft = Mathf.Max(0, (model.lastDashTime + model.dashCooldown) - Time.time);
-
-        // 2. Tính thời gian Skill E còn lại
         float eTimeLeft = Mathf.Max(0, (model.lastSkillETime + model.skillECooldown) - Time.time);
-
-        // 3. Tính thời gian Skill R (Hồi Stack) còn lại
         float rTimeLeft = 0;
-        if (model.currentRStacks < model.skillRMaxStacks)
-        {
-            rTimeLeft = Mathf.Max(0, model.nextRStackTime - Time.time);
-        }
-
-        // Gửi sang View
-        view.UpdateCooldowns(
-            dashTimeLeft, model.dashCooldown,
-            eTimeLeft, model.skillECooldown,
-            rTimeLeft, model.skillRCooldown, model.currentRStacks
-        );
+        if (model.currentRStacks < model.skillRMaxStacks) rTimeLeft = Mathf.Max(0, model.nextRStackTime - Time.time);
+        view.UpdateCooldowns(dashTimeLeft, model.dashCooldown, eTimeLeft, model.skillECooldown, rTimeLeft, model.skillRCooldown, model.currentRStacks);
     }
 
     // --- LOGIC CŨ GIỮ NGUYÊN ---
-    void HandleInputPriority()
-    {
-        // 1. SKILL R
-        if (Input.GetKeyDown(KeyCode.R))
-        {
-            if (model.currentRStacks > 0)
-            {
-                model.isAimingR = true;
-                if (_currentActionCoroutine != null) StopCoroutine(_currentActionCoroutine);
-                if (model.isBlocking) EndBlock();
-                view.TriggerSkillR_Prep();
-            }
-            else Debug.Log("Hết stack Skill R!");
-            return;
-        }
-
-        if (Input.GetKeyUp(KeyCode.R))
-        {
-            if (model.isAimingR)
-            {
-                model.isAimingR = false;
-                view.ResumeAnimator(); 
-                view.TriggerSkillR_Cancel();
-                if (_currentIndicator != null) _currentIndicator.SetActive(false);
-            }
-        }
-
-        if (model.isAimingR && Input.GetMouseButtonDown(0))
-        {
-            if (_currentTarget != null)
-            {
-                model.isAimingR = false;
-                if (model.currentRStacks == model.skillRMaxStacks) model.nextRStackTime = Time.time + model.skillRCooldown;
-                model.currentRStacks--;
-
-                view.ResumeAnimator();
-                if (_currentIndicator != null) _currentIndicator.SetActive(false);
-                StartCoroutine(PerformSkillR_Logic(_currentTarget.position));
-            }
-            return;
-        }
-
-        // 2. SKILL E
-        if (Input.GetKeyDown(KeyCode.E) && Time.time > model.lastSkillETime + model.skillECooldown)
-        {
-            if (_currentActionCoroutine != null) StopCoroutine(_currentActionCoroutine);
-            if (model.isBlocking) EndBlock();
-            StartCoroutine(PerformSkillE());
-            return;
-        }
-
-        // 3. DASH
-        if (Input.GetKeyDown(KeyCode.Space) && Time.time > model.lastDashTime + model.dashCooldown)
-        {
-            if (_currentActionCoroutine != null) StopCoroutine(_currentActionCoroutine);
-            if (model.isBlocking) EndBlock();
-            StartCoroutine(PerformJumpSmash());
-            return;
-        }
+    void HandleInputPriority() {
+        if (Input.GetKeyDown(KeyCode.R)) { if (model.currentRStacks > 0) { model.isAimingR = true; if (_currentActionCoroutine != null) StopCoroutine(_currentActionCoroutine); if (model.isBlocking) EndBlock(); view.TriggerSkillR_Prep(); } else Debug.Log("Hết stack Skill R!"); return; }
+        if (Input.GetKeyUp(KeyCode.R)) { if (model.isAimingR) { model.isAimingR = false; view.ResumeAnimator(); view.TriggerSkillR_Cancel(); if (_currentIndicator != null) _currentIndicator.SetActive(false); } }
+        if (model.isAimingR && Input.GetMouseButtonDown(0)) { if (_currentTarget != null) { model.isAimingR = false; if (model.currentRStacks == model.skillRMaxStacks) model.nextRStackTime = Time.time + model.skillRCooldown; model.currentRStacks--; view.ResumeAnimator(); if (_currentIndicator != null) _currentIndicator.SetActive(false); StartCoroutine(PerformSkillR_Logic(_currentTarget.position)); } return; }
+        if (Input.GetKeyDown(KeyCode.E) && Time.time > model.lastSkillETime + model.skillECooldown) { if (_currentActionCoroutine != null) StopCoroutine(_currentActionCoroutine); if (model.isBlocking) EndBlock(); StartCoroutine(PerformSkillE()); return; }
+        if (Input.GetKeyDown(KeyCode.Space) && Time.time > model.lastDashTime + model.dashCooldown) { if (_currentActionCoroutine != null) StopCoroutine(_currentActionCoroutine); if (model.isBlocking) EndBlock(); StartCoroutine(PerformJumpSmash()); return; }
         if (model.isDashing) return;
-
-        // 4. BLOCK & ATTACK
         bool isHoldingBlock = Input.GetMouseButton(1);
-        if (isHoldingBlock && Time.time >= model.nextBlockTime)
-        {
-            if (!model.isBlocking) { model.isBlocking = true; model.blockStartTime = Time.time; view.SetBlocking(true); model.currentComboStep = 0; }
-            if (Time.time > model.blockStartTime + model.maxBlockDuration) EndBlock();
-        }
-        else if (model.isBlocking) EndBlock();
-
-        if (Input.GetMouseButtonDown(0) && !model.isAimingR)
-        {
-            if (model.isCounterReady) { EndBlock(); PerformCounterAttack(); return; }
-            if (!model.isBlocking) { if (model.currentComboStep > 0 && Time.time < model.lastAttackTime + model.minComboDelay) return; PerformComboAttack(); }
-        }
+        if (isHoldingBlock && Time.time >= model.nextBlockTime) { if (!model.isBlocking) { model.isBlocking = true; model.blockStartTime = Time.time; view.SetBlocking(true); model.currentComboStep = 0; } if (Time.time > model.blockStartTime + model.maxBlockDuration) EndBlock(); } else if (model.isBlocking) EndBlock();
+        if (Input.GetMouseButtonDown(0) && !model.isAimingR) { if (model.isCounterReady) { EndBlock(); PerformCounterAttack(); return; } if (!model.isBlocking) { if (model.currentComboStep > 0 && Time.time < model.lastAttackTime + model.minComboDelay) return; PerformComboAttack(); } }
     }
-
-    IEnumerator PerformSkillR_Logic(Vector3 targetPos)
-    {
-        model.isAttacking = true;
-        Vector3 dirToTarget = (targetPos - transform.position).normalized; dirToTarget.y = 0;
-        if (dirToTarget != Vector3.zero) transform.rotation = Quaternion.LookRotation(dirToTarget);
-        yield return new WaitForSeconds(0.4f); 
-        SpawnVFX(model.vfxSkillR_Explosion, targetPos, Quaternion.identity);
-        Collider[] hits = Physics.OverlapSphere(targetPos, model.skillRRadius, model.enemyLayer);
-        foreach (var hit in hits)
-        {
-            IDamageable target = hit.GetComponent<IDamageable>();
-            if (target == null) target = hit.GetComponentInParent<IDamageable>();
-            if (target != null)
-            {
-                float distanceToCenter = Vector3.Distance(hit.transform.position, targetPos);
-                bool isMainTarget = distanceToCenter < 1.0f; 
-                float duration = isMainTarget ? model.skillRStunTimeMain : model.skillRStunTimeArea;
-                float knockForce = isMainTarget ? model.skillRKnockupForce : (model.skillRKnockupForce * 0.5f);
-                DamageInfo info = new DamageInfo { amount = model.skillRDamage, attacker = gameObject, hitPoint = hit.ClosestPoint(targetPos), hitDirection = Vector3.up, knockbackForce = knockForce, type = DamageType.UltimateR, duration = duration };
-                target.TakeDamage(info);
-            }
-        }
-        yield return new WaitForSeconds(0.4f); 
-        view.TriggerSkillR_Cancel(); 
-        model.isAttacking = false;
-        _currentActionCoroutine = null;
-    }
-
+    IEnumerator PerformSkillR_Logic(Vector3 targetPos) { model.isAttacking = true; Vector3 dirToTarget = (targetPos - transform.position).normalized; dirToTarget.y = 0; if (dirToTarget != Vector3.zero) transform.rotation = Quaternion.LookRotation(dirToTarget); yield return new WaitForSeconds(0.4f); SpawnVFX(model.vfxSkillR_Explosion, targetPos, Quaternion.identity); Collider[] hits = Physics.OverlapSphere(targetPos, model.skillRRadius, model.enemyLayer); foreach (var hit in hits) { IDamageable target = hit.GetComponent<IDamageable>(); if (target == null) target = hit.GetComponentInParent<IDamageable>(); if (target != null) { float distanceToCenter = Vector3.Distance(hit.transform.position, targetPos); bool isMainTarget = distanceToCenter < 1.0f; float duration = isMainTarget ? model.skillRStunTimeMain : model.skillRStunTimeArea; float knockForce = isMainTarget ? model.skillRKnockupForce : (model.skillRKnockupForce * 0.5f); DamageInfo info = new DamageInfo { amount = model.skillRDamage, attacker = gameObject, hitPoint = hit.ClosestPoint(targetPos), hitDirection = Vector3.up, knockbackForce = knockForce, type = DamageType.UltimateR, duration = duration }; target.TakeDamage(info); } } yield return new WaitForSeconds(0.4f); view.TriggerSkillR_Cancel(); model.isAttacking = false; _currentActionCoroutine = null; }
     void HandleSkillRCooldown() { if (model.currentRStacks < model.skillRMaxStacks) { if (Time.time >= model.nextRStackTime) { model.currentRStacks++; if (model.currentRStacks < model.skillRMaxStacks) model.nextRStackTime = Time.time + model.skillRCooldown; } } }
     void HandleTargeting() { Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition); if (Physics.Raycast(ray, out RaycastHit hit, 100f, model.enemyLayer)) { _currentTarget = hit.transform; if (_currentIndicator == null && model.vfxSkillR_Target != null) _currentIndicator = Instantiate(model.vfxSkillR_Target); if (_currentIndicator != null) { _currentIndicator.SetActive(true); _currentIndicator.transform.position = _currentTarget.position + Vector3.up * 0.05f; _currentIndicator.transform.rotation = Quaternion.identity; float diameter = model.skillRRadius * 2.0f; _currentIndicator.transform.localScale = new Vector3(diameter, 0.05f, diameter); } } else { if (_currentIndicator != null) _currentIndicator.SetActive(false); _currentTarget = null; } }
     IEnumerator PerformSkillE() { model.isAttacking = true; model.lastSkillETime = Time.time; RotateToInputDirection(); view.TriggerSkillE(); yield return new WaitForSeconds(0.3f); Quaternion vfxRotation = transform.rotation * Quaternion.Euler(model.skillEVfxRotation); SpawnVFX(model.vfxSkillE, transform.position, vfxRotation); Collider[] hits = Physics.OverlapSphere(transform.position, model.skillERange, model.enemyLayer); foreach(var hit in hits) { Vector3 directionToTarget = (hit.transform.position - transform.position).normalized; directionToTarget.y = 0; float angleToTarget = Vector3.Angle(transform.forward, directionToTarget); if (angleToTarget < model.skillEAngle/2) { IDamageable t = hit.GetComponent<IDamageable>(); if(t==null) t = hit.GetComponentInParent<IDamageable>(); if(t!=null) t.TakeDamage(new DamageInfo{amount=model.damageAmount*1.5f, attacker=gameObject, hitPoint=hit.ClosestPoint(transform.position), hitDirection=Vector3.up, knockbackForce=model.skillEKnockupForce, type=DamageType.EarthUp, duration=model.skillEStunTime});}} yield return new WaitForSeconds(model.skillEDuration - 0.3f); model.isAttacking = false; _currentActionCoroutine = null; }
@@ -225,5 +202,10 @@ public class PlayerController : MonoBehaviour
     void RotateToCameraImmediate() { if (_cameraTransform == null) return; Vector3 camForward = _cameraTransform.forward; camForward.y = 0; if (camForward != Vector3.zero) transform.rotation = Quaternion.LookRotation(camForward); }
     void HandleRotation(Vector3 moveDir) { if (model.isAttacking || model.isDashing || model.isBlocking) return; if (_cameraTransform == null) return; if (moveDir != Vector3.zero) { Quaternion targetRotation = Quaternion.LookRotation(moveDir); transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, model.rotationSpeed * Time.deltaTime); } }
     void HandleMovement(Vector3 moveDir, float h, float v) { if (model.isAttacking || model.isDashing || model.isBlocking) return; Vector3 targetVelocity = moveDir * model.moveSpeed; float smoothTime = (moveDir.magnitude > 0) ? model.accelerationTime : model.decelerationTime; model.currentVelocity = Vector3.SmoothDamp(model.currentVelocity, targetVelocity, ref model.smoothDampVelocity, smoothTime); _characterController.Move(model.currentVelocity * Time.deltaTime); if (!_characterController.isGrounded) _characterController.Move(Vector3.down * 9.81f * Time.deltaTime); float speedPercent = model.currentVelocity.magnitude / model.moveSpeed; if (speedPercent > 1) speedPercent = 1; view.UpdateMovementAnimation(0, speedPercent); }
-    private void OnDrawGizmosSelected() { if (model == null) return; Gizmos.color = Color.red; Vector3 hitPos = transform.position + transform.forward * 1.0f; Gizmos.DrawWireSphere(hitPos, model.attackRange); }
+    
+    private void OnDrawGizmosSelected() { 
+        if (model == null) return; 
+        Gizmos.color = Color.red; Vector3 hitPos = transform.position + transform.forward * 1.0f; Gizmos.DrawWireSphere(hitPos, model.attackRange); 
+        Gizmos.color = Color.yellow; Gizmos.DrawWireSphere(transform.position, model.interactionRange);
+    }
 }
