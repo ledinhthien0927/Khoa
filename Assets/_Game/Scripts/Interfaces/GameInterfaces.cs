@@ -1,7 +1,7 @@
 using UnityEngine;
 
 // --------------------------------------------------------------------------
-// PHẦN 1: CÁC KHÁI NIỆM CHUNG (DATA TYPES)
+// PHẦN 1: CÁC KHÁI NIỆM CHUNG
 // --------------------------------------------------------------------------
 
 public enum HitResult
@@ -16,11 +16,12 @@ public enum HitResult
 
 public enum DamageType
 {
-    Physical,   // Vật lý thông thường
+    Physical,   // Vật lý thường
     Heavy,      // Đòn nặng (Hất tung)
-    Stun,       // Đòn gây choáng
+    Stun,       // Gây choáng
     Magic,      // Phép thuật
-    EarthUp     // [MỚI] Địa chấn (Dùng cho Skill E)
+    EarthUp,    // Địa chấn (Skill E)
+    UltimateR   // Chiêu cuối (Skill R) - [MỚI]
 }
 
 [System.Serializable]
@@ -32,13 +33,11 @@ public struct DamageInfo
     public Vector3 hitDirection;    // Hướng đẩy
     public float knockbackForce;    // Lực đẩy
     public DamageType type;         // Loại sát thương
-    
-    // [MỚI] Biến này gây ra lỗi nếu thiếu
     public float duration;          // Thời gian hiệu ứng (Stun/Hất tung bao lâu?)
 }
 
 // --------------------------------------------------------------------------
-// PHẦN 2: CÁC GIAO DIỆN (INTERFACES)
+// PHẦN 2: INTERFACES
 // --------------------------------------------------------------------------
 
 public interface IDamageable

@@ -31,25 +31,33 @@ public class PlayerModel
     public float skillECooldown = 5.0f;    
     public float skillEDuration = 1.5f;    
     public float skillERange = 8.0f;       
-    [Range(0, 180)]
-    public float skillEAngle = 45.0f;      
-    public float skillEKnockupForce = 15f; 
+    [Range(0, 180)] public float skillEAngle = 45.0f;      
+    public float skillEKnockupForce = 8f; 
     public float skillEStunTime = 2.0f;    
-    
-    // [MỚI] Góc xoay sửa lỗi VFX (Nếu VFX bay sang phải thì nhập -90 hoặc 90 vào đây)
     public Vector3 skillEVfxRotation = new Vector3(0, -90, 0); 
+
+    [Header("Skill R - Tối Thượng")]
+    public float skillRCooldown = 5.0f;     
+    public int skillRMaxStacks = 5;         
+    public float skillRRadius = 4.0f;       
+    public float skillRKnockupForce = 12f;  
+    public float skillRStunTimeMain = 2.0f; 
+    public float skillRStunTimeArea = 0.7f; 
+    public float skillRDamage = 20f;        
 
     [Header("Damage Settings")]
     public LayerMask enemyLayer;      
     public float attackRange = 2.0f;  
     public float damageAmount = 10f;  
-    public float[] knockbackForces = { 20f, 40f, 60f, 80f }; 
+    public float[] knockbackForces = { 5f, 8f, 12f, 15f }; 
 
     [Header("VFX Settings")]
     public GameObject vfxCombo3;
     public GameObject vfxJumpSmash;
     public GameObject vfxCounter;
     public GameObject vfxSkillE; 
+    public GameObject vfxSkillR_Target;    
+    public GameObject vfxSkillR_Explosion; 
 
     [Header("Runtime State")]
     public Vector3 currentVelocity;
@@ -63,5 +71,10 @@ public class PlayerModel
     public float lastDashTime;
     public float nextBlockTime; 
     public float blockStartTime;
-    public float lastSkillETime; 
+    public float lastSkillETime;
+    
+    // Skill R State
+    public int currentRStacks;
+    public float nextRStackTime; 
+    public bool isAimingR; // [MỚI] Đang giữ R
 }

@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections;
 
 [RequireComponent(typeof(Rigidbody))]
-public class TestEnemy : MonoBehaviour, IDamageable
+public class PhatTestEnemy : MonoBehaviour, IDamageable
 {
     private Rigidbody _rb;
     private Renderer _renderer;
@@ -21,7 +21,6 @@ public class TestEnemy : MonoBehaviour, IDamageable
 
     void LateUpdate()
     {
-        // Luôn đứng thẳng
         if (transform.rotation.x != 0 || transform.rotation.z != 0)
         {
             Vector3 currentRot = transform.rotation.eulerAngles;
@@ -39,10 +38,9 @@ public class TestEnemy : MonoBehaviour, IDamageable
         _rb.linearVelocity = Vector3.zero;
         _rb.angularVelocity = Vector3.zero;
 
-        // Xử lý Lực đẩy
+        // Xử lý Lực đẩy (Hỗ trợ Skill E, R, JumpSmash)
         if (info.hitDirection == Vector3.up)
         {
-            // Hất tung (Skill E hoặc Jump Smash)
             _rb.AddForce(Vector3.up * info.knockbackForce, ForceMode.VelocityChange);
         }
         else
@@ -51,13 +49,15 @@ public class TestEnemy : MonoBehaviour, IDamageable
             _rb.AddForce(finalForce.normalized * info.knockbackForce, ForceMode.VelocityChange);
         }
 
-        // Xử lý thời gian hồi phục (Duration từ DamageInfo)
-        // Nếu là Skill E (EarthUp), nó sẽ truyền 2.0s vào đây
-        float recoverTime = (info.type == DamageType.EarthUp || info.type == DamageType.Stun) ? info.duration : 0.6f;
+        // Xử lý Thời gian Stun
+        // UltimateR, EarthUp và Stun dùng biến duration riêng
+        float recoverTime = (info.type == DamageType.UltimateR || info.type == DamageType.EarthUp || info.type == DamageType.Stun) 
+                            ? info.duration 
+                            : 0.6f;
         
         StartCoroutine(RecoverRoutine(recoverTime));
 
-        if (info.type == DamageType.Stun || info.type == DamageType.EarthUp) 
+        if (info.type == DamageType.Stun || info.type == DamageType.EarthUp || info.type == DamageType.UltimateR) 
             StartCoroutine(StunEffectRoutine(recoverTime));
 
         return HitResult.Hit;
