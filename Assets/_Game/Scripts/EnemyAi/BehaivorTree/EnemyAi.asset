@@ -25,8 +25,8 @@ MonoBehaviour:
       type: {class: BehaviorGraphModule, ns: Unity.Behavior, asm: Unity.Behavior}
       data:
         AuthoringAssetID:
-          m_Value0: 9577977093861453851
-          m_Value1: 17735790938469442331
+          m_Value0: 10720023653073840403
+          m_Value1: 11914770653586773465
         m_DebugInfo: {fileID: 0}
         BlackboardReference:
           rid: 4947736615226703873
@@ -39,7 +39,7 @@ MonoBehaviour:
           rid: 4947736615226703875
         m_EndedNodes:
           rid: 4947736615226703876
-        m_VersionTimestamp: 639035908232711698
+        m_VersionTimestamp: 639037568414491591
     - rid: 4947736615226703873
       type: {class: BlackboardReference, ns: Unity.Behavior, asm: Unity.Behavior}
       data:
@@ -558,13 +558,13 @@ MonoBehaviour:
   - rid: 4976275495091175622
   - rid: 4976275495091175785
   - rid: 4976275495091175893
-  m_VersionTimestamp: 639035908232711698
+  m_VersionTimestamp: 639037568414491591
   m_SerializedVersion: 1
   m_DebugInfo: {fileID: 4245121307710843155}
   m_RuntimeGraph: {fileID: -17198853855435731}
   AssetID:
-    m_Value0: 9577977093861453851
-    m_Value1: 17735790938469442331
+    m_Value0: 10720023653073840403
+    m_Value1: 11914770653586773465
   Story:
     Story: 
     StoryVariableNames: []
@@ -2187,8 +2187,8 @@ MonoBehaviour:
   m_Name: EnemyAi Blackboard
   m_EditorClassIdentifier: Unity.Behavior.Authoring::Unity.Behavior.BehaviorBlackboardAuthoringAsset
   AssetID:
-    m_Value0: 9577977093861453851
-    m_Value1: 17735790938469442331
+    m_Value0: 10720023653073840403
+    m_Value1: 11914770653586773465
   m_Variables:
   - rid: 4976275472380330152
   - rid: 4976275472380330123

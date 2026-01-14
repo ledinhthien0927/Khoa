@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using TMPro; 
 using System.Collections;
 using System.Collections.Generic; 
+using System.Linq; 
 
 public class QuenchManager : MonoBehaviour
 {
@@ -12,10 +13,18 @@ public class QuenchManager : MonoBehaviour
     public ShowcaseResult showcaseManager; 
     public GameObject finishedItemPrefab; 
 
+    [Header("Previous Scores (Test Data)")]
+    public float previousHammerScore = 95f; 
+    public float previousHeatScore = 85f;   
+
     [Header("UI - Main")]
     public GameObject quenchCanvas;
     public GameObject backgroundCanvas; 
     
+    [Header("--- TUTORIAL (HƯỚNG DẪN) ---")] // <--- MỚI
+    public GameObject tutorialPanel;         // Kéo Panel hướng dẫn vào đây
+    public Button closeTutorialButton;       // Kéo Button "Đã hiểu" vào đây
+
     [Header("UI - Gameplay Bar")]
     public GameObject quenchPanel;      
     public RectTransform barBG;         
@@ -24,8 +33,14 @@ public class QuenchManager : MonoBehaviour
     public RectTransform cursor;        
     public TextMeshProUGUI rangePreviewText; 
 
-    [Header("UI - Stat Panel (QUAN TRỌNG)")]
-    public RectTransform statPanelRect; // Kéo cái bảng chứa 3 dòng chỉ số vào đây
+    [Header("--- 1. FLOATING TEXT ---")]
+    public TextMeshProUGUI floatingText; 
+    public float floatSpeed = 100f;      
+    public float floatDuration = 1.0f;   
+
+    [Header("--- 2. SELECTION PANEL ---")]
+    public GameObject selectionPanelObj;    
+    public RectTransform selectionPanelRect; 
     
     [Header("UI - REWARD BUTTONS")]
     public GameObject[] rewardButtons; 
@@ -57,22 +72,21 @@ public class QuenchManager : MonoBehaviour
     public float moveSpeed = 500f;      
     public int minBaseStat = 10;
     public int maxBaseStat = 50;
-    
-    [Tooltip("Độ phóng to: 1.5 là to gấp rưỡi")]
     public float panelScaleEnd = 1.5f; 
-    [Tooltip("Thời gian bảng bay ra")]
     public float animDuration = 0.8f;
 
     private bool movingRight = true;
+    
     private List<string> collectedStats = new List<string>(); 
+    private List<int> generatedValues = new List<int>();      
+    private List<float> accuracyLog = new List<float>();      
+
     private bool isGameActive = false; 
     private bool readyToQuench = false; 
     private float barWidth;
     private bool isBonusActive = false; 
     
-    // Lưu vị trí và scale ban đầu để reset khi chơi lại
     private Vector2 startPanelPos;
-    private Vector3 startPanelScale; 
     
     private int picksAllowed = 1;     
     private int currentPicks = 0;     
@@ -82,21 +96,27 @@ public class QuenchManager : MonoBehaviour
 
     void Start()
     {
-        // Lưu lại vị trí ban đầu của bảng (Vị trí bạn đặt trong Editor)
-        if (statPanelRect != null) 
-        {
-            startPanelPos = statPanelRect.anchoredPosition;
-            startPanelScale = statPanelRect.localScale;
-        }
+        if (selectionPanelRect != null) startPanelPos = selectionPanelRect.anchoredPosition;
 
         if (quenchPanel != null) quenchPanel.SetActive(false);
         if (quenchCamera != null) quenchCamera.SetActive(false);
         if (tongsAndItem != null) tongsAndItem.SetActive(false);
         if (barBG != null) barWidth = barBG.rect.width;
+        
         if (confirmButton != null) {
             confirmButton.gameObject.SetActive(false); 
             confirmButton.onClick.AddListener(OnConfirmClicked);
         }
+        
+        if (floatingText != null) floatingText.gameObject.SetActive(false);
+        
+        // --- MỚI: Ẩn Tutorial Panel khi game load ---
+        if (tutorialPanel != null) tutorialPanel.SetActive(false);
+        
+        // --- MỚI: Gán sự kiện cho nút đóng ---
+        if (closeTutorialButton != null) 
+            closeTutorialButton.onClick.AddListener(CloseTutorial);
+
         ResetUI();
     }
 
@@ -109,12 +129,15 @@ public class QuenchManager : MonoBehaviour
         if (tongsAndItem != null) tongsAndItem.SetActive(true);
 
         collectedStats.Clear();
+        generatedValues.Clear(); 
+        accuracyLog.Clear();     
+        
         ResetUI();
         
-        // Trả bảng về vị trí cũ và kích thước cũ (Reset)
-        if (statPanelRect != null) {
-            statPanelRect.anchoredPosition = startPanelPos;
-            statPanelRect.localScale = Vector3.one; 
+        if (selectionPanelObj != null) selectionPanelObj.SetActive(false);
+        if (selectionPanelRect != null) {
+            selectionPanelRect.anchoredPosition = startPanelPos; 
+            selectionPanelRect.localScale = Vector3.one; 
         }
 
         CheckLegendaryBonus();
@@ -126,13 +149,31 @@ public class QuenchManager : MonoBehaviour
         }
         
         RandomizeTargetZone();
-        readyToQuench = true;
+
+        // --- MỚI: Logic hiển thị Tutorial ---
+        if (tutorialPanel != null)
+        {
+            tutorialPanel.SetActive(true);
+            readyToQuench = false; // Chưa cho chơi, chờ tắt hướng dẫn
+        }
+        else
+        {
+            readyToQuench = true; // Không có hướng dẫn thì chơi luôn
+        }
     }
+
+    // --- MỚI: Hàm đóng Tutorial ---
+    public void CloseTutorial()
+    {
+        if (tutorialPanel != null) tutorialPanel.SetActive(false);
+        readyToQuench = true; // Lúc này mới cho phép bấm Space
+    }
+    // -----------------------------
 
     void CheckLegendaryBonus()
     {
-        if (HeatingManager.IsLegendary && SmithingManager.IsLegendary) isBonusActive = true;
-        else isBonusActive = false;
+        // Logic bonus cũ
+        isBonusActive = false; 
     }
 
     void UpdateRangeText()
@@ -146,6 +187,10 @@ public class QuenchManager : MonoBehaviour
 
     void Update()
     {
+        // Nếu chưa sẵn sàng (đang hiện Tutorial), không làm gì cả
+        if (!readyToQuench && !isGameActive) return;
+
+        // Trạng thái chờ bấm Space lần đầu để bắt đầu
         if (readyToQuench) {
             if (Input.GetKeyDown(KeyCode.Space)) {
                 readyToQuench = false; 
@@ -202,23 +247,22 @@ public class QuenchManager : MonoBehaviour
 
         if (distance <= perfectThreshold) {
             Debug.Log("PERFECT!");
-            if (resultText != null) { resultText.text = "PERFECT!"; resultText.color = Color.cyan; }
             if (hitAudio != null) hitAudio.Play();
             GenerateAndAddStat(accuracy); 
         } else if (distance <= goodThreshold) {
             Debug.Log("GOOD!");
-            if (resultText != null) { resultText.text = "GOOD"; resultText.color = Color.green; }
             if (hitAudio != null) hitAudio.Play();
             GenerateAndAddStat(accuracy);
         } else {
             Debug.Log("MISS!");
             if (resultText != null) { resultText.text = "MISS!"; resultText.color = Color.red; }
             if (missAudio != null) missAudio.Play();
+            
+            ShowFloatingText("MISS!", Color.red);
             RemoveLastStat();
         }
 
         PlayEffects();
-        UpdateStatUI(); 
 
         if (collectedStats.Count >= 3) StartCoroutine(WinAnimationSequence());
         else StartCoroutine(ContinueGameDelay());
@@ -226,6 +270,8 @@ public class QuenchManager : MonoBehaviour
 
     void GenerateAndAddStat(float accuracy)
     {
+        accuracyLog.Add(accuracy * 100f);
+
         string type = "Sát thương"; 
         int min = minBaseStat; int max = maxBaseStat;
         if (isBonusActive) { min += 15; max += 30; }
@@ -233,16 +279,63 @@ public class QuenchManager : MonoBehaviour
         float rawValue = Mathf.Lerp(min, max, accuracy);
         int value = Mathf.RoundToInt(rawValue);
 
+        generatedValues.Add(value);
+
         string colorHex = "#FFFFFF"; 
-        if (value >= max * 0.9f) colorHex = "#FF0000"; 
-        else if (value >= max * 0.7f) colorHex = "#A020F0"; 
-        else if (value >= max * 0.4f) colorHex = "#00FFFF"; 
+        Color flashColor = Color.white;
+
+        if (value >= max * 0.9f) { colorHex = "#FF0000"; flashColor = Color.red; }
+        else if (value >= max * 0.7f) { colorHex = "#A020F0"; flashColor = new Color(0.6f, 0.2f, 0.9f); } 
+        else if (value >= max * 0.4f) { colorHex = "#00FFFF"; flashColor = Color.cyan; }
         
         string statString = $"<color={colorHex}>+{value} {type}</color>";
         if (collectedStats.Count < 3) collectedStats.Add(statString);
+
+        ShowFloatingText($"+{value} {type}", flashColor);
     }
 
-    void RemoveLastStat() { if (collectedStats.Count > 0) collectedStats.RemoveAt(collectedStats.Count - 1); }
+    void ShowFloatingText(string content, Color color)
+    {
+        if (floatingText != null)
+        {
+            StopCoroutine("AnimateFloatingText"); 
+            StartCoroutine(AnimateFloatingText(content, color));
+        }
+    }
+
+    IEnumerator AnimateFloatingText(string content, Color color)
+    {
+        floatingText.gameObject.SetActive(true);
+        floatingText.text = content;
+        floatingText.color = color;
+        
+        if (cursor != null) 
+            floatingText.rectTransform.anchoredPosition = new Vector2(cursor.anchoredPosition.x, 50f); 
+
+        float elapsed = 0f;
+        Vector2 startPos = floatingText.rectTransform.anchoredPosition;
+        Color startColor = color;
+
+        while (elapsed < floatDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / floatDuration;
+            floatingText.rectTransform.anchoredPosition = startPos + new Vector2(0, floatSpeed * t);
+            floatingText.color = new Color(startColor.r, startColor.g, startColor.b, 1f - t);
+            yield return null;
+        }
+        floatingText.gameObject.SetActive(false);
+    }
+
+    void RemoveLastStat() 
+    { 
+        if (collectedStats.Count > 0) 
+        {
+            collectedStats.RemoveAt(collectedStats.Count - 1);
+            if (generatedValues.Count > 0) generatedValues.RemoveAt(generatedValues.Count - 1);
+            if (accuracyLog.Count > 0) accuracyLog.RemoveAt(accuracyLog.Count - 1);
+        }
+    }
 
     void UpdateStatUI()
     {
@@ -265,44 +358,42 @@ public class QuenchManager : MonoBehaviour
             if (hoverFrames[i] != null) hoverFrames[i].SetActive(false);
             if (selectedFrames[i] != null) selectedFrames[i].SetActive(false);
         }
-        UpdateStatUI();
     }
 
     IEnumerator WinAnimationSequence() 
     { 
         isGameActive = false; 
         if (resultText != null) resultText.text = "";
-        yield return new WaitForSeconds(0.5f);
+        UpdateStatUI();
 
-        if (quenchPanel != null) quenchPanel.SetActive(false);
+        yield return new WaitForSeconds(0.8f); 
+
+        if (quenchPanel != null) quenchPanel.SetActive(false); 
         if (tongsAndItem != null) tongsAndItem.SetActive(false);
 
-        // --- ANIMATION BAY RA GIỮA VÀ ZOOM ---
-        if (statPanelRect != null)
+        if (selectionPanelObj != null) 
         {
-            float elapsed = 0;
-            Vector2 startPos = statPanelRect.anchoredPosition;
-            Vector3 startScale = statPanelRect.localScale;
-            
-            // Đích đến: Vector2.zero (Giữa màn hình - nếu neo đúng)
-            Vector2 endPos = Vector2.zero; 
-            Vector3 targetScale = Vector3.one * panelScaleEnd; // Phóng to
+            selectionPanelObj.SetActive(true); 
+            if (selectionPanelRect != null)
+            {
+                float elapsed = 0;
+                Vector2 startPos = selectionPanelRect.anchoredPosition;
+                Vector3 startScale = selectionPanelRect.localScale;
+                Vector2 endPos = Vector2.zero; 
+                Vector3 targetScale = Vector3.one * panelScaleEnd;
 
-            while (elapsed < animDuration) {
-                float t = elapsed / animDuration;
-                t = t * t * (3f - 2f * t); // Smooth step
-
-                statPanelRect.anchoredPosition = Vector2.Lerp(startPos, endPos, t);
-                statPanelRect.localScale = Vector3.Lerp(startScale, targetScale, t);
-
-                elapsed += Time.deltaTime;
-                yield return null;
+                while (elapsed < animDuration) {
+                    float t = elapsed / animDuration;
+                    t = t * t * (3f - 2f * t); 
+                    selectionPanelRect.anchoredPosition = Vector2.Lerp(startPos, endPos, t);
+                    selectionPanelRect.localScale = Vector3.Lerp(startScale, targetScale, t);
+                    elapsed += Time.deltaTime;
+                    yield return null;
+                }
+                selectionPanelRect.anchoredPosition = endPos;
+                selectionPanelRect.localScale = targetScale;
             }
-            
-            statPanelRect.anchoredPosition = endPos;
-            statPanelRect.localScale = targetScale;
         }
-        // -----------------------------
 
         for (int i = 0; i < 3; i++) if(skullImages[i] != null) skullImages[i].sprite = skullNormalSprite;
 
@@ -319,17 +410,8 @@ public class QuenchManager : MonoBehaviour
         }
     }
 
-    public void OnRewardHoverEnter(int index)
-    {
-        if (!isLineSelected[index] && index < hoverFrames.Length && hoverFrames[index] != null)
-            hoverFrames[index].SetActive(true);
-    }
-
-    public void OnRewardHoverExit(int index)
-    {
-        if (index < hoverFrames.Length && hoverFrames[index] != null)
-            hoverFrames[index].SetActive(false);
-    }
+    public void OnRewardHoverEnter(int index) { if (!isLineSelected[index] && index < hoverFrames.Length && hoverFrames[index] != null) hoverFrames[index].SetActive(true); }
+    public void OnRewardHoverExit(int index) { if (index < hoverFrames.Length && hoverFrames[index] != null) hoverFrames[index].SetActive(false); }
 
     public void OnRewardClick(int index)
     {
@@ -340,9 +422,7 @@ public class QuenchManager : MonoBehaviour
             if (currentPicks < picksAllowed) {
                 isLineSelected[index] = true;
                 currentPicks++;
-            } else {
-                return; 
-            }
+            } else { return; }
         }
         UpdateRewardVisuals(index);
     }
@@ -358,7 +438,29 @@ public class QuenchManager : MonoBehaviour
     {
         if (quenchCanvas != null) quenchCanvas.SetActive(false);
         if (backgroundCanvas != null) backgroundCanvas.SetActive(false);
-        if (showcaseManager != null) showcaseManager.ShowResult(finishedItemPrefab, 100, 100, 100); 
+        
+        float finalBaseDamage = 0;
+        for (int i = 0; i < 3; i++)
+        {
+            if (isLineSelected[i] && i < generatedValues.Count)
+            {
+                finalBaseDamage += generatedValues[i];
+            }
+        }
+        if (finalBaseDamage == 0 && generatedValues.Count > 0) finalBaseDamage = generatedValues[0];
+
+        float currentQuenchScore = (accuracyLog.Count > 0) ? accuracyLog.Average() : 0;
+
+        if (showcaseManager != null) 
+        {
+            showcaseManager.ShowResult(
+                finishedItemPrefab, 
+                finalBaseDamage,      
+                previousHammerScore,  
+                previousHeatScore,    
+                currentQuenchScore    
+            ); 
+        }
     }
 
     void PlayEffects() { if(hissAudio) hissAudio.PlayOneShot(hissAudio.clip); StartCoroutine(PlaySteamDelayed()); }

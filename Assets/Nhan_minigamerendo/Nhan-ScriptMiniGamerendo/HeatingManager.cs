@@ -56,10 +56,16 @@ public class HeatingManager : MonoBehaviour
     public GameObject rawIngotObject;   
     public Renderer ingotRenderer;      
     
-    [Header("Effects")]
+    [Header("Effects - Fire & Heat")]
     public Gradient heatColorGradient; 
     public ParticleSystem fireEffect;
     public AudioSource sizzleAudio;
+
+    // --- [MỚI] BIẾN CHỈNH ĐỘ TO NHỎ CỦA LỬA ---
+    [Header("--- FIRE SCALE SETTINGS ---")]
+    public float minFireScale = 0.5f; // Kích thước lửa khi nhiệt độ thấp/mới bấm
+    public float maxFireScale = 3.0f; // Kích thước lửa khi nhiệt độ cao (Max)
+    // ---------------------------------------------
 
     [Header("CƠ CHẾ LỬA THEO VÙNG")]
     public float coolSpeed = 0.3f;          
@@ -153,6 +159,9 @@ public class HeatingManager : MonoBehaviour
         if (rawIngotObject != null) rawIngotObject.SetActive(false); 
         if (sizzleAudio != null) { sizzleAudio.volume = 0; sizzleAudio.Play(); }
 
+        // [MỚI] Reset lửa về nhỏ nhất khi bắt đầu
+        if (fireEffect != null) fireEffect.transform.localScale = Vector3.one * minFireScale;
+
         // Ẩn hết UI Gameplay
         if (dropIngotButton != null) dropIngotButton.gameObject.SetActive(false);
         if (startPhaseButton != null) startPhaseButton.gameObject.SetActive(false);
@@ -166,32 +175,28 @@ public class HeatingManager : MonoBehaviour
     }
 
     // =========================================================
-    //               TUTORIAL LOGIC (ĐÃ CẬP NHẬT)
+    //              TUTORIAL LOGIC
     // =========================================================
 
-    // Hàm dùng để hiện 1 trang duy nhất và khóa nút Next/Prev
     void ShowSpecificTutorialPage(int pageIndex)
     {
         if (tutorialPanel != null) tutorialPanel.SetActive(true);
         
         currentPageIndex = pageIndex;
-        // Đảm bảo index hợp lệ
         if (currentPageIndex >= tutorialPages.Length) currentPageIndex = tutorialPages.Length - 1;
         if (currentPageIndex < 0) currentPageIndex = 0;
 
-        isSinglePageMode = true; // Bật chế độ khóa trang
+        isSinglePageMode = true; 
         UpdateTutorialUI();
 
-        // Ẩn nút Help khi đang xem Tutorial bắt buộc
         if (helpBtn != null) helpBtn.gameObject.SetActive(false);
     }
 
-    // Hàm gọi khi bấm nút Help (?) -> Cho xem Full
     void OnOpenTutorialManual()
     {
         if (tutorialPanel != null) tutorialPanel.SetActive(true);
         currentPageIndex = 0; 
-        isSinglePageMode = false; // Tắt chế độ khóa -> Xem tự do
+        isSinglePageMode = false; 
         UpdateTutorialUI();
     }
 
@@ -199,11 +204,9 @@ public class HeatingManager : MonoBehaviour
     {
         if (tutorialPanel != null) tutorialPanel.SetActive(false);
 
-        // LOGIC CHUYỂN GIAI ĐOẠN SAU KHI ĐÓNG TUTORIAL
         switch (currentState)
         {
             case GameState.IntroTutorial:
-                // Đã xem Intro (Page 1) -> Hiện nút Bỏ Phôi
                 hasSeenIntro = true;
                 currentState = GameState.ReadyToDrop;
                 if (dropIngotButton != null) dropIngotButton.gameObject.SetActive(true);
@@ -211,7 +214,6 @@ public class HeatingManager : MonoBehaviour
                 break;
 
             case GameState.PostDropTutorial:
-                // Đã xem Hướng dẫn sau khi bỏ phôi (Page 2) -> Hiện nút Nung
                 hasSeenPostDrop = true;
                 currentState = GameState.ReadyToStartHeat;
                 if (startPhaseButton != null) startPhaseButton.gameObject.SetActive(true);
@@ -219,7 +221,6 @@ public class HeatingManager : MonoBehaviour
                 break;
 
             case GameState.HeatTutorial:
-                // Đã xem Hướng dẫn Nung (Page 3) -> Vào chơi
                 hasSeenHeatGuide = true;
                 StartGameplay();
                 if (helpBtn != null) helpBtn.gameObject.SetActive(true);
@@ -229,22 +230,18 @@ public class HeatingManager : MonoBehaviour
 
     void UpdateTutorialUI()
     {
-        // 1. Hiển thị trang hiện tại
         for (int i = 0; i < tutorialPages.Length; i++)
         {
             if (tutorialPages[i] != null) tutorialPages[i].SetActive(i == currentPageIndex);
         }
 
-        // 2. Xử lý nút Next/Prev
         if (isSinglePageMode)
         {
-            // CHẾ ĐỘ 1 TRANG: Ẩn cả 2 nút
             if (nextBtn != null) nextBtn.gameObject.SetActive(false);
             if (prevBtn != null) prevBtn.gameObject.SetActive(false);
         }
         else
         {
-            // CHẾ ĐỘ TỰ DO: Hiện nút bình thường
             if (nextBtn != null) 
             {
                 nextBtn.gameObject.SetActive(true);
@@ -260,18 +257,18 @@ public class HeatingManager : MonoBehaviour
 
     void OnNextPage()
     {
-        if (isSinglePageMode) return; // Khóa
+        if (isSinglePageMode) return; 
         if (currentPageIndex < tutorialPages.Length - 1) { currentPageIndex++; UpdateTutorialUI(); }
     }
 
     void OnPrevPage()
     {
-        if (isSinglePageMode) return; // Khóa
+        if (isSinglePageMode) return; 
         if (currentPageIndex > 0) { currentPageIndex--; UpdateTutorialUI(); }
     }
 
     // =========================================================
-    //               FLOW & GAMEPLAY
+    //              FLOW & GAMEPLAY
     // =========================================================
 
     IEnumerator DropIngotSequence()
@@ -301,15 +298,13 @@ public class HeatingManager : MonoBehaviour
         if (furnaceCamera != null) furnaceCamera.SetActive(false);
         if (mainCamera != null) mainCamera.SetActive(true);
 
-        // --- GIAI ĐOẠN 2: XONG CINEMATIC -> HIỆN PAGE 2 (INDEX 1) ---
         if (!hasSeenPostDrop)
         {
             currentState = GameState.PostDropTutorial;
-            ShowSpecificTutorialPage(1); // Page 2
+            ShowSpecificTutorialPage(1); 
         }
         else
         {
-            // Nếu chơi lại vòng lặp sau khi thua thì bỏ qua bước này, hiện nút luôn
             currentState = GameState.ReadyToStartHeat;
             if (startPhaseButton != null) startPhaseButton.gameObject.SetActive(true);
             if (helpBtn != null) helpBtn.gameObject.SetActive(true);
@@ -320,11 +315,10 @@ public class HeatingManager : MonoBehaviour
     {
         if (startPhaseButton != null) startPhaseButton.gameObject.SetActive(false);
 
-        // --- GIAI ĐOẠN 3: BẤM NUNG -> HIỆN PAGE 3 (INDEX 2) ---
         if (!hasSeenHeatGuide)
         {
             currentState = GameState.HeatTutorial;
-            ShowSpecificTutorialPage(2); // Page 3
+            ShowSpecificTutorialPage(2); 
         }
         else
         {
@@ -401,6 +395,15 @@ public class HeatingManager : MonoBehaviour
             float newVol = (minSoundVolume + currentTemp) * soundMultiplier;
             sizzleAudio.volume = Mathf.Clamp01(newVol);     
         }
+
+        // --- [MỚI] XỬ LÝ SIZE LỬA ---
+        if (fireEffect != null)
+        {
+            // Lerp từ MinScale đến MaxScale dựa trên currentTemp (0.0 -> 1.0)
+            float targetScale = Mathf.Lerp(minFireScale, maxFireScale, currentTemp);
+            fireEffect.transform.localScale = Vector3.one * targetScale;
+        }
+        // ---------------------------
     }
 
     void FinishHeating()
