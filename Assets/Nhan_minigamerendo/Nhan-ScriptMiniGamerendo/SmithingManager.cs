@@ -10,15 +10,15 @@ public class SmithingManager : MonoBehaviour
 
     [Header("--- UI & CAMERAS ---")]
     public GameObject smithingCanvas; 
-    
-    // --- MỚI: Biến chứa Canvas cần ẩn (ví dụ Lobby/Menu) ---
     public GameObject otherCanvasToHide; 
-    // ------------------------------------------------------
-
     public GameObject heatingCanvas;  
     public GameObject heatingCamera;    
     public GameObject smithingCamera;   
     
+    [Header("--- TUTORIAL (HƯỚNG DẪN) ---")] // <--- MỚI
+    public GameObject tutorialPanel;         // Kéo Panel hướng dẫn vào đây
+    public Button closeTutorialButton;       // Kéo Button tắt hướng dẫn vào đây
+
     [Header("--- PLAYER ---")]
     public GameObject playerObject; 
 
@@ -32,6 +32,7 @@ public class SmithingManager : MonoBehaviour
     public TextMeshProUGUI rankText;      
     public GameObject failPanel;         
     public static bool IsLegendary = false;
+
     [Header("--- CƠ CHẾ BÓC VỎ (CUBE) ---")]
     public Transform rawIronBlock;      
     private Vector3 initialBlockScale;    
@@ -68,16 +69,20 @@ public class SmithingManager : MonoBehaviour
             pooledObjects.Add(obj);
         }
 
+        // Ẩn các UI không cần thiết ban đầu
         if (failPanel != null) failPanel.SetActive(false);
         if (scoreText != null) scoreText.text = ""; 
         if (countdownText != null) countdownText.gameObject.SetActive(false);
         if (rankText != null) rankText.text = "";
         if (completionVFX != null) completionVFX.Stop();
 
+        // --- MỚI: Ẩn Tutorial Panel khi game mới chạy ---
+        if (tutorialPanel != null) tutorialPanel.SetActive(false);
+        // -----------------------------------------------
+
         if (smithingCanvas != null) smithingCanvas.SetActive(false);
         if (smithingCamera != null) smithingCamera.SetActive(false);
 
-        // Lưu ý: Nếu bạn gọi StartHeatingPhase ở đây, nó cũng sẽ ẩn Canvas kia bên HeatingManager
         if (HeatingManager.Instance != null) HeatingManager.Instance.StartHeatingPhase();
     }
 
@@ -85,16 +90,16 @@ public class SmithingManager : MonoBehaviour
     {
         if (playerObject != null) playerObject.SetActive(true);
 
+        // Bật/Tắt UI Canvas
         if (heatingCanvas != null) heatingCanvas.SetActive(false);
         if (smithingCanvas != null) smithingCanvas.SetActive(true);
-
-        // --- MỚI: Ẩn Canvas phụ khi bắt đầu đập ---
         if (otherCanvasToHide != null) otherCanvasToHide.SetActive(false);
-        // ------------------------------------------
 
+        // Chuyển Camera
         if (heatingCamera != null) heatingCamera.SetActive(false);
         if (smithingCamera != null) smithingCamera.SetActive(true);
 
+        // Reset thông số
         isGameActive = false; 
         currentTime = totalTime;
         currentPerfectCount = 0;
@@ -110,8 +115,40 @@ public class SmithingManager : MonoBehaviour
         if (blockRenderer != null) 
             blockRenderer.material.color = normalBlockColor; 
 
+        // --- MỚI: Logic hiển thị Tutorial ---
+        if (tutorialPanel != null)
+        {
+            OpenTutorial();
+        }
+        else
+        {
+            // Nếu không có Tutorial Panel thì chạy luôn
+            StartCoroutine(CountdownRoutine());
+        }
+    }
+
+    // --- MỚI: Hàm xử lý mở Tutorial ---
+    void OpenTutorial()
+    {
+        tutorialPanel.SetActive(true);
+        
+        // Đăng ký sự kiện click cho nút đóng (để chắc chắn không bị lỗi logic)
+        if (closeTutorialButton != null)
+        {
+            closeTutorialButton.onClick.RemoveAllListeners(); // Xóa sự kiện cũ
+            closeTutorialButton.onClick.AddListener(CloseTutorialAndStartGame);
+        }
+    }
+
+    // --- MỚI: Hàm xử lý đóng Tutorial và Bắt đầu game ---
+    void CloseTutorialAndStartGame()
+    {
+        if (tutorialPanel != null) tutorialPanel.SetActive(false);
+        
+        // Sau khi tắt bảng hướng dẫn mới bắt đầu đếm ngược
         StartCoroutine(CountdownRoutine());
     }
+    // ------------------------------------------------
 
     IEnumerator CountdownRoutine()
     {

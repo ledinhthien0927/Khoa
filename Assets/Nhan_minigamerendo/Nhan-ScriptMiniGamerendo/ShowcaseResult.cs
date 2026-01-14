@@ -4,113 +4,118 @@ using System.Collections;
 
 public class ShowcaseResult : MonoBehaviour
 {
-    [Header("Cameras")]
-    public GameObject mainCamera;       // Camera Quench
-    public GameObject showcaseCamera;   // Camera Showcase
-
-    [Header("Item & Locations")]
-    public Transform itemSpot;          // Vị trí đặt Item (Nhớ gán GameObject vào đây nha!)
-    
     [Header("UI Components")]
-    public GameObject resultPanel;      // Cái bảng Showcase Panel
-    public TextMeshProUGUI hammerText;  
-    public TextMeshProUGUI heatText;
-    public TextMeshProUGUI quenchText;
-    public TextMeshProUGUI rankText;
+    public GameObject resultPanel;
+    public TextMeshProUGUI damageText; 
+    public TextMeshProUGUI rankText;   
+    public TextMeshProUGUI bonusText;  
 
-    private GameObject spawnedItem; 
+    // --- MỚI: Biến Canvas/Panel chứa nút bấm (Play Again, Home...) ---
+    public GameObject endGameCanvas; 
+    // ----------------------------------------------------------------
 
-    // --- MỚI: Đảm bảo khi game chạy là tắt hết mấy cái của Showcase đi ---
+    [Header("Setup")]
+    public GameObject mainCamera;
+    public GameObject showcaseCamera;
+    public Transform itemSpot;
+    private GameObject spawnedItem;
+
+    private const float LEGENDARY_THRESHOLD = 90f; 
+
+    // Đảm bảo lúc game bắt đầu thì tắt cái EndGameCanvas đi
     void Start()
     {
-        if (resultPanel != null) resultPanel.SetActive(false);
-        if (showcaseCamera != null) showcaseCamera.SetActive(false);
-        if (rankText != null) rankText.gameObject.SetActive(false);
+        if (endGameCanvas != null) endGameCanvas.SetActive(false);
     }
 
-    public void ShowResult(GameObject itemPrefab, float s1, float s2, float s3)
+    public void ShowResult(GameObject itemPrefab, float baseDamageFromQuench, float hammerScore, float heatScore, float quenchScore)
     {
-        // 1. Reset trạng thái UI để chắc chắn nó đang tắt
+        // 1. Reset UI & Camera
         if (resultPanel != null) resultPanel.SetActive(false);
+        if (bonusText != null) bonusText.gameObject.SetActive(false);
+        if (damageText != null) damageText.text = "";
 
-        // 2. Tạo Item mới từ Prefab
-        if (itemPrefab != null)
-        {
-            // Xóa item cũ nếu lỡ có
-            if (spawnedItem != null) Destroy(spawnedItem);
-            
-            // Kiểm tra itemSpot để tránh lỗi null như lúc nãy
-            if (itemSpot == null) 
-            {
-                Debug.LogError("Chưa gán Item Spot! Tạo tạm tại vị trí hiện tại.");
-                GameObject temp = new GameObject("TempSpot");
-                temp.transform.position = transform.position;
-                itemSpot = temp.transform;
-            }
+        // --- MỚI: Ẩn Canvas kết thúc (đề phòng nó đang bật) ---
+        if (endGameCanvas != null) endGameCanvas.SetActive(false);
+        // -----------------------------------------------------
+        
+        if (mainCamera != null) mainCamera.SetActive(false);
+        if (showcaseCamera != null) showcaseCamera.SetActive(true);
 
+        // 2. Spawn vũ khí
+        if (spawnedItem != null) Destroy(spawnedItem);
+        if (itemSpot != null && itemPrefab != null) 
             spawnedItem = Instantiate(itemPrefab, itemSpot.position, itemSpot.rotation);
+
+        // 3. Tính toán Dame & Rank
+        float finalDamage = baseDamageFromQuench; 
+        bool isBonusActive = false;
+
+        if (hammerScore >= LEGENDARY_THRESHOLD || heatScore >= LEGENDARY_THRESHOLD)
+        {
+            float bonusAmount = baseDamageFromQuench * 0.1f; 
+            finalDamage += bonusAmount; 
+            isBonusActive = true;
         }
 
-        // 3. Đổi Camera (BỤP! Lúc này mới qua cảnh Showcase)
-        if(mainCamera != null) mainCamera.SetActive(false);
-        if(showcaseCamera != null) showcaseCamera.SetActive(true);
+        float averageSkillScore = (hammerScore + heatScore + quenchScore) / 3f;
 
-        // 4. Bắt đầu quy trình hiện UI
-        StartCoroutine(ShowUISequence(s1, s2, s3));
+        // 4. Chạy Animation
+        StartCoroutine(RunShowcaseSequence(finalDamage, averageSkillScore, isBonusActive));
     }
 
-    IEnumerator ShowUISequence(float hammerScore, float heatScore, float quenchScore)
+    IEnumerator RunShowcaseSequence(float damageVal, float rankScore, bool hasBonus)
     {
-        // Đợi 0.5s để người chơi nhìn thấy vật phẩm xoay xoay một chút
+        yield return new WaitForSeconds(0.5f);
+        if (resultPanel != null) resultPanel.SetActive(true);
+
+        if (hasBonus && bonusText != null)
+        {
+            bonusText.gameObject.SetActive(true);
+            bonusText.text = "+10% LEGENDARY BONUS";
+        }
+
+        yield return StartCoroutine(CountNumber(damageText, damageVal));
+
         yield return new WaitForSeconds(0.5f);
 
-        // --- LÚC NÀY MỚI BẬT SHOWCASE PANEL ---
-        if (resultPanel != null) resultPanel.SetActive(true);
-        
-        // Chạy số
-        StartCoroutine(CountScoreAnimation(hammerText, hammerScore));
-        StartCoroutine(CountScoreAnimation(heatText, heatScore));
-        StartCoroutine(CountScoreAnimation(quenchText, quenchScore));
+        if (rankText != null)
+        {
+            rankText.gameObject.SetActive(true);
+            if (rankScore >= 90) rankText.text = "<color=orange>S</color>";
+            else if (rankScore >= 70) rankText.text = "<color=green>A</color>";
+            else rankText.text = "<color=white>B</color>";
+        }
 
-        yield return new WaitForSeconds(1f);
+        // --- MỚI: Đợi 1 giây cho người chơi ngắm Rank rồi bật Canvas kết thúc ---
+        yield return new WaitForSeconds(1.0f);
         
-        float avg = (hammerScore + heatScore + quenchScore) / 3f;
-        ShowRank(avg);
+        if (endGameCanvas != null) 
+        {
+            endGameCanvas.SetActive(true);
+            // Gợi ý: Có thể thêm âm thanh "Victory" hoặc tiếng nhạc kết thúc ở đây
+        }
+        // ----------------------------------------------------------------------
     }
 
-    IEnumerator CountScoreAnimation(TextMeshProUGUI textObj, float targetScore)
+    IEnumerator CountNumber(TextMeshProUGUI textRef, float target)
     {
-        if (textObj == null) yield break;
-
         float current = 0;
-        float duration = 1.0f;
+        float duration = 1f;
         float elapsed = 0;
 
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
-            current = Mathf.Lerp(0, targetScore, elapsed / duration);
-            textObj.text = current.ToString("F0") + "%";
+            current = Mathf.Lerp(0, target, elapsed / duration);
+            textRef.text = Mathf.RoundToInt(current).ToString() + " DMG";
             yield return null;
         }
-        textObj.text = targetScore.ToString("F0") + "%";
-    }
-
-    void ShowRank(float average)
-    {
-        if (rankText == null) return;
-
-        rankText.gameObject.SetActive(true);
-        if (average >= 90) rankText.text = "<color=orange>S</color>";
-        else if (average >= 70) rankText.text = "<color=green>A</color>";
-        else rankText.text = "<color=white>B</color>";
+        textRef.text = Mathf.RoundToInt(target).ToString() + " DMG";
     }
 
     void Update()
     {
-        if (spawnedItem != null)
-        {
-            spawnedItem.transform.Rotate(Vector3.up * 15 * Time.deltaTime);
-        }
+        if (spawnedItem != null) spawnedItem.transform.Rotate(Vector3.up * 10 * Time.deltaTime);
     }
 }
