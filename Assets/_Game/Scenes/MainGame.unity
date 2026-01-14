@@ -94173,7 +94173,7 @@ MonoBehaviour:
     skillRDamage: 20
     enemyLayer:
       serializedVersion: 2
-      m_Bits: 256
+      m_Bits: 64
     attackRange: 3
     damageAmount: 10
     knockbackForces:
@@ -94184,7 +94184,7 @@ MonoBehaviour:
     smithingMinigamePrefab: {fileID: 0}
     interactionLayer:
       serializedVersion: 2
-      m_Bits: 512
+      m_Bits: 0
     interactionRange: 2
     isSmithing: 0
     interactionUIName: UI_Prompt
