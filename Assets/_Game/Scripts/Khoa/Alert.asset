@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c969f9c31897b449b0a0fb882dba7a8, type: 3}
+  m_Name: Alert
+  m_EditorClassIdentifier: Assembly-CSharp::MonsterData
+  monsterName: Alert
+  type: 2
+  health: 30
+  speed: 5
+  attackRange: 0
+  detectionRange: 10
+  callRange: 20
+  modelPrefab: {fileID: 178864, guid: 298b6af3224b899419309b7d9e05ace7, type: 3}
