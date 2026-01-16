@@ -18,19 +18,19 @@ public class PlayerController : MonoBehaviour
     private GameObject _currentIndicator;
     private Transform _currentTarget; 
     
-    // Tương tác Rèn (Cửa/Đe)
-    private GameObject _currentInteractableObject; 
-
-    // Tương tác Thuyền
-    private BoatController _nearbyBoat; 
+    // Tương tác Môi trường
+    private GameObject _currentInteractableObject; // Cửa/Đe rèn
+    private BoatController _nearbyBoat;            // Thuyền
+    
+    // [MỚI] Trạng thái đi tàu (Travel Mode)
+    private bool _isTraveling = false;
 
     void Awake()
     {
         _characterController = GetComponent<CharacterController>();
         
-        // Tự động tìm View nếu chưa gán
+        // Tự động tìm View/Model nếu chưa gán
         if (view == null) view = GetComponent<PlayerView>();
-        // Tự động khởi tạo Model nếu chưa có
         if (model == null) model = new PlayerModel();
         
         if (Camera.main != null) _cameraTransform = Camera.main.transform;
@@ -49,59 +49,194 @@ public class PlayerController : MonoBehaviour
         if (view != null) view.OnAttackImpact -= HandleImpact; 
     }
 
-    // --- HÀM HỖ TRỢ ĐỔI CAMERA (Gọi từ MapManager) ---
+    // --- [MỚI] CÁC HÀM PUBLIC HỖ TRỢ MAP MANAGER ---
+    
+    // 1. Bật lại Camera chính sau khi tàu đến nơi
     public void EnableMainCamera()
     {
-        if (_cameraTransform != null) 
+        if (_cameraTransform != null) _cameraTransform.gameObject.SetActive(true);
+    }
+
+    // 2. Lấy View để MapManager điều khiển Animation (Leo lên, Lái tàu...)
+    public PlayerView GetView() 
+    { 
+        return view; 
+    }
+
+    // 3. Chuyển đổi chế độ "Đi tàu" (Khóa/Mở khóa nhân vật)
+    public void SetTravelMode(bool isTraveling)
+    {
+        _isTraveling = isTraveling;
+        
+        // Tắt CharacterController để tránh xung đột vật lý khi bị MapManager di chuyển
+        _characterController.enabled = !isTraveling; 
+        
+        // Ẩn/Hiện UI Skill (Thanh máu, cooldown...)
+        view.ToggleCombatUI(!isTraveling);
+
+        // Nếu bắt đầu đi tàu, reset các trạng thái chiến đấu để tránh kẹt
+        if (isTraveling)
         {
-            _cameraTransform.gameObject.SetActive(true);
+            model.isAttacking = false;
+            model.isBlocking = false;
+            model.isAimingR = false;
+            view.ResumeAnimator();
+            view.UpdateMovementAnimation(0, 0); // Đưa animation về Idle
+            
+            // Tắt indicator nhắm skill R nếu đang bật
+            if (_currentIndicator != null) _currentIndicator.SetActive(false);
         }
     }
 
+    // --- VÒNG LẶP CHÍNH ---
     void Update()
     {
-        // 1. Cập nhật Cooldown và UI mỗi khung hình
+        // [QUAN TRỌNG] Nếu đang đi tàu -> Dừng mọi logic Update
+        if (_isTraveling) return;
+
+        // 1. Cập nhật Cooldown và UI
         HandleSkillRCooldown();
         HandleUIUpdates(); 
 
-        // 2. Kiểm tra tương tác môi trường
-        // Ưu tiên kiểm tra Thuyền trước
-        HandleBoatInteraction();
-        
-        // Chỉ kiểm tra Rèn nếu không đứng cạnh thuyền (để tránh xung đột nút F)
-        if (_nearbyBoat == null) 
-        {
-            HandleSmithingInteraction();
-        }
+        // 2. Kiểm tra tương tác (Thuyền & Rèn)
+        HandleInteractionLogic();
 
-        // 3. Nếu đang trong chế độ Rèn (Minigame) -> Dừng mọi logic khác
+        // 3. Nếu đang Rèn (Minigame) -> Dừng logic chiến đấu/di chuyển
         if (model.isSmithing) return;
 
-        // 4. Logic Nhắm Skill R (Ultimate)
+        // 4. Logic Nhắm Skill R
         if (model.isAimingR) HandleTargeting();
         else {
             if (_currentIndicator != null) _currentIndicator.SetActive(false);
             _currentTarget = null;
         }
 
-        // 5. Phím tắt Debug (Tùy chọn)
+        // 5. Debug Keys
         if (Input.GetKeyDown(KeyCode.K)) DealDamage(5f, DamageType.Physical);
         if (Input.GetKeyDown(KeyCode.H) && model.isBlocking) OnBlockSuccess();
         
-        // 6. Reset Combo nếu quá thời gian chờ
+        // 6. Reset Combo
         if (Time.time > model.lastAttackTime + model.comboResetTime && model.currentComboStep > 0) 
             model.currentComboStep = 0;
 
-        // 7. Xử lý Input Chiến đấu (Chuột trái, Phải, Space, E, R)
+        // 7. Xử lý Input Chiến đấu
         HandleInputPriority();
 
-        // --- [QUAN TRỌNG] CHẶN DI CHUYỂN KHI CONTROLLER BỊ TẮT ---
-        // Nếu MapManager đã tắt CharacterController để đưa lên tàu, thoát ngay lập tức
-        // để tránh lỗi "CharacterController.Move called on inactive controller"
+        // [AN TOÀN] Nếu Controller bị tắt (do MapManager chưa kịp bật lại), thoát ngay
         if (!_characterController.enabled) return;
-        // -----------------------------------------------------------
 
         // 8. Xử lý Di chuyển Vật lý
+        HandleMovementLogic();
+    }
+
+    // ===================================================================================
+    // PHẦN 1: LOGIC TƯƠNG TÁC (Tách biệt để gọn code)
+    // ===================================================================================
+
+    void HandleInteractionLogic()
+    {
+        // A. QUÉT TÌM THUYỀN
+        Collider[] hits = Physics.OverlapSphere(transform.position, 6.0f); 
+        BoatController foundBoat = null;
+        foreach (var hit in hits) {
+            BoatController boat = hit.GetComponent<BoatController>();
+            if (boat == null) boat = hit.GetComponentInParent<BoatController>();
+            if (boat != null) { foundBoat = boat; break; }
+        }
+
+        // Cập nhật trạng thái Thuyền (Bật/Tắt Prompt)
+        if (foundBoat != _nearbyBoat)
+        {
+            if (_nearbyBoat != null) _nearbyBoat.TogglePrompt(false); 
+            if (foundBoat != null) foundBoat.TogglePrompt(true);     
+            _nearbyBoat = foundBoat;
+        }
+
+        // B. QUÉT TÌM RÈN (Chỉ khi không đứng gần thuyền)
+        if (_nearbyBoat == null)
+        {
+            CheckForSmithing();
+        }
+        else
+        {
+            // Nếu đang có thuyền, đảm bảo tắt UI rèn cũ đi
+            if (_currentInteractableObject != null) ToggleObjectUI(_currentInteractableObject, false);
+            _currentInteractableObject = null;
+        }
+
+        // C. XỬ LÝ INPUT "F" (Ưu tiên: Thuyền -> Rèn)
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+            // 1. Mở Map
+            if (_nearbyBoat != null)
+            {
+                if (MapManager.Instance != null) MapManager.Instance.ToggleMap();
+                return; 
+            }
+
+            // 2. Vào Rèn
+            if (_currentInteractableObject != null && !model.isSmithing)
+            {
+                EnterSmithingMode();
+            }
+            // 3. Thoát Rèn
+            else if (model.isSmithing)
+            {
+                ExitSmithingMode();
+            }
+        }
+
+        // Thoát Rèn bằng ESC
+        if (model.isSmithing && Input.GetKeyDown(KeyCode.Escape)) ExitSmithingMode();
+    }
+
+    void CheckForSmithing()
+    {
+        if (model.isSmithing) return;
+
+        GameObject found = null;
+        Collider[] hits = Physics.OverlapSphere(transform.position, model.interactionRange, model.interactionLayer);
+        if (hits.Length > 0) found = hits[0].gameObject;
+
+        if (found != _currentInteractableObject)
+        {
+            if (_currentInteractableObject != null) ToggleObjectUI(_currentInteractableObject, false);
+            if (found != null) ToggleObjectUI(found, true);
+            _currentInteractableObject = found;
+        }
+    }
+
+    void ToggleObjectUI(GameObject rootObj, bool isActive)
+    {
+        if (rootObj == null) return;
+        Transform uiTransform = rootObj.transform.Find(model.interactionUIName); 
+        if (uiTransform != null) uiTransform.gameObject.SetActive(isActive);
+    }
+
+    void EnterSmithingMode()
+    {
+        model.isSmithing = true;
+        model.isAttacking = false;
+        model.isBlocking = false;
+        model.isAimingR = false;
+        view.SetBlocking(false);
+        view.ResumeAnimator(); 
+        model.currentVelocity = Vector3.zero;
+        view.ToggleSmithingUI(true, model.smithingMinigamePrefab);
+    }
+
+    public void ExitSmithingMode()
+    {
+        model.isSmithing = false;
+        view.ToggleSmithingUI(false, null);
+    }
+
+    // ===================================================================================
+    // PHẦN 2: LOGIC DI CHUYỂN
+    // ===================================================================================
+
+    void HandleMovementLogic()
+    {
         if (model.isDashing || model.isAttacking || model.isBlocking || model.isAimingR || model.isSmithing)
         {
             // Dừng di chuyển ngang, nhưng vẫn giữ trọng lực rơi
@@ -114,7 +249,7 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            // Di chuyển bình thường theo Camera
+            // Di chuyển bình thường
             float h = Input.GetAxis("Horizontal");
             float v = Input.GetAxis("Vertical");
             Vector3 moveDir = Vector3.zero;
@@ -131,121 +266,35 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // ===================================================================================
-    // PHẦN 1: LOGIC TƯƠNG TÁC (THUYỀN & RÈN)
-    // ===================================================================================
-
-    // --- A. TƯƠNG TÁC THUYỀN (MỞ MAP) ---
-    void HandleBoatInteraction()
-    {
-        // Quét bán kính 5m tìm Thuyền
-        Collider[] hits = Physics.OverlapSphere(transform.position, 5.0f); 
-        BoatController foundBoat = null;
-
-        foreach (var hit in hits)
-        {
-            BoatController boat = hit.GetComponent<BoatController>();
-            if (boat == null) boat = hit.GetComponentInParent<BoatController>();
-            
-            if (boat != null)
-            {
-                foundBoat = boat;
-                break;
-            }
-        }
-
-        // Bật/Tắt Prompt (Icon F) nếu trạng thái thay đổi
-        if (foundBoat != _nearbyBoat)
-        {
-            if (_nearbyBoat != null) _nearbyBoat.TogglePrompt(false); // Tắt cũ
-            if (foundBoat != null) foundBoat.TogglePrompt(true);     // Bật mới
-            _nearbyBoat = foundBoat;
-        }
-
-        // Logic Bấm F -> Mở Map (Chỉ khi có thuyền)
-        if (_nearbyBoat != null && Input.GetKeyDown(KeyCode.F))
-        {
-            if (MapManager.Instance != null)
-            {
-                MapManager.Instance.ToggleMap();
-            }
-            else
-            {
-                Debug.LogWarning("Không tìm thấy MapManager trong Scene!");
-            }
-        }
+    void HandleRotation(Vector3 moveDir) 
+    { 
+        if (model.isAttacking || model.isDashing || model.isBlocking) return; 
+        if (_cameraTransform == null) return; 
+        if (moveDir != Vector3.zero) { 
+            Quaternion targetRotation = Quaternion.LookRotation(moveDir); 
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, model.rotationSpeed * Time.deltaTime); 
+        } 
     }
 
-    // --- B. TƯƠNG TÁC RÈN (CỬA / ĐE) ---
-    void HandleSmithingInteraction()
-    {
-        // Nếu đang trong Mini-game Rèn
-        if (model.isSmithing)
-        {
-            // Tắt UI Prompt để không bị che
-            if (_currentInteractableObject != null) ToggleObjectUI(_currentInteractableObject, false);
-
-            // Bấm F hoặc ESC để thoát
-            if (Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.Escape))
-            {
-                ExitSmithingMode();
-            }
-            return;
-        }
-
-        // Tìm vật thể Interactable (Cánh cửa/Đe)
-        GameObject foundObject = null;
-        Collider[] hits = Physics.OverlapSphere(transform.position, model.interactionRange, model.interactionLayer);
-        if (hits.Length > 0)
-        {
-            foundObject = hits[0].gameObject;
-        }
-
-        // Bật/Tắt Icon F trên vật thể
-        if (foundObject != _currentInteractableObject)
-        {
-            if (_currentInteractableObject != null) ToggleObjectUI(_currentInteractableObject, false);
-            if (foundObject != null) ToggleObjectUI(foundObject, true);
-            _currentInteractableObject = foundObject;
-        }
-
-        // Bấm F -> Vào chế độ Rèn
-        if (_currentInteractableObject != null && Input.GetKeyDown(KeyCode.F))
-        {
-            EnterSmithingMode();
-        }
-    }
-
-    // Hàm phụ: Tìm object con theo tên (định nghĩa trong Model) để bật tắt
-    void ToggleObjectUI(GameObject rootObj, bool isActive)
-    {
-        if (rootObj == null) return;
-        Transform uiTransform = rootObj.transform.Find(model.interactionUIName); 
-        if (uiTransform != null) uiTransform.gameObject.SetActive(isActive);
-    }
-
-    void EnterSmithingMode()
-    {
-        model.isSmithing = true;
-        // Reset các trạng thái chiến đấu để tránh lỗi Animation
-        model.isAttacking = false;
-        model.isBlocking = false;
-        model.isAimingR = false;
-        view.SetBlocking(false);
-        view.ResumeAnimator(); 
-
-        model.currentVelocity = Vector3.zero;
-        view.ToggleSmithingUI(true, model.smithingMinigamePrefab);
-    }
-
-    public void ExitSmithingMode()
-    {
-        model.isSmithing = false;
-        view.ToggleSmithingUI(false, null);
+    void HandleMovement(Vector3 moveDir, float h, float v) 
+    { 
+        if (model.isAttacking || model.isDashing || model.isBlocking) return; 
+        
+        Vector3 targetVelocity = moveDir * model.moveSpeed; 
+        float smoothTime = (moveDir.magnitude > 0) ? model.accelerationTime : model.decelerationTime; 
+        
+        model.currentVelocity = Vector3.SmoothDamp(model.currentVelocity, targetVelocity, ref model.smoothDampVelocity, smoothTime); 
+        
+        _characterController.Move(model.currentVelocity * Time.deltaTime); 
+        if (!_characterController.isGrounded) _characterController.Move(Vector3.down * 9.81f * Time.deltaTime); 
+        
+        float speedPercent = model.currentVelocity.magnitude / model.moveSpeed; 
+        if (speedPercent > 1) speedPercent = 1; 
+        view.UpdateMovementAnimation(0, speedPercent); 
     }
 
     // ===================================================================================
-    // PHẦN 2: LOGIC CHIẾN ĐẤU (GIỮ NGUYÊN)
+    // PHẦN 3: LOGIC CHIẾN ĐẤU (GIỮ NGUYÊN)
     // ===================================================================================
 
     void HandleUIUpdates()
@@ -261,7 +310,7 @@ public class PlayerController : MonoBehaviour
 
     void HandleInputPriority() 
     {
-        // 1. Skill R (Ultimate)
+        // 1. Skill R
         if (Input.GetKeyDown(KeyCode.R)) { 
             if (model.currentRStacks > 0) { 
                 model.isAimingR = true; 
@@ -291,7 +340,7 @@ public class PlayerController : MonoBehaviour
             return; 
         }
 
-        // 2. Skill E (Earthquake)
+        // 2. Skill E
         if (Input.GetKeyDown(KeyCode.E) && Time.time > model.lastSkillETime + model.skillECooldown) { 
             if (_currentActionCoroutine != null) StopCoroutine(_currentActionCoroutine); 
             if (model.isBlocking) EndBlock(); 
@@ -299,7 +348,7 @@ public class PlayerController : MonoBehaviour
             return; 
         }
 
-        // 3. Dash (Jump Smash)
+        // 3. Dash
         if (Input.GetKeyDown(KeyCode.Space) && Time.time > model.lastDashTime + model.dashCooldown) { 
             if (_currentActionCoroutine != null) StopCoroutine(_currentActionCoroutine); 
             if (model.isBlocking) EndBlock(); 
@@ -308,7 +357,7 @@ public class PlayerController : MonoBehaviour
         }
         if (model.isDashing) return;
 
-        // 4. Block & Counter
+        // 4. Block
         bool isHoldingBlock = Input.GetMouseButton(1);
         if (isHoldingBlock && Time.time >= model.nextBlockTime) { 
             if (!model.isBlocking) { 
@@ -320,7 +369,7 @@ public class PlayerController : MonoBehaviour
             if (Time.time > model.blockStartTime + model.maxBlockDuration) EndBlock(); 
         } else if (model.isBlocking) EndBlock();
 
-        // 5. Attack (Chuột trái)
+        // 5. Attack
         if (Input.GetMouseButtonDown(0) && !model.isAimingR) { 
             if (model.isCounterReady) { 
                 EndBlock(); 
@@ -334,7 +383,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // --- CÁC HÀM THỰC THI ANIMATION & LOGIC ---
+    // --- CÁC COROUTINE CHIẾN ĐẤU ---
 
     IEnumerator PerformSkillR_Logic(Vector3 targetPos) { 
         model.isAttacking = true; 
@@ -551,30 +600,6 @@ public class PlayerController : MonoBehaviour
         Vector3 camForward = _cameraTransform.forward; camForward.y = 0; 
         if (camForward != Vector3.zero) transform.rotation = Quaternion.LookRotation(camForward); 
     }
-
-    void HandleRotation(Vector3 moveDir) { 
-        if (model.isAttacking || model.isDashing || model.isBlocking) return; 
-        if (_cameraTransform == null) return; 
-        if (moveDir != Vector3.zero) { 
-            Quaternion targetRotation = Quaternion.LookRotation(moveDir); 
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, model.rotationSpeed * Time.deltaTime); 
-        } 
-    }
-
-    void HandleMovement(Vector3 moveDir, float h, float v) { 
-        // AN TOÀN TUYỆT ĐỐI: Không bao giờ gọi Move khi Controller đã bị Disable
-        if (!_characterController.enabled) return;
-
-        if (model.isAttacking || model.isDashing || model.isBlocking) return; 
-        Vector3 targetVelocity = moveDir * model.moveSpeed; 
-        float smoothTime = (moveDir.magnitude > 0) ? model.accelerationTime : model.decelerationTime; 
-        model.currentVelocity = Vector3.SmoothDamp(model.currentVelocity, targetVelocity, ref model.smoothDampVelocity, smoothTime); 
-        _characterController.Move(model.currentVelocity * Time.deltaTime); 
-        if (!_characterController.isGrounded) _characterController.Move(Vector3.down * 9.81f * Time.deltaTime); 
-        float speedPercent = model.currentVelocity.magnitude / model.moveSpeed; 
-        if (speedPercent > 1) speedPercent = 1; 
-        view.UpdateMovementAnimation(0, speedPercent); 
-    }
     
     private void OnDrawGizmosSelected() { 
         if (model == null) return; 
@@ -586,6 +611,6 @@ public class PlayerController : MonoBehaviour
         Gizmos.DrawWireSphere(transform.position, model.interactionRange);
 
         Gizmos.color = Color.blue;
-        Gizmos.DrawWireSphere(transform.position, 5.0f); // Tầm phát hiện thuyền
+        Gizmos.DrawWireSphere(transform.position, 6.0f); // Tầm phát hiện thuyền
     }
 }
