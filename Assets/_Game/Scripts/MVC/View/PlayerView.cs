@@ -1,91 +1,108 @@
 using UnityEngine;
-using UnityEngine.UI; 
-using TMPro;          
-using System; 
+using UnityEngine.UI;
 
 public class PlayerView : MonoBehaviour
 {
-    [Header("Animation Components")]
+    [Header("Components")]
     [SerializeField] private Animator animator;
+    [SerializeField] private Camera mainCamera;
+
+    [Header("Weapon Models")]
+    [SerializeField] private GameObject swordObject; 
+    [SerializeField] private GameObject bowObject;   
+
+    [Header("UI Components")]
+    [SerializeField] private Slider hpSlider;
+    [SerializeField] private Slider staminaSlider;
+    [SerializeField] private GameObject crosshairUI; 
+    [SerializeField] private Text arrowCountText;    
+
+    // --- CẬP NHẬT UI & VISUALS ---
     
-    [Header("Main UI")]
-    [SerializeField] private GameObject mainHUDCanvas; // Canvas tổng
-    [SerializeField] private GameObject skillPanel;    // [MỚI] Panel chứa các skill (để ẩn khi lái tàu)
-
-    [Header("UI Components (Cooldowns)")]
-    [SerializeField] private CooldownUI dashUI;
-    [SerializeField] private CooldownUI skillEUI;
-    [SerializeField] private CooldownUI skillRUI;
-    [SerializeField] private TextMeshProUGUI skillRStackText;
-
-    [System.Serializable]
-    public struct CooldownUI {
-        public Image cooldownImage;    
-        public TextMeshProUGUI cooldownText; 
+    public void UpdateStatsUI(float hp, float maxHp, float stamina, float maxStamina, int arrows)
+    {
+        if (hpSlider) hpSlider.value = hp / maxHp;
+        if (staminaSlider) staminaSlider.value = stamina / maxStamina;
+        if (arrowCountText) arrowCountText.text = arrows.ToString();
     }
 
-    public Action<int> OnAttackImpact; 
-    private bool _canFreeze = false;
-    private GameObject _currentMinigameInstance; 
+    public void SwitchWeaponVisuals(WeaponType type)
+    {
+        if (swordObject) swordObject.SetActive(type == WeaponType.Sword);
+        if (bowObject) bowObject.SetActive(type == WeaponType.Bow);
+        
+        if (animator) animator.SetBool("IsBowMode", type == WeaponType.Bow);
+        
+        ToggleCrosshair(false);
+    }
 
-    // --- [MỚI] HÀM ẨN/HIỆN UI SKILL ---
+    public void ToggleCrosshair(bool show)
+    {
+        if (crosshairUI) crosshairUI.SetActive(show);
+    }
+
+    public void SetCameraZoom(bool isZooming, float targetFOV, float normalFOV)
+    {
+        if (mainCamera == null) return;
+        float fov = isZooming ? targetFOV : normalFOV;
+        mainCamera.fieldOfView = Mathf.Lerp(mainCamera.fieldOfView, fov, Time.deltaTime * 10f);
+    }
+
+    // --- [QUAN TRỌNG] HÀM FIX LỖI MAP MANAGER ---
+    // Hàm này ẩn UI chiến đấu khi lên tàu
     public void ToggleCombatUI(bool isVisible)
     {
-        if (skillPanel != null) skillPanel.SetActive(isVisible);
+        if (hpSlider) hpSlider.gameObject.SetActive(isVisible);
+        if (staminaSlider) staminaSlider.gameObject.SetActive(isVisible);
+        if (crosshairUI) crosshairUI.SetActive(false); // Luôn tắt crosshair khi đi tàu
+        
+        // Ẩn text tên
+        if (arrowCountText && arrowCountText.transform.parent) 
+            arrowCountText.transform.parent.gameObject.SetActive(isVisible);
+
+        // Ẩn vũ khí khi lái tàu cho đẹp
+        if (!isVisible)
+        {
+            if (swordObject) swordObject.SetActive(false);
+            if (bowObject) bowObject.SetActive(false);
+        }
+        else
+        {
+            // Hiện lại vũ khí mặc định (ví dụ là Kiếm) khi xuống tàu
+            if (swordObject) swordObject.SetActive(true);
+        }
     }
 
-    // --- [MỚI] CÁC ANIMATION CHO THUYỀN ---
+    // Các Animation leo trèo/lái tàu (MapManager gọi)
     public void TriggerClimbUp() { if (animator) animator.SetTrigger("ClimbUp"); }
     public void TriggerClimbDown() { if (animator) animator.SetTrigger("ClimbDown"); }
     public void SetSteering(bool isSteering) { if (animator) animator.SetBool("IsSteering", isSteering); }
 
-    // --- CÁC HÀM CŨ GIỮ NGUYÊN ---
-    public void ToggleSmithingUI(bool isOpen, GameObject prefab)
+
+    // --- ANIMATION CHIẾN ĐẤU ---
+
+    public void UpdateMovementAnim(float speed, bool isStrafing)
     {
-        if (isOpen) {
-            if (_currentMinigameInstance == null && prefab != null) _currentMinigameInstance = Instantiate(prefab);
-            else if (_currentMinigameInstance != null) _currentMinigameInstance.SetActive(true);
-            if (mainHUDCanvas != null) mainHUDCanvas.SetActive(false);
-            Cursor.visible = true; Cursor.lockState = CursorLockMode.None;
-        } else {
-            if (_currentMinigameInstance != null) _currentMinigameInstance.SetActive(false);
-            if (mainHUDCanvas != null) mainHUDCanvas.SetActive(true);
-            Cursor.visible = false; Cursor.lockState = CursorLockMode.Locked;
-        }
+        if (!animator) return;
+        animator.SetFloat("Speed", speed, 0.1f, Time.deltaTime);
+        animator.SetBool("IsStrafing", isStrafing); 
     }
 
-    public void UpdateMovementAnimation(float horizontal, float vertical) {
-        if (animator == null) return;
-        animator.SetFloat("Horizontal", horizontal, 0.1f, Time.deltaTime);
-        animator.SetFloat("Vertical", vertical, 0.1f, Time.deltaTime);
+    public void TriggerAttack(int step)
+    {
+        if (animator) animator.SetTrigger("Attack_" + step); 
     }
 
-    public void TriggerAttack() { if (animator) { _canFreeze = false; animator.ResetTrigger("Attack"); animator.ResetTrigger("CounterAttack"); animator.ResetTrigger("SkillE"); animator.ResetTrigger("SkillR_Prep"); animator.ResetTrigger("SkillR_Cancel"); animator.SetTrigger("Attack"); } }
-    public void TriggerCounterAttack() { if (animator) { _canFreeze = false; animator.ResetTrigger("Attack"); animator.SetTrigger("CounterAttack"); } }
-    public void TriggerSkillE() { if (animator) { _canFreeze = false; animator.ResetTrigger("Attack"); animator.SetTrigger("SkillE"); } }
-    public void TriggerDash() { if (animator) { _canFreeze = false; animator.SetTrigger("Dash"); } }
-    public void SetBlocking(bool isBlocking) { if (animator) animator.SetBool("IsBlocking", isBlocking); }
-    public void AE_TriggerImpact(int type) { OnAttackImpact?.Invoke(type); }
-    public void TriggerSkillR_Prep() { if (animator) { _canFreeze = true; animator.ResetTrigger("Attack"); animator.ResetTrigger("SkillR_Cancel"); animator.SetTrigger("SkillR_Prep"); animator.speed = 1; } }
-    public void TriggerSkillR_Cancel() { _canFreeze = false; if (animator) animator.SetTrigger("SkillR_Cancel"); }
-    public void AE_PauseAnimator() { if (animator && _canFreeze) { animator.speed = 0f; } }
-    public void ResumeAnimator() { _canFreeze = false; if (animator) animator.speed = 1f; }
+    public void TriggerParry() => SetTrigger("Parry");
+    public void TriggerDash() => SetTrigger("Dash");
+    public void TriggerShoot() => SetTrigger("Shoot");
+    public void SetAiming(bool isAiming) { if(animator) animator.SetBool("IsAiming", isAiming); }
+    public void TriggerStun() => SetTrigger("Stun");
 
-    public void UpdateCooldowns(float dashTimeLeft, float dashMax, float eTimeLeft, float eMax, float rTimeLeft, float rMax, int rStacks) {
-        UpdateSingleUI(dashUI, dashTimeLeft, dashMax);
-        UpdateSingleUI(skillEUI, eTimeLeft, eMax);
-        UpdateSkillRUI(skillRUI, rTimeLeft, rMax, rStacks);
-    }
-    private void UpdateSingleUI(CooldownUI ui, float timeLeft, float maxTime) {
-        if (ui.cooldownImage == null) return;
-        if (timeLeft > 0) { ui.cooldownImage.fillAmount = timeLeft / maxTime; if (ui.cooldownText != null) { ui.cooldownText.text = timeLeft.ToString("F1"); ui.cooldownText.gameObject.SetActive(true); } } 
-        else { ui.cooldownImage.fillAmount = 0; if (ui.cooldownText != null) ui.cooldownText.gameObject.SetActive(false); }
-    }
-    private void UpdateSkillRUI(CooldownUI ui, float timeLeft, float maxTime, int stacks) {
-        if (skillRStackText != null) skillRStackText.text = stacks.ToString();
-        if (ui.cooldownImage == null) return;
-        bool isFullStack = (stacks >= 5); 
-        if (isFullStack) { ui.cooldownImage.fillAmount = 0; if (ui.cooldownText != null) ui.cooldownText.gameObject.SetActive(false); } 
-        else { if (timeLeft > 0) { ui.cooldownImage.fillAmount = timeLeft / maxTime; if (ui.cooldownText != null) { ui.cooldownText.text = timeLeft.ToString("F1"); ui.cooldownText.gameObject.SetActive(true); } } else { ui.cooldownImage.fillAmount = 0; if (ui.cooldownText != null) ui.cooldownText.gameObject.SetActive(false); } }
+    public void ResumeAnimator() { if (animator) animator.speed = 1f; }
+
+    private void SetTrigger(string name)
+    {
+        if (animator) { animator.ResetTrigger(name); animator.SetTrigger(name); }
     }
 }

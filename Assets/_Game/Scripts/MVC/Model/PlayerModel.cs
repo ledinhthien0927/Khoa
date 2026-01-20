@@ -1,90 +1,58 @@
 using UnityEngine;
 
+public enum PlayerState { Idle, Moving, Dashing, Attacking, Parrying, ParryingRecovery, Aiming, Stunned, Dead }
+public enum WeaponType { Sword, Bow }
+
 [System.Serializable]
 public class PlayerModel
 {
+    [Header("Stats & Resources")]
+    public float maxHealth = 100f;
+    public float currentHealth;
+    public float maxStamina = 100f;
+    public float currentStamina;
+    public float staminaRegenRate = 15f;    
+    public float staminaRegenDelay = 1.0f;  
+
     [Header("Movement Config")]
-    public float moveSpeed = 6f;
-    public float accelerationTime = 0.25f;
-    public float decelerationTime = 0.4f;
-    public float rotationSpeed = 720f;
+    public float walkSpeed = 6f;
+    public float aimMoveSpeed = 3f;         
+    public float rotationSpeed = 15f;       
+    public float dashForce = 15f;
+    public float dashDuration = 0.4f;
+    public float dashCost = 25f;
+    public float dashIFrameDuration = 0.3f; 
 
-    [Header("Jump Smash Config")]
-    public float dashWindupTime = 0.1f; 
-    public float dashAirTime = 0.5f;
-    public float dashRecoveryTime = 0.3f;
-    public float dashMoveSpeed = 12f;
-    public AnimationCurve jumpCurve = new AnimationCurve(new Keyframe(0, 0), new Keyframe(0.5f, 1), new Keyframe(1, 0));
-    public float jumpHeightMultiplier = 2.0f;
-
-    [Header("Combat Config")]
-    public float dashCooldown = 1.5f;
-    public float blockCooldown = 1.5f;     
-    public float maxBlockDuration = 2.0f;  
-    public float counterWindow = 1.0f;     
-    public float counterDuration = 1.2f;   
-    public float[] attackDurations = { 0.6f, 0.7f, 1.1f };
-    public float comboResetTime = 3.0f;   
-    public float minComboDelay = 0.1f;    
-
-    [Header("Skill E - Địa Chấn")]
-    public float skillECooldown = 5.0f;    
-    public float skillEDuration = 1.5f;    
-    public float skillERange = 8.0f;       
-    [Range(0, 180)] public float skillEAngle = 45.0f;      
-    public float skillEKnockupForce = 8f; 
-    public float skillEStunTime = 2.0f;    
-    public Vector3 skillEVfxRotation = new Vector3(0, -90, 0); 
-
-    [Header("Skill R - Tối Thượng")]
-    public float skillRCooldown = 5.0f;     
-    public int skillRMaxStacks = 5;         
-    public float skillRRadius = 4.0f;       
-    public float skillRKnockupForce = 12f;  
-    public float skillRStunTimeMain = 2.0f; 
-    public float skillRStunTimeArea = 0.7f; 
-    public float skillRDamage = 20f;        
-
-    [Header("Damage Settings")]
-    public LayerMask enemyLayer;      
-    public float attackRange = 2.0f;  
-    public float damageAmount = 10f;  
-    public float[] knockbackForces = { 5f, 8f, 12f, 15f }; 
-
-    // --- [MỚI] SMITHING INTERACTION ---
-    [Header("Smithing Interaction")]
-    public GameObject smithingMinigamePrefab; // Prefab UI Minigame (Rèn)
-    public LayerMask interactionLayer;        // Layer 'Interactable' của Cánh cửa
-    public float interactionRange = 3.0f;     // Khoảng cách đứng gần
-    public bool isSmithing;                   // Trạng thái đang rèn
+    [Header("Inventory & Weapons")]
+    public WeaponType currentWeapon = WeaponType.Sword;
+    public int currentArrows = 5;
+    public int maxArrows = 10;
     
-    [Tooltip("Tên của GameObject chứa Icon F nằm bên trong Cánh Cửa")]
-    public string interactionUIName = "UI_Prompt"; // <-- QUAN TRỌNG: Đặt tên object con trong cánh cửa y hệt tên này
-    // ----------------------------------
+    [Header("Sword Combat")]
+    public float comboResetTime = 1.2f;
+    public float parryWindow = 0.5f;        
+    public float parryRecovery = 0.5f;      
+    public float damageSwordBase = 10f;
 
-    [Header("VFX Settings")]
-    public GameObject vfxCombo3;
-    public GameObject vfxJumpSmash;
-    public GameObject vfxCounter;
-    public GameObject vfxSkillE; 
-    public GameObject vfxSkillR_Target;    
-    public GameObject vfxSkillR_Explosion; 
+    [Header("Bow Combat")]
+    public float reloadTime = 0.8f;         
+    public float damageBow = 15f;
+    public float zoomFOV = 40f;             
+    public float normalFOV = 60f;
+
+    [Header("Interaction")]
+    public LayerMask interactionLayer;      
+    public float interactionRange = 2.0f;
 
     [Header("Runtime State")]
-    public Vector3 currentVelocity;
-    public Vector3 smoothDampVelocity;
-    public bool isAttacking;
-    public bool isBlocking;
-    public bool isDashing;
-    public bool isCounterReady;
+    public PlayerState currentState;
     public int currentComboStep = 0;
-    public float lastAttackTime;
-    public float lastDashTime;
-    public float nextBlockTime; 
-    public float blockStartTime;
-    public float lastSkillETime;
-    
-    public int currentRStacks;
-    public float nextRStackTime; 
-    public bool isAimingR; 
+    public float lastActionTime;            
+    public bool isInvincible;               
+    public bool isWeaponSwapping;
+
+    [Header("Visuals & Effects")]
+    public GameObject arrowPrefab;
+    public Transform arrowSpawnPoint;
+    public GameObject vfxParrySparks;
 }
