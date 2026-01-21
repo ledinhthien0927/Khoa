@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 85f00c7dbfb2e2f43a7f8bfdd4063724
+guid: 5b3d63b2ee74da34b95ad804b65f33b0
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
@@ -60,18 +60,18 @@ ModelImporter:
       maskSource: {instanceID: 0}
       additiveReferencePoseFrame: 0
     - serializedVersion: 16
-      name: Run_Right.com
+      name: Run.com
       takeName: mixamo.com
       internalID: -203655887218126122
       firstFrame: 0
-      lastFrame: 38
+      lastFrame: 18
       wrapMode: 0
       orientationOffsetY: 0
       level: 0
       cycleOffset: 0
       loop: 0
       hasAdditiveReferencePose: 0
-      loopTime: 1
+      loopTime: 0
       loopBlend: 0
       loopBlendOrientation: 0
       loopBlendPositionY: 0

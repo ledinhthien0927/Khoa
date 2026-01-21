@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: e20b740be97340a4583f171d01ec9842
+guid: 1d1a5574b62422f4c9723ae8b8f5600d
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
@@ -60,11 +60,11 @@ ModelImporter:
       maskSource: {instanceID: 0}
       additiveReferencePoseFrame: 0
     - serializedVersion: 16
-      name: AtkR.com
+      name: Idle.com
       takeName: mixamo.com
       internalID: -203655887218126122
       firstFrame: 0
-      lastFrame: 144
+      lastFrame: 227
       wrapMode: 0
       orientationOffsetY: 0
       level: 0
@@ -83,14 +83,7 @@ ModelImporter:
       mirror: 0
       bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
       curves: []
-      events:
-      - time: 0.20019805
-        functionName: AE_PauseAnimator
-        data: 
-        objectReferenceParameter: {instanceID: 0}
-        floatParameter: 0
-        intParameter: 0
-        messageOptions: 0
+      events: []
       transformMask: []
       maskType: 3
       maskSource: {instanceID: 0}
