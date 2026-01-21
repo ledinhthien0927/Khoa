@@ -4491,16 +4491,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f0038c16c34866b4f9e25c9c0dc0f7e6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Behavior::Unity.Behavior.BehaviorGraphAgent
-  m_Graph: {fileID: -17198853855435731, guid: 1bb070aa6bcfeb841b2310eae32f22f6, type: 2}
+  m_Graph: {fileID: -17198853855435731, guid: 75892071b51ca0248a0b9f19ea8fc289, type: 2}
   m_BlackboardVariableOverridesList:
-  - rid: 4947736615226704387
-  m_OriginalGraph: {fileID: 0}
+  - rid: 6423286779978711040
+  m_OriginalGraph: {fileID: -17198853855435731, guid: 75892071b51ca0248a0b9f19ea8fc289, type: 2}
   m_IsInitialised: 0
   m_IsStarted: 0
   references:
     version: 2
     RefIds:
-    - rid: 4947736615226704387
+    - rid: 6423286779978711040
       type: {class: 'BlackboardVariable`1[[UnityEngine.GameObject, UnityEngine.CoreModule]]', ns: Unity.Behavior, asm: Unity.Behavior}
       data:
         GUID:

@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine.AI;
 
 public class MonsterManager : MonoBehaviour
 {
@@ -7,125 +8,146 @@ public class MonsterManager : MonoBehaviour
     
     [Header("Settings")]
     public string playerTag = "Player";
+    public LayerMask obstacleMask; 
     
+    // List này giờ chứa cả Melee, Ranged, Alarm (vì tụi nó đều là con của MonsterController)
     public List<MonsterController> allMonsters = new List<MonsterController>();
-
-    // Lưu trữ Transform của Player để các hàm AI truy cập nhanh
     private Transform playerTransform;
 
     void Awake()
     {
-        // Khởi tạo Singleton
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
-
-        // Tối ưu hóa: Tìm Player một lần duy nhất khi bắt đầu game
+        if (Instance == null) Instance = this; else Destroy(gameObject);
+        allMonsters.Clear();
         GameObject playerObj = GameObject.FindGameObjectWithTag(playerTag);
-        if (playerObj != null)
-        {
-            playerTransform = playerObj.transform;
-        }
+        if (playerObj != null) playerTransform = playerObj.transform;
     }
 
     public void RegisterMonster(MonsterController monster) => allMonsters.Add(monster);
     public void UnregisterMonster(MonsterController monster) => allMonsters.Remove(monster);
 
-    void Update()
+    void Update() { if (playerTransform != null) ExecuteAI(); }
+
+    // [QUAN TRỌNG] Đổi thành public để RangedMonster có thể gọi dùng ké
+    public bool CanSeePlayer(MonsterController m)
     {
-        // Chỉ chạy AI nếu Player tồn tại trong Scene
-        if (playerTransform != null)
-        {
-            ExecuteAI();
-        }
+        if (playerTransform == null) return false;
+        float dist = Vector3.Distance(m.transform.position, playerTransform.position);
+        if (dist > m.data.detectionRange) return false;
+
+        Vector3 dir = (playerTransform.position - m.transform.position).normalized;
+        bool ignoreFOV = (dist < 1.0f || m.isAlerted);
+
+        if (!ignoreFOV && Vector3.Angle(m.transform.forward, dir) > m.data.viewAngle / 2f) return false; 
+        if (Physics.Raycast(m.transform.position + Vector3.up, dir, dist, obstacleMask)) return false; 
+
+        return true; 
     }
 
     void ExecuteAI()
     {
-        // Duyệt qua danh sách quái hiện có
         for (int i = 0; i < allMonsters.Count; i++)
         {
             MonsterController monster = allMonsters[i];
             if (monster == null) continue;
 
-            switch (monster.data.type)
+            bool canSee = CanSeePlayer(monster);
+
+            // --- A. LOGIC PHÁT HIỆN ---
+            if (canSee && !monster.isTracking)
             {
-                case MonsterData.MonsterType.Melee:
-                    HandleMeleeBehavior(monster);
-                    break;
-                case MonsterData.MonsterType.Ranged:
-                    HandleRangedBehavior(monster);
-                    break;
-                case MonsterData.MonsterType.Alarm:
-                    HandleAlarmBehavior(monster);
-                    break;
+                if (!monster.isAlerted)
+                {
+                    monster.currentDetectionTime += Time.deltaTime;
+                    if (monster.currentDetectionTime >= monster.data.detectionTime) monster.isAlerted = true;
+                }
+            }
+            else if (!monster.isTracking && !monster.isAlerted)
+            {
+                monster.currentDetectionTime -= Time.deltaTime;
+                if (monster.currentDetectionTime < 0) monster.currentDetectionTime = 0;
+            }
+
+            // --- B. LOGIC TRACKING (GPS) ---
+            if (monster.isTracking || (monster.isAlerted && canSee))
+            {
+                monster.lastKnownPosition = playerTransform.position;
+                monster.searchWaitTime = 0f;
+            }
+
+            // --- C. QUYẾT ĐỊNH HÀNH VI ---
+            if (monster.isTracking || (monster.isAlerted && canSee))
+            {
+                // [ĐIỂM SÁNG GIÁ NHẤT]
+                // Không cần switch case nữa! Gọi thẳng hàm này.
+                // Nếu là Melee -> nó tự chạy code Melee.
+                // Nếu là Ranged -> nó tự chạy code Ranged.
+                monster.OnCombatBehavior(playerTransform);
+            }
+            else if (monster.lastKnownPosition != null)
+            {
+                if (monster.isAlerted) monster.isAlerted = false;
+                HandleSearchBehavior(monster);
+            }
+            else
+            {
+                HandleWanderBehavior(monster);
             }
         }
     }
-    void HandleMeleeBehavior(MonsterController m)
+
+    // Các hàm Đi tuần / Tìm kiếm giữ nguyên vì logic giống nhau
+    void HandleWanderBehavior(MonsterController m)
     {
-        if (playerTransform == null) return;
-
-        float distanceToPlayer = Vector3.Distance(m.transform.position, playerTransform.position);
-
-        // Nếu Player vào tầm đánh cận chiến (ví dụ 8m)
-        if (distanceToPlayer <= 8f) 
+        if (m.HasReachedDestination())
         {
-            m.MoveToPosition(playerTransform.position);
+            m.currentWanderWaitTime += Time.deltaTime;
+            if (m.currentWanderWaitTime >= m.data.wanderWaitTime)
+            {
+                Vector3 newPos = GetRandomPoint(m.transform.position, m.data.wanderRadius);
+                m.MoveToPosition(newPos, true); 
+                m.currentWanderWaitTime = 0f;
+            }
+            else m.StopMoving();
         }
     }
     
-    void HandleRangedBehavior(MonsterController m)
+    Vector3 GetRandomPoint(Vector3 center, float range)
     {
-        // Logic giữ khoảng cách tại đây
-        if (playerTransform == null) return;
+        Vector3 randomPoint = center + Random.insideUnitSphere * range;
+        NavMeshHit hit;
+        if (NavMesh.SamplePosition(randomPoint, out hit, 2.0f, NavMesh.AllAreas)) return hit.position;
+        return center;
+    }
 
-        float distance = Vector3.Distance(m.transform.position, playerTransform.position);
-        float attackRange = m.data.attackRange; // Tầm bắn tối đa (ví dụ 10m)
-        float safeDistance = attackRange * 0.6f; // Khoảng cách an toàn để đứng lại (ví dụ 6m)
-
-        if (distance > attackRange)
+    void HandleSearchBehavior(MonsterController m)
+    {
+        m.MoveToPosition(m.lastKnownPosition.Value, true); 
+        if (m.HasReachedDestination())
         {
-            // 1. Nếu Player ở quá xa -> Đi tới phía Player
-            m.MoveToPosition(playerTransform.position);
-        }
-        else if (distance < safeDistance)
-        {
-            // 2. Nếu Player quá gần -> Lùi lại hoặc giữ khoảng cách
-            Vector3 dirToPlayer = (m.transform.position - playerTransform.position).normalized;
-            Vector3 retreatPos = m.transform.position + dirToPlayer * 3f;
-            m.MoveToPosition(retreatPos);
-        }
-        else
-        {
-            // 3. Nếu đang ở khoảng cách đẹp -> Đứng lại và Bắn
             m.StopMoving(); 
-            m.Attack(playerTransform.position);
+            m.searchWaitTime += Time.deltaTime;
+            if (m.searchWaitTime > 3f)
+            {
+                m.lastKnownPosition = null; m.isAlerted = false; m.isTracking = false; m.currentDetectionTime = 0f;
+            }
         }
     }
 
-    void HandleAlarmBehavior(MonsterController m)
-    {
-        // Sử dụng playerTransform đã được tìm ở Awake
-        float distanceToPlayer = Vector3.Distance(m.transform.position, playerTransform.position);
-
-        if (distanceToPlayer <= m.data.detectionRange)
-        {
-            Debug.Log($"<color=red>{m.gameObject.name} đã phát hiện Player và đang báo động!</color>");
-            AlertNearbyMonsters(m.transform.position, m.data.callRange);
-        }
-    }
-
-    void AlertNearbyMonsters(Vector3 alarmPosition, float radius)
+    // Hàm hỗ trợ cho AlarmMonster gọi
+    public void AlertNearbyMonsters(Vector3 alarmPosition, float radius)
     {
         foreach (var monster in allMonsters)
         {
-            // Không ra lệnh cho chính con quái đang báo động hoặc các con quái báo động khác
-            if (monster.data.type == MonsterData.MonsterType.Alarm) continue;
+            // Tránh việc Alarm gọi Alarm khác tạo vòng lặp vô tận (nếu muốn)
+            if (monster is AlarmMonster) continue;
 
             if (Vector3.Distance(monster.transform.position, alarmPosition) <= radius)
             {
-                // Ra lệnh cho quái di chuyển tới vị trí Player (hoặc vị trí báo động)
-                monster.MoveToPosition(playerTransform.position); 
+                monster.isAlerted = true; 
+                monster.currentDetectionTime = monster.data.detectionTime;
+                monster.isTracking = true; 
+                monster.searchWaitTime = 0f;
+                monster.StopMoving();
             }
         }
     }
