@@ -14,9 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MonsterData
   monsterName: Alert
   type: 2
-  health: 30
-  speed: 5
-  attackRange: 0
-  detectionRange: 10
-  callRange: 20
   modelPrefab: {fileID: 178864, guid: 298b6af3224b899419309b7d9e05ace7, type: 3}
+  maxHealth: 0
+  speed: 5
+  detectionRange: 15
+  viewAngle: 160
+  detectionTime: 1.5
+  callRange: 100
+  alarmDelay: 2
+  wanderRadius: 20
+  wanderWaitTime: 2
+  attackRange: 1.5
+  attackCooldown: 3

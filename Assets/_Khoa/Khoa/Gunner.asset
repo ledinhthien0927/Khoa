@@ -14,9 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MonsterData
   monsterName: Gunner
   type: 1
-  health: 50
-  speed: 3
-  attackRange: 10
-  detectionRange: 0
-  callRange: 0
   modelPrefab: {fileID: 192002, guid: bc4987e2fb189ec4d96488b047577016, type: 3}
+  maxHealth: 0
+  speed: 3
+  detectionRange: 15
+  viewAngle: 120
+  detectionTime: 1.5
+  callRange: 0
+  alarmDelay: 2
+  wanderRadius: 20
+  wanderWaitTime: 2
+  attackRange: 10
+  attackCooldown: 4

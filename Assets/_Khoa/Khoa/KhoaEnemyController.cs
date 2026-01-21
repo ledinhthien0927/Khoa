@@ -1,85 +1,170 @@
 using UnityEngine;
-using UnityEngine.AI; // Cần thiết để điều khiển NavMeshAgent
+using UnityEngine.AI;
 
-public class MonsterController : MonoBehaviour
+// [QUAN TRỌNG] Thêm 'abstract'
+public abstract class MonsterController : MonoBehaviour
 {
     public MonsterData data;
-    private NavMeshAgent agent;
-    
-    // Biến phụ trợ cho logic tấn công
-    private float lastAttackTime;
 
-    void Start()
+    [Header("Runtime Stats")]
+    public float currentHealth; 
+    public bool isAlerted = false;
+    public bool isTracking = false; 
+
+    [Header("Base Logic")]
+    public float currentDetectionTime = 0f;
+    public Vector3? lastKnownPosition = null; 
+    public float searchWaitTime = 0f;         
+    public Vector3 startPosition;            
+    public float currentWanderWaitTime = 0f; 
+
+    // [QUAN TRỌNG] Đổi thành protected để lớp con sử dụng được
+    protected NavMeshAgent agent;
+    protected Animator anim;
+    protected float lastAttackTime = -999f; // Để đánh được ngay đòn đầu
+
+    // Đổi Start thành virtual để lớp con có thể viết thêm nếu cần
+    protected virtual void Start()
     {
         agent = GetComponent<NavMeshAgent>();
-        
-        // Lấy tốc độ từ ScriptableObject gán cho Agent
-        if (agent != null && data != null)
-        {
-            agent.speed = data.speed;
-        }
+        anim = GetComponent<Animator>();
 
-        if (MonsterManager.Instance != null)
+        if (data != null)
         {
-            MonsterManager.Instance.RegisterMonster(this);
+            currentHealth = data.maxHealth; 
+            if (agent != null)
+            {
+                agent.speed = data.speed;
+                agent.stoppingDistance = data.attackRange;
+            }
         }
+        
+        startPosition = transform.position;
+        if (MonsterManager.Instance != null) MonsterManager.Instance.RegisterMonster(this);
     }
 
-    // 1. Hàm di chuyển đến vị trí chỉ định
-    public void MoveToPosition(Vector3 targetPos)
+    protected virtual void Update()
+    {
+        if (agent != null && anim != null) anim.SetFloat("speed", agent.velocity.magnitude);
+    }
+
+    // --- [TRÁI TIM CỦA KẾ THỪA] ---
+    // Đây là hàm trừu tượng. Mọi con quái con BẮT BUỘC phải tự viết nội dung cho hàm này.
+    public abstract void OnCombatBehavior(Transform player);
+
+    // --- CÁC HÀM DÙNG CHUNG (UTILITY) ---
+    
+    // Hàm hỗ trợ kiểm tra cooldown cho các con
+    protected bool CanAttack()
+    {
+        if (Time.time >= lastAttackTime + data.attackCooldown)
+        {
+            lastAttackTime = Time.time;
+            return true;
+        }
+        return false;
+    }
+
+    public void MoveToPosition(Vector3 targetPos, bool ignoreStoppingDistance = false)
     {
         if (agent != null && agent.isActiveAndEnabled)
         {
-            agent.isStopped = false; // Đảm bảo agent không bị tạm dừng
+            agent.isStopped = false;
+            agent.stoppingDistance = ignoreStoppingDistance ? 0f : data.attackRange;
             agent.SetDestination(targetPos);
         }
     }
 
-    // 2. Hàm dừng di chuyển (Dành cho quái Ranged khi đứng bắn)
     public void StopMoving()
     {
-        if (agent != null && agent.isActiveAndEnabled)
-        {
-            agent.isStopped = true; // Tạm dừng việc di chuyển trên NavMesh
-        }
+        if (agent != null && agent.isActiveAndEnabled) { agent.isStopped = true; agent.velocity = Vector3.zero; }
     }
 
-    // 3. Hàm thực hiện tấn công (Manager gọi hàm này)
-    public void Attack(Vector3 targetPos)
+    public bool HasReachedDestination()
     {
-        // Xoay quái vật về hướng Player cho tự nhiên
-        Vector3 direction = (targetPos - transform.position).normalized;
-        direction.y = 0; // Không xoay theo trục dọc để tránh quái bị chúi xuống đất
-        
+        if (agent != null && !agent.pathPending)
+        {
+            if (agent.remainingDistance <= agent.stoppingDistance + 0.5f)
+                return (!agent.hasPath || agent.velocity.sqrMagnitude == 0f);
+        }
+        return false;
+    }
+
+    public void RotateTowards(Vector3 target)
+    {
+        Vector3 direction = (target - transform.position).normalized;
+        direction.y = 0;
         if (direction != Vector3.zero)
-        {
-            Quaternion lookRotation = Quaternion.LookRotation(direction);
-            transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, Time.deltaTime * 10f);
-        }
-
-        // Kiểm tra thời gian hồi chiêu (ví dụ: mỗi 2 giây bắn 1 lần)
-        if (Time.time >= lastAttackTime + 2f)
-        {
-            ExecuteAttackAction();
-            lastAttackTime = Time.time;
-        }
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), Time.deltaTime * 10f);
     }
 
-    // Hàm cụ thể để thực hiện hành động bắn/chém
-    private void ExecuteAttackAction()
+    public void TakeDamage(float damage)
     {
-        // Hiện tại dùng Log để kiểm tra logic
-        Debug.Log($"<color=orange>{gameObject.name} (loại {data.type}) đang tấn công mục tiêu!</color>");
-        
-        // Sau này bạn có thể Instantiate viên đạn hoặc chạy Animation ở đây
+        currentHealth -= damage;
+        if (anim != null) anim.SetTrigger("damage");
+        if (currentHealth <= 0) Die();
     }
+
+    protected void Die()
+    {
+        if (anim != null) anim.SetTrigger("die"); 
+        if (agent != null) agent.isStopped = true;
+        this.enabled = false; 
+        Destroy(gameObject, 2f);
+        if (MonsterManager.Instance != null) MonsterManager.Instance.UnregisterMonster(this);
+    }
+    
+    // Hàm này cho AlarmMonster dùng
+    public void PlayAlarmAnimation() { if (anim != null) anim.SetTrigger("callAlarm"); }
 
     void OnDestroy()
     {
-        // Luôn hủy đăng ký khi đối tượng bị xóa để tránh lỗi bộ nhớ
-        if (MonsterManager.Instance != null)
+        if (MonsterManager.Instance != null) MonsterManager.Instance.UnregisterMonster(this);
+    }
+    // ... (Các đoạn code logic phía trên giữ nguyên)
+
+    // --- PHẦN VẼ GIZMOS (DEBUG) ---
+#if UNITY_EDITOR
+    protected virtual void OnDrawGizmosSelected()
+    {
+        if (data == null) return;
+
+        // 1. Vẽ Tầm nhìn (Màu vàng nhạt)
+        Gizmos.color = new Color(1, 1, 0, 0.2f);
+        Gizmos.DrawWireSphere(transform.position, data.detectionRange);
+
+        // 2. Vẽ Góc nhìn (2 đường thẳng ranh giới)
+        Vector3 viewAngleA = DirFromAngle(-data.viewAngle / 2, false);
+        Vector3 viewAngleB = DirFromAngle(data.viewAngle / 2, false);
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawLine(transform.position, transform.position + viewAngleA * data.detectionRange);
+        Gizmos.DrawLine(transform.position, transform.position + viewAngleB * data.detectionRange);
+
+        // 3. Vẽ Tầm đánh (Màu đỏ)
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, data.attackRange);
+
+        // 4. Vẽ Phạm vi đi tuần (Màu xanh Cyan)
+        // Nếu đang chạy game thì vẽ từ vị trí bắt đầu (startPosition)
+        // Nếu chưa chạy game thì vẽ từ vị trí hiện tại
+        Vector3 center = Application.isPlaying ? startPosition : transform.position;
+        Gizmos.color = new Color(0, 1, 1, 0.2f);
+        Gizmos.DrawWireSphere(center, data.wanderRadius);
+
+        // 5. Vẽ vị trí Player lần cuối nhìn thấy (Tracking)
+        if (lastKnownPosition != null)
         {
-            MonsterManager.Instance.UnregisterMonster(this);
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawWireSphere(lastKnownPosition.Value, 0.5f);
+            Gizmos.DrawLine(transform.position, lastKnownPosition.Value);
         }
     }
-}
+
+    // Hàm phụ trợ tính góc
+    protected Vector3 DirFromAngle(float angleInDegrees, bool angleIsGlobal)
+    {
+        if (!angleIsGlobal) angleInDegrees += transform.eulerAngles.y;
+        return new Vector3(Mathf.Sin(angleInDegrees * Mathf.Deg2Rad), 0, Mathf.Cos(angleInDegrees * Mathf.Deg2Rad));
+    }
+#endif
+} // Kết thúc class MonsterController
