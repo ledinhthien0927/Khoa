@@ -1,7 +1,7 @@
 using UnityEngine;
 
 public enum PlayerState { Idle, Moving, Dashing, Attacking, Parrying, ParryingRecovery, Aiming, Stunned, Dead }
-public enum WeaponType { Sword, Bow }
+public enum WeaponType1 { Sword, Bow }
 
 [System.Serializable]
 public class PlayerModel
