@@ -1,8 +1,7 @@
 public enum DialogueEvent
 {
     None,
-    Sigh,
-    PanToIsland,
-    ZoomToHammer,
-    GiveHammer
+    PanToMalricFlag,
+    ZoomToBrokenHammer,
+    FocusOverShoulder
 }

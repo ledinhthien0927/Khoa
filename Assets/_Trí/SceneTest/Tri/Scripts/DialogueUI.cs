@@ -1,11 +1,9 @@
 using UnityEngine;
 using TMPro;
-using UnityEngine.UI;
 using System.Collections;
-using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
-public class DialogueUI : MonoBehaviour,
-        IPointerDownHandler, IPointerUpHandler
+public class DialogueUI : MonoBehaviour
 {
     public static DialogueUI Instance;
 
@@ -13,160 +11,194 @@ public class DialogueUI : MonoBehaviour,
     public GameObject panel;
     public TextMeshProUGUI npcNameText;
     public TextMeshProUGUI dialogueText;
-    public Button nextButton;
-    public Button skipButton;
 
-    [Header("Typewriter")]
-    public float typingSpeed = 0.04f;
-    public AudioSource typingSound;
+    [Header("Audio")]
+    public AudioSource audioSource;
+    public AudioClip typeSound;
+    public Button acceptButton; 
 
-    Coroutine typingCoroutine;
-    string currentText;
+    DialogueLine[] lines;
+    int index;
+    string npcName;
+    System.Action onFinish;
+
     bool isTyping;
-    bool isIdleDialogue;
-    public TextMeshProUGUI text;
-    public Color normalColor = Color.white;
-    public Color pressedColor = Color.red;
-
+    string fullText;
+    Coroutine typing;
+    
     void Awake()
     {
-        text.color = normalColor;
         Instance = this;
         panel.SetActive(false);
-       
-    }
-       public void OnPointerDown(PointerEventData eventData)
-    {
-        text.color = pressedColor;
+         if (acceptButton != null)
+        acceptButton.gameObject.SetActive(false);
     }
 
-    public void OnPointerUp(PointerEventData eventData)
+    void Update()
     {
-        text.color = normalColor;
-    }
-   
-   void Update()
-{
-    if (!panel.activeSelf) return;
+        if (!panel.activeSelf) return;
 
-    if (Input.GetKeyDown(KeyCode.Space))
-    {
-        if (isTyping)
+        if (Input.GetKeyDown(KeyCode.Space))
         {
-            SkipTyping();
-        }
-        else
-        {
-            if (isIdleDialogue)
-                Hide();        // ✅ IDLE → ĐÓNG LUÔN
+            if (isTyping)
+            {
+                StopCoroutine(typing);
+                dialogueText.text = fullText;
+                isTyping = false;
+            }
             else
-                Next();
+            {
+                NextLine();
+            }
         }
     }
-}
-  public void Show(string npcName, string text, bool showNext, bool idle = false)
+
+    // =========================
+    // MULTI LINE
+    // =========================
+   public void Show(string name, DialogueLine[] dialogueLines, System.Action finishCallback = null)
+    {
+        if (dialogueLines == null || dialogueLines.Length == 0)
+        {
+            Debug.LogError("DialogueUI.Show() nhận dialogueLines NULL hoặc rỗng");
+            return;
+        }
+
+        npcName = name;
+        lines = dialogueLines;
+        index = 0;
+        onFinish = finishCallback;
+
+        foreach (var l in lines)
+            l.eventPlayed = false;
+
+        panel.SetActive(true);
+        Time.timeScale = 0;
+
+        ShowLine();
+    }
+
+    // =========================
+    // SINGLE LINE
+    // =========================
+   public void ShowSingle(string name, DialogueLine line)
 {
-    panel.SetActive(true);
-    Time.timeScale = 0f;
+    if (line == null)
+    {
+        Debug.LogError("ShowSingle() nhận DialogueLine NULL");
+        return;
+    }
+
+    Show(name, new DialogueLine[] { line }, null);
+}
+
+   void ShowLine()
+{
+    if (lines == null)
+    {
+        Debug.LogError("ShowLine(): lines = NULL");
+        return;
+    }
+
+    if (index < 0 || index >= lines.Length)
+    {
+        Debug.LogError($"ShowLine(): index {index} vượt quá giới hạn dialogue");
+        return;
+    }
+
+    if (lines[index] == null)
+    {
+        Debug.LogError($"DialogueLine tại index {index} bị NULL");
+        return;
+    }
 
     npcNameText.text = npcName;
-    currentText = text;
-    isIdleDialogue = idle;
+    fullText = lines[index].text;
 
-    nextButton.gameObject.SetActive(showNext && !idle);
-    skipButton.gameObject.SetActive(!showNext || idle);
+    PlayEvent(lines[index]);
 
-    // 🔥 THÊM DÒNG NÀY
-    if (NPCController.Current != null)
-    {
-        DialogueCamera.Instance.FocusOn(
-            NPCController.Current.cameraFocusPoint
-        );
-    }
-Debug.Log("Focus NPC: " + NPCController.Current.name);
-    StartTyping();
+    if (typing != null)
+        StopCoroutine(typing);
+
+    typing = StartCoroutine(TypeText());
 }
 
 
-    void StartTyping()
+    void NextLine()
     {
-        if (typingCoroutine != null)
-            StopCoroutine(typingCoroutine);
+        index++;
 
-        typingCoroutine = StartCoroutine(TypeText());
-    }
-
-   IEnumerator TypeText()
-{
-    isTyping = true;
-    dialogueText.text = "";
-
-    if (typingSound)
-    {
-        typingSound.loop = true;
-        typingSound.Play();
-    }
-
-    foreach (char c in currentText)
-    {
-        dialogueText.text += c;
-        yield return new WaitForSecondsRealtime(typingSpeed);
-    }
-
-    StopTypingSound();
-}    public void Next()
-    {
-        if (isTyping)
+        if (index >= lines.Length)
         {
-            SkipTyping();
+            Hide();
+            onFinish?.Invoke();
             return;
         }
 
-        NPCController.Current?.NextLine();
+        ShowLine();
     }
 
-    public void Skip()
+    IEnumerator TypeText()
     {
-        if (isTyping)
+        isTyping = true;
+        dialogueText.text = "";
+
+        foreach (char c in fullText)
         {
-            SkipTyping();
-            return;
+            dialogueText.text += c;
+            if (typeSound) audioSource.PlayOneShot(typeSound);
+            yield return new WaitForSecondsRealtime(0.03f);
         }
 
-        Hide();
+        isTyping = false;
     }
-    void StopTypingSound()
+
+   void PlayEvent(DialogueLine line)
 {
-    if (typingSound && typingSound.isPlaying)
+    if (line.eventPlayed) return;
+
+    NPCController npc = NPCController.Current;
+    if (npc == null) return;
+
+    switch (line.dialogueEvent)
     {
-        typingSound.loop = false;
-        typingSound.Stop();
+        case DialogueEvent.PanToMalricFlag:
+            DialogueCamera.Instance.PanTo(npc.malricIsland);
+            break;
+
+        case DialogueEvent.ZoomToBrokenHammer:
+            DialogueCamera.Instance.Focus(npc.brokenHammer);
+            break;
+
+        case DialogueEvent.FocusOverShoulder:
+            DialogueCamera.Instance.FocusOverShoulder(npc.npcFace);
+            break;
     }
 
-    isTyping = false;
+    line.eventPlayed = true;
 }
 
-   void SkipTyping()
-{
-    if (typingCoroutine != null)
-        StopCoroutine(typingCoroutine);
+    public void ShowAcceptButton(System.Action onAccept)
+    {
+        acceptButton.gameObject.SetActive(true);
+        acceptButton.onClick.RemoveAllListeners();
 
-    dialogueText.text = currentText;
-    StopTypingSound();
-}
-
-
- public void Hide()
+        acceptButton.onClick.AddListener(() =>
+        {
+            acceptButton.gameObject.SetActive(false);
+            Hide();
+            onAccept?.Invoke();
+        });
+    }
+   public void Hide()
 {
     panel.SetActive(false);
-    Time.timeScale = 1f;
-    isIdleDialogue = false;
 
-    // 🔥 RESET CAMERA
-    DialogueCamera.Instance.ResetCamera();
+    if (acceptButton != null)
+        acceptButton.gameObject.SetActive(false);
 
-    NPCController.Current = null;
+    Time.timeScale = 1;
+    DialogueCamera.Instance.ResetCam();
 }
 
- 
 }

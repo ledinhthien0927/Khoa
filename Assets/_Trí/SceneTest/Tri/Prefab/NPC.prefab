@@ -2970,7 +2970,6 @@ GameObject:
   m_Component:
   - component: {fileID: 2241698301448737553}
   - component: {fileID: 1201125355923706034}
-  - component: {fileID: 3467983745012885446}
   m_Layer: 0
   m_Name: NPC
   m_TagString: Untagged
@@ -3032,19 +3031,6 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!114 &3467983745012885446
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4371131472879238748}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f19c4041ee66c0249b65d8ea5dbdacc3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NPCController
-  questState: 0
 --- !u!1 &4371566606676949850
 GameObject:
   m_ObjectHideFlags: 0
