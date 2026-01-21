@@ -5,25 +5,29 @@ public class PlayerQuestManager : MonoBehaviour
 {
     public static PlayerQuestManager Instance;
 
-    public List<Quest> quests = new List<Quest>();
+    Dictionary<QuestID, QuestState> quests =
+        new Dictionary<QuestID, QuestState>();
 
-    private void Awake()
+    void Awake()
     {
         Instance = this;
     }
 
-    public bool HasQuest(string id)
+    public void AcceptQuest(QuestID id)
     {
-        return quests.Exists(q => q.questID == id);
+        quests[id] = QuestState.InProgress;
     }
 
-    public void AddQuest(Quest quest)
+    public void CompleteQuest(QuestID id)
     {
-        quests.Add(quest);
+        quests[id] = QuestState.Completed;
     }
 
-    public Quest GetQuest(string id)
+    public QuestState GetState(QuestID id)
     {
-        return quests.Find(q => q.questID == id);
+        if (!quests.ContainsKey(id))
+            return QuestState.NotStarted;
+
+        return quests[id];
     }
 }

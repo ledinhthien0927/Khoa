@@ -5,108 +5,134 @@ public class DialogueCamera : MonoBehaviour
 {
     public static DialogueCamera Instance;
 
-    public float zoomFOV = 35f;
-    public float moveSpeed = 6f;
-    public float rotateSpeed = 8f;
-
     Camera cam;
     Vector3 startPos;
     Quaternion startRot;
     float startFOV;
 
-    Coroutine camRoutine;
-    CameraFollow follow;
+    Coroutine routine;
 
     void Awake()
     {
         Instance = this;
 
         cam = Camera.main;
-        follow = cam.GetComponent<CameraFollow>();
+        if (cam == null)
+        {
+            Debug.LogError("DialogueCamera: No Main Camera found!");
+            return;
+        }
 
         startPos = cam.transform.position;
         startRot = cam.transform.rotation;
         startFOV = cam.fieldOfView;
     }
 
-    public void FocusOn(Transform focusPoint)
+    void StopRoutine()
     {
-        if (follow) follow.enabled = false;
-
-        if (camRoutine != null)
-            StopCoroutine(camRoutine);
-
-        camRoutine = StartCoroutine(FocusRoutine(focusPoint));
+        if (routine != null)
+            StopCoroutine(routine);
     }
 
-    public void ResetCamera()
+    public void Focus(Transform target)
     {
-        if (camRoutine != null)
-            StopCoroutine(camRoutine);
-
-        camRoutine = StartCoroutine(ResetRoutine());
+        StopRoutine();
+        routine = StartCoroutine(FocusRoutine(target));
     }
 
-    IEnumerator FocusRoutine(Transform target)
+    public void PanTo(Transform target)
     {
-        while (true)
+        StopRoutine();
+        routine = StartCoroutine(PanRoutine(target));
+    }
+
+    public void FocusOverShoulder(Transform npc)
+    {
+        StopRoutine();
+        routine = StartCoroutine(OverShoulderRoutine(npc));
+    }
+
+    public void ResetCam()
+    {
+        StopRoutine();
+        routine = StartCoroutine(ResetRoutine());
+    }
+
+   IEnumerator FocusRoutine(Transform target)
+{
+    if (target == null) yield break;
+
+    float t = 0;
+    while (t < 1)
+    {
+        t += Time.unscaledDeltaTime * 2f;
+
+        Vector3 dir = target.position - cam.transform.position;
+
+        if (dir.sqrMagnitude > 0.001f)
         {
-            // 1️⃣ Move camera
-            cam.transform.position = Vector3.Lerp(
-                cam.transform.position,
-                target.position,
-                Time.unscaledDeltaTime * moveSpeed
-            );
-
-            // 2️⃣ Rotate camera to LOOK AT NPC
-            Vector3 lookDir = (target.position - cam.transform.position).normalized;
-            Quaternion lookRot = Quaternion.LookRotation(lookDir);
-
             cam.transform.rotation = Quaternion.Lerp(
                 cam.transform.rotation,
-                lookRot,
-                Time.unscaledDeltaTime * rotateSpeed
+                Quaternion.LookRotation(dir),
+                t
             );
+        }
 
-            // 3️⃣ Zoom
-            cam.fieldOfView = Mathf.Lerp(
-                cam.fieldOfView,
-                zoomFOV,
-                Time.unscaledDeltaTime * moveSpeed
+        cam.transform.position = Vector3.Lerp(
+            cam.transform.position,
+            target.position,
+            t
+        );
+
+        cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, 35, t);
+        yield return null;
+    }
+}
+
+
+    IEnumerator PanRoutine(Transform target)
+    {
+        float t = 0;
+        while (t < 1)
+        {
+            t += Time.unscaledDeltaTime * 1.5f;
+            cam.transform.rotation = Quaternion.Lerp(
+                cam.transform.rotation,
+                Quaternion.LookRotation(target.position - cam.transform.position),
+                t
             );
-
             yield return null;
-            Debug.DrawLine(
-                cam.transform.position,
-                target.position,
-            Color.red
-            );
+        }
+    }
 
+    IEnumerator OverShoulderRoutine(Transform npc)
+    {
+        Vector3 targetPos =
+            npc.position - npc.forward * 3.5f + Vector3.up * 1.6f;
+
+        Quaternion targetRot =
+            Quaternion.LookRotation(npc.position + Vector3.up * 1.5f - targetPos);
+
+        float t = 0;
+        while (t < 1)
+        {
+            t += Time.unscaledDeltaTime * 2f;
+            cam.transform.position = Vector3.Lerp(cam.transform.position, targetPos, t);
+            cam.transform.rotation = Quaternion.Lerp(cam.transform.rotation, targetRot, t);
+            cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, 45, t);
+            yield return null;
         }
     }
 
     IEnumerator ResetRoutine()
     {
-        while (true)
+        float t = 0;
+        while (t < 1)
         {
-            cam.transform.position = Vector3.Lerp(
-                cam.transform.position,
-                startPos,
-                Time.unscaledDeltaTime * moveSpeed
-            );
-
-            cam.transform.rotation = Quaternion.Lerp(
-                cam.transform.rotation,
-                startRot,
-                Time.unscaledDeltaTime * rotateSpeed
-            );
-
-            cam.fieldOfView = Mathf.Lerp(
-                cam.fieldOfView,
-                startFOV,
-                Time.unscaledDeltaTime * moveSpeed
-            );
-
+            t += Time.unscaledDeltaTime * 2f;
+            cam.transform.position = Vector3.Lerp(cam.transform.position, startPos, t);
+            cam.transform.rotation = Quaternion.Lerp(cam.transform.rotation, startRot, t);
+            cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, startFOV, t);
             yield return null;
         }
     }

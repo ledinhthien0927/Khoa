@@ -1,10 +1,13 @@
 using UnityEngine;
 
-[System.Serializable]
+[System.Serializable] // ⭐ BẮT BUỘC
 public class DialogueLine
 {
-    [TextArea(3, 5)]
+    [TextArea(2, 6)]
     public string text;
 
-    public DialogueEvent dialogueEvent;
+    public DialogueEvent dialogueEvent = DialogueEvent.None;
+
+    [HideInInspector]
+    public bool eventPlayed;
 }

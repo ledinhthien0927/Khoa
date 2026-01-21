@@ -1,119 +1,109 @@
 using UnityEngine;
 
-
-public enum DialoguePhase
-{
-    Intro,
-    Mission,
-    Complete
-}
-
 public class NPCController : MonoBehaviour
 {
     public static NPCController Current;
 
     [Header("NPC Info")]
-    public string npcName = "Hoàng Tử Valen";
+    public string npcName = "Hoàng Tử";
+    public Transform npcFace;
+    public Transform malricIsland;
+    public Transform brokenHammer;
 
-    [Header("Dialogues")]
+    [Header("Dialogue")]
     public DialogueLine[] introDialogue;
     public DialogueLine[] missionDialogue;
-    public string[] idleDialogue;
-    public DialogueLine[] completeDialogue;
-
-    DialoguePhase currentPhase;
-    DialogueLine[] currentDialogue;
-    int index;
-
-    public QuestState questState = QuestState.NotStarted;
-    public Transform cameraFocusPoint;
-   
+    public DialogueLine[] idleDialogue;
+    public DialogueLine[] hammerCompleteDialogue;
+    public DialogueLine[] shipMissionDialogue;
+    
     
 
- public void Interact()
-{
-    Current = this;
-    index = 0;
 
-    // 🔥 FOCUS CAMERA 1 LẦN DUY NHẤT
-    DialogueCamera.Instance.FocusOn(cameraFocusPoint);
-
-    if (questState == QuestState.NotStarted)
+    public enum QuestPhase
     {
-        currentPhase = DialoguePhase.Intro;
-        currentDialogue = introDialogue;
-        ShowLine();
+        Intro,
+        HammerMission,
+        HammerInProgress,
+        HammerCompleted,
+        ShipMission
     }
-    else if (questState == QuestState.InProgress)
+
+    QuestPhase phase = QuestPhase.Intro;
+    bool isTalking;
+    int lastIdle = -1;
+
+    public void Interact()
     {
-        DialogueUI.Instance.Show(
-            npcName,
-            idleDialogue[Random.Range(0, idleDialogue.Length)],
-            false,
-            true
-        );
-    }
-    else if (questState == QuestState.Completed)
-    {
-        currentPhase = DialoguePhase.Complete;
-        currentDialogue = completeDialogue;
-        ShowLine();
-    }
-}
-    public void NextLine()
-    {
-        index++;
-
-        if (index < currentDialogue.Length)
+        Current = this;
+        DialogueCamera.Instance.Focus(npcFace);
+        switch (phase)
         {
-            ShowLine();
-            return;
-        }
-
-        // 🔁 CHUYỂN INTRO → MISSION
-        if (currentPhase == DialoguePhase.Intro)
-        {
-            currentPhase = DialoguePhase.Mission;
-            currentDialogue = missionDialogue;
-            index = 0;
-            ShowLine();
-            return;
-        }
-
-        // 🎯 BẮT ĐẦU QUEST
-        if (currentPhase == DialoguePhase.Mission)
-        {
-            questState = QuestState.InProgress;
-            DialogueUI.Instance.Hide();
-            Debug.Log("QUEST START: Repair Sacred Hammer");
-            return;
-        }
-
-        // ✅ QUEST COMPLETE
-        if (currentPhase == DialoguePhase.Complete)
-        {
-            DialogueUI.Instance.Hide();
-            Debug.Log("QUEST COMPLETE");
+            case QuestPhase.Intro: PlayIntro(); break;
+            case QuestPhase.HammerMission: PlayMission(); break;
+            case QuestPhase.HammerInProgress: PlayIdle(); break;
+            case QuestPhase.HammerCompleted: PlayHammerComplete(); break;
+            case QuestPhase.ShipMission: PlayShipMission(); break;
         }
     }
 
-    void ShowLine()
+    void PlayIntro()
     {
-        DialogueLine line = currentDialogue[index];
-        bool isLast = index == currentDialogue.Length - 1;
-
-        DialogueUI.Instance.Show(
-            npcName,
-            line.text,
-            !isLast
-        );
-
-      
+        isTalking = true;
+        DialogueUI.Instance.Show(npcName, introDialogue, () =>
+        {
+            phase = QuestPhase.HammerMission;
+            isTalking = false;
+        });
     }
 
-    // Gọi khi mini-game sửa búa xong
+    void PlayMission()
+    {
+        isTalking = true;
+        DialogueUI.Instance.Show(npcName, missionDialogue, () =>
+        {
+            PlayerQuestManager.Instance.AcceptQuest(QuestID.HammerQuest);
+            phase = QuestPhase.HammerInProgress;
+            isTalking = false;
+        });
+    }
+
+    void PlayIdle()
+    {
+        int r;
+        do
+        {
+            r = Random.Range(0, idleDialogue.Length);
+        }
+        while (idleDialogue.Length > 1 && r == lastIdle);
+
+        lastIdle = r;
+        DialogueUI.Instance.ShowSingle(npcName, idleDialogue[r]);
+    }
+
     public void OnHammerRepaired()
     {
-        questState = QuestState.Completed;
+        phase = QuestPhase.HammerCompleted;
+    }
+
+    void PlayHammerComplete()
+    {
+        isTalking = true;
+        DialogueUI.Instance.Show(npcName, hammerCompleteDialogue, () =>
+        {
+            PlayerQuestManager.Instance.CompleteQuest(QuestID.HammerQuest);
+            phase = QuestPhase.ShipMission;
+            isTalking = false;
+        });
+    }
+
+    void PlayShipMission()
+    {
+        isTalking = true;
+        DialogueUI.Instance.Show(npcName, shipMissionDialogue, () =>
+        {
+            PlayerQuestManager.Instance.AcceptQuest(QuestID.ShipQuest);
+            isTalking = false;
+        });
     }
 }
