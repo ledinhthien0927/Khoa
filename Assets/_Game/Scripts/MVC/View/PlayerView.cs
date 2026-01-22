@@ -12,12 +12,17 @@ public class PlayerView : MonoBehaviour
     [SerializeField] private GameObject bowObject;   
 
     [Header("UI Components")]
+    // [QUAN TRỌNG] Thêm biến này để chứa toàn bộ HUD (Máu, Stamina, Tên...)
+    [SerializeField] private GameObject mainHUDCanvas; 
+    
     [SerializeField] private Slider hpSlider;
     [SerializeField] private Slider staminaSlider;
     [SerializeField] private GameObject crosshairUI; 
     [SerializeField] private Text arrowCountText;    
 
-    // --- CẬP NHẬT UI & VISUALS ---
+    private GameObject _currentMinigameInstance; 
+
+    // --- CẬP NHẬT UI ---
     
     public void UpdateStatsUI(float hp, float maxHp, float stamina, float maxStamina, int arrows)
     {
@@ -48,19 +53,28 @@ public class PlayerView : MonoBehaviour
         mainCamera.fieldOfView = Mathf.Lerp(mainCamera.fieldOfView, fov, Time.deltaTime * 10f);
     }
 
-    // --- [QUAN TRỌNG] HÀM FIX LỖI MAP MANAGER ---
-    // Hàm này ẩn UI chiến đấu khi lên tàu
+    // --- LOGIC ẨN/HIỆN UI (Đã cập nhật để dùng mainHUDCanvas) ---
+
     public void ToggleCombatUI(bool isVisible)
     {
-        if (hpSlider) hpSlider.gameObject.SetActive(isVisible);
-        if (staminaSlider) staminaSlider.gameObject.SetActive(isVisible);
-        if (crosshairUI) crosshairUI.SetActive(false); // Luôn tắt crosshair khi đi tàu
-        
-        // Ẩn text tên
-        if (arrowCountText && arrowCountText.transform.parent) 
-            arrowCountText.transform.parent.gameObject.SetActive(isVisible);
+        // Cách 1: Tắt toàn bộ Canvas cha (Gọn nhất, tắt hết mọi thứ bên trong)
+        if (mainHUDCanvas != null) 
+        {
+            mainHUDCanvas.SetActive(isVisible);
+        }
+        // Cách 2: Nếu không gán mainHUDCanvas thì mới tắt lẻ tẻ (Dự phòng)
+        else 
+        {
+            if (hpSlider) hpSlider.gameObject.SetActive(isVisible);
+            if (staminaSlider) staminaSlider.gameObject.SetActive(isVisible);
+            if (arrowCountText && arrowCountText.transform.parent) 
+                arrowCountText.transform.parent.gameObject.SetActive(isVisible);
+        }
 
-        // Ẩn vũ khí khi lái tàu cho đẹp
+        // Luôn đảm bảo tắt Crosshair khi ẩn UI
+        if (!isVisible && crosshairUI) crosshairUI.SetActive(false);
+
+        // Ẩn vũ khí khi không chiến đấu
         if (!isVisible)
         {
             if (swordObject) swordObject.SetActive(false);
@@ -68,41 +82,54 @@ public class PlayerView : MonoBehaviour
         }
         else
         {
-            // Hiện lại vũ khí mặc định (ví dụ là Kiếm) khi xuống tàu
+            // Hiện lại kiếm mặc định khi UI bật lại
             if (swordObject) swordObject.SetActive(true);
         }
     }
 
-    // Các Animation leo trèo/lái tàu (MapManager gọi)
+    public void ToggleSmithingUI(bool isOpen, GameObject prefab)
+    {
+        if (isOpen) {
+            // Mở Minigame Rèn
+            if (_currentMinigameInstance == null && prefab != null) 
+                _currentMinigameInstance = Instantiate(prefab);
+            else if (_currentMinigameInstance != null) 
+                _currentMinigameInstance.SetActive(true);
+            
+            // [QUAN TRỌNG] Tắt UI Nhân vật đi
+            ToggleCombatUI(false); 
+            
+            Cursor.visible = true; 
+            Cursor.lockState = CursorLockMode.None;
+        } else {
+            // Đóng Minigame
+            if (_currentMinigameInstance != null) 
+                _currentMinigameInstance.SetActive(false);
+            
+            // [QUAN TRỌNG] Bật lại UI Nhân vật
+            ToggleCombatUI(true); 
+            
+            Cursor.visible = false; 
+            Cursor.lockState = CursorLockMode.Locked;
+        }
+    }
+
+    // --- ANIMATION ---
     public void TriggerClimbUp() { if (animator) animator.SetTrigger("ClimbUp"); }
     public void TriggerClimbDown() { if (animator) animator.SetTrigger("ClimbDown"); }
     public void SetSteering(bool isSteering) { if (animator) animator.SetBool("IsSteering", isSteering); }
-
-
-    // --- ANIMATION CHIẾN ĐẤU ---
-
     public void UpdateMovementAnim(float speed, bool isStrafing)
     {
         if (!animator) return;
         animator.SetFloat("Speed", speed, 0.1f, Time.deltaTime);
         animator.SetBool("IsStrafing", isStrafing); 
     }
-
-    public void TriggerAttack(int step)
-    {
-        if (animator) animator.SetTrigger("Attack_" + step); 
-    }
-
+    public void TriggerAttack(int step) { if (animator) animator.SetTrigger("Attack_" + step); }
     public void TriggerParry() => SetTrigger("Parry");
     public void TriggerDash() => SetTrigger("Dash");
     public void TriggerShoot() => SetTrigger("Shoot");
     public void SetAiming(bool isAiming) { if(animator) animator.SetBool("IsAiming", isAiming); }
     public void TriggerStun() => SetTrigger("Stun");
-
     public void ResumeAnimator() { if (animator) animator.speed = 1f; }
-
-    private void SetTrigger(string name)
-    {
-        if (animator) { animator.ResetTrigger(name); animator.SetTrigger(name); }
-    }
+    private void SetTrigger(string name) { if (animator) { animator.ResetTrigger(name); animator.SetTrigger(name); } }
 }

@@ -40,9 +40,13 @@ public class PlayerModel
     public float zoomFOV = 40f;             
     public float normalFOV = 60f;
 
-    [Header("Interaction")]
+    // --- [ĐÃ KIỂM TRA: ĐẦY ĐỦ PHẦN RÈN] ---
+    [Header("Interaction & Smithing")]
     public LayerMask interactionLayer;      
     public float interactionRange = 2.0f;
+    public GameObject smithingMinigamePrefab; // Prefab UI Minigame
+    public string interactionUIName = "UI_Prompt"; // Tên object chữ "F" trong Bàn Rèn
+    public bool isSmithing;                   // Trạng thái đang rèn
 
     [Header("Runtime State")]
     public PlayerState currentState;

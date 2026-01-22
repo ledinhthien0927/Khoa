@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 1d1a5574b62422f4c9723ae8b8f5600d
+guid: 29dc9f7c117455946b98d86051faf730
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
@@ -60,18 +60,18 @@ ModelImporter:
       maskSource: {instanceID: 0}
       additiveReferencePoseFrame: 0
     - serializedVersion: 16
-      name: Idle.com
+      name: StanUp
       takeName: mixamo.com
       internalID: -203655887218126122
       firstFrame: 0
-      lastFrame: 227
+      lastFrame: 342
       wrapMode: 0
       orientationOffsetY: 0
       level: 0
       cycleOffset: 0
       loop: 0
       hasAdditiveReferencePose: 0
-      loopTime: 1
+      loopTime: 0
       loopBlend: 0
       loopBlendOrientation: 0
       loopBlendPositionY: 0

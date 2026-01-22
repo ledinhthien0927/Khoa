@@ -4,105 +4,220 @@ using System.Collections;
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
 {
-    [Header("MVC")]
+    [Header("MVC Components")]
     [SerializeField] private PlayerModel model;
     [SerializeField] private PlayerView view;
 
+    // --- CÁC BIẾN NỘI BỘ ---
     private CharacterController _cc;
     private Transform _camTransform;
-    private float _turnSmoothVelocity;
+    private float _turnSmoothVelocity; 
     
-    // Biến kiểm soát trạng thái đi tàu
-    private bool _isTraveling = false;
+    // TRẠNG THÁI HỆ THỐNG
+    private bool _isTraveling = false;             // Đang đi tàu
+    private GameObject _currentInteractableObject; // Bàn rèn đang đứng gần
+    private BoatController _nearbyBoat;            // [QUAN TRỌNG] Tàu đang đứng gần (Biến bị thiếu trước đó)
 
     void Awake()
     {
         _cc = GetComponent<CharacterController>();
         if (Camera.main) _camTransform = Camera.main.transform;
         
-        // Tự tìm view/model nếu thiếu
         if (view == null) view = GetComponent<PlayerView>();
         if (model == null) model = new PlayerModel();
 
-        // Init Stats
         model.currentHealth = model.maxHealth;
         model.currentStamina = model.maxStamina;
         model.currentState = PlayerState.Idle;
+        model.isSmithing = false;
         
-        // Init Visuals
         if(view) view.SwitchWeaponVisuals(model.currentWeapon);
     }
 
     // ========================================================================
-    // [QUAN TRỌNG] CÁC HÀM FIX LỖI MAP MANAGER (ĐỪNG XÓA)
+    // PHẦN 1: HỖ TRỢ MAP MANAGER 
     // ========================================================================
 
-    // 1. Cho phép MapManager lấy View để điều khiển Animation
-    public PlayerView GetView() 
-    { 
-        return view; 
-    }
+    public PlayerView GetView() { return view; }
 
-    // 2. Chuyển đổi trạng thái "Đi tàu"
     public void SetTravelMode(bool isTraveling)
     {
         _isTraveling = isTraveling;
-        _cc.enabled = !isTraveling; // Tắt Physics khi đi tàu
+        _cc.enabled = !isTraveling; 
 
         if (isTraveling)
         {
             model.currentState = PlayerState.Idle;
-            // Ẩn UI combat
-            if (view) view.ToggleCombatUI(false);
+            if (view) view.ToggleCombatUI(false); 
         }
         else
         {
-            // Hiện lại UI combat
-            if (view) view.ToggleCombatUI(true);
-            // Reset vũ khí visual
+            if (view) view.ToggleCombatUI(true);  
             if (view) view.SwitchWeaponVisuals(model.currentWeapon);
         }
     }
 
-    // 3. Bật lại Camera chính (MapManager gọi)
     public void EnableMainCamera()
     {
         if (_camTransform != null) _camTransform.gameObject.SetActive(true);
     }
 
     // ========================================================================
-    // MAIN LOOP
+    // PHẦN 2: VÒNG LẶP CHÍNH (UPDATE)
     // ========================================================================
 
     void Update()
     {
-        // Nếu đang đi tàu hoặc chết -> Không làm gì cả
+        // 1. Chặn logic nếu đang đi tàu, chết hoặc bị choáng
         if (_isTraveling || model.currentHealth <= 0 || model.currentState == PlayerState.Stunned) return;
 
-        // 1. Hồi phục Stamina
-        HandleStaminaRegen();
+        // 2. Xử lý Tương tác (Tàu, Rèn, Nhặt đồ)
+        HandleInteraction();
 
-        // 2. Chuyển vũ khí (Chuột giữa)
+        // Nếu đang ngồi Rèn -> Dừng mọi việc khác
+        if (model.isSmithing) return;
+
+        // 3. Logic khác (Stamina, Vũ khí, Di chuyển)
+        HandleStaminaRegen();
         HandleWeaponSwitch();
 
-        // 3. Xử lý Input Chiến đấu & Di chuyển
         if (model.currentState != PlayerState.Dashing && model.currentState != PlayerState.ParryingRecovery)
         {
             if (model.currentWeapon == WeaponType.Sword) HandleSwordCombat();
             else if (model.currentWeapon == WeaponType.Bow) HandleBowCombat();
-
-            HandleInteraction();
         }
 
-        // 4. Di chuyển
         HandleMovement();
 
-        // 5. Cập nhật UI
         if(view) view.UpdateStatsUI(model.currentHealth, model.maxHealth, model.currentStamina, model.maxStamina, model.currentArrows);
     }
 
     // ========================================================================
-    // LOGIC CHIẾN ĐẤU
+    // PHẦN 3: LOGIC TƯƠNG TÁC (TÀU + RÈN + NHẶT ĐỒ)
+    // ========================================================================
+
+    void HandleInteraction()
+    {
+        // A. QUÉT TÌM TÀU & RÈN (Liên tục kiểm tra xung quanh)
+        if (!model.isSmithing) 
+        {
+            CheckForBoat();                 // [MỚI] Tìm tàu
+            CheckForSmithingInteractable(); // Tìm bàn rèn
+        }
+
+        // B. XỬ LÝ PHÍM 'F' (Ưu tiên: Tàu -> Rèn)
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+            // Ưu tiên 1: Nếu đang đứng gần Tàu -> Mở Map
+            if (_nearbyBoat != null)
+            {
+                if (MapManager.Instance != null) MapManager.Instance.ToggleMap();
+                return; // Thoát ngay, không check rèn nữa
+            }
+
+            // Ưu tiên 2: Vào Rèn
+            if (_currentInteractableObject != null && !model.isSmithing) 
+            {
+                EnterSmithingMode();
+            }
+            // Ưu tiên 3: Thoát Rèn
+            else if (model.isSmithing) 
+            {
+                ExitSmithingMode();
+            }
+        }
+
+        // C. PHÍM 'ESC' (Thoát Rèn)
+        if (model.isSmithing && Input.GetKeyDown(KeyCode.Escape)) ExitSmithingMode();
+
+        // D. PHÍM 'E' (Nhặt cành cây)
+        if (Input.GetKeyDown(KeyCode.E) && !model.isSmithing)
+        {
+            Collider[] hits = Physics.OverlapSphere(transform.position, model.interactionRange, model.interactionLayer);
+            foreach (var hit in hits)
+            {
+                if (hit.CompareTag("Branch")) 
+                { 
+                    Destroy(hit.gameObject); 
+                    model.currentArrows++; 
+                    return; 
+                }
+            }
+        }
+    }
+
+    // --- [MỚI] HÀM TÌM TÀU ---
+    void CheckForBoat()
+    {
+        // Quét bán kính lớn hơn (6m) để dễ tìm tàu
+        Collider[] hits = Physics.OverlapSphere(transform.position, 6.0f); 
+        BoatController found = null;
+        
+        foreach(var hit in hits) {
+            // Tìm script BoatController trên vật thể hoặc cha của nó
+            found = hit.GetComponent<BoatController>();
+            if (found == null) found = hit.GetComponentInParent<BoatController>();
+            
+            if (found != null) break; // Thấy tàu rồi!
+        }
+
+        // Logic hiển thị UI "Bấm F lái tàu"
+        if (found != _nearbyBoat)
+        {
+            if (_nearbyBoat != null) _nearbyBoat.TogglePrompt(false); // Tắt UI tàu cũ
+            if (found != null) found.TogglePrompt(true);              // Bật UI tàu mới
+            _nearbyBoat = found;
+        }
+    }
+
+    // --- HÀM TÌM BÀN RÈN ---
+    void CheckForSmithingInteractable()
+    {
+        // Nếu đang đứng gần tàu, thì tạm thời bỏ qua bàn rèn để tránh lẫn lộn UI
+        if (_nearbyBoat != null) 
+        {
+            if (_currentInteractableObject != null) ToggleObjectPrompt(_currentInteractableObject, false);
+            _currentInteractableObject = null;
+            return;
+        }
+
+        GameObject found = null;
+        Collider[] hits = Physics.OverlapSphere(transform.position, model.interactionRange, model.interactionLayer);
+        
+        foreach(var hit in hits) {
+            if(hit.CompareTag("Anvil")) { found = hit.gameObject; break; }
+        }
+
+        if (found != _currentInteractableObject)
+        {
+            if (_currentInteractableObject != null) ToggleObjectPrompt(_currentInteractableObject, false);
+            if (found != null) ToggleObjectPrompt(found, true);
+            _currentInteractableObject = found;
+        }
+    }
+
+    void ToggleObjectPrompt(GameObject rootObj, bool isActive)
+    {
+        if (rootObj == null) return;
+        Transform uiTransform = rootObj.transform.Find(model.interactionUIName); 
+        if (uiTransform != null) uiTransform.gameObject.SetActive(isActive);
+    }
+
+    void EnterSmithingMode()
+    {
+        model.isSmithing = true;
+        model.currentState = PlayerState.Idle; 
+        if (view) view.ToggleSmithingUI(true, model.smithingMinigamePrefab);
+    }
+
+    public void ExitSmithingMode()
+    {
+        model.isSmithing = false;
+        if (view) view.ToggleSmithingUI(false, null);
+    }
+
+    // ========================================================================
+    // PHẦN 4: CHIẾN ĐẤU & DI CHUYỂN (GIỮ NGUYÊN)
     // ========================================================================
 
     void HandleStaminaRegen()
@@ -125,18 +240,15 @@ public class PlayerController : MonoBehaviour
 
     void HandleSwordCombat()
     {
-        // TẤN CÔNG
         if (Input.GetMouseButtonDown(0) && model.currentState != PlayerState.Parrying)
         {
             if (Time.time - model.lastActionTime > model.comboResetTime) model.currentComboStep = 0;
             if (model.currentComboStep < 3) StartCoroutine(PerformAttack(model.currentComboStep + 1));
         }
-        // PARRY
         if (Input.GetMouseButtonDown(1) && model.currentState != PlayerState.Attacking)
         {
             StartCoroutine(PerformParry());
         }
-        // DASH
         if (Input.GetKeyDown(KeyCode.Space) && model.currentStamina >= model.dashCost)
         {
             StartCoroutine(PerformDash());
@@ -146,7 +258,6 @@ public class PlayerController : MonoBehaviour
     void HandleBowCombat()
     {
         bool isHoldingAim = Input.GetMouseButton(1);
-        
         if (isHoldingAim)
         {
             model.currentState = PlayerState.Aiming;
@@ -157,8 +268,7 @@ public class PlayerController : MonoBehaviour
 
             if (Input.GetMouseButtonDown(0))
             {
-                if (Time.time - model.lastActionTime > model.reloadTime && model.currentArrows > 0)
-                    ShootArrow();
+                if (Time.time - model.lastActionTime > model.reloadTime && model.currentArrows > 0) ShootArrow();
             }
         }
         else
@@ -169,8 +279,7 @@ public class PlayerController : MonoBehaviour
             view.SetAiming(false);
         }
 
-        if (Input.GetKeyDown(KeyCode.Space) && model.currentStamina >= model.dashCost)
-            StartCoroutine(PerformDash());
+        if (Input.GetKeyDown(KeyCode.Space) && model.currentStamina >= model.dashCost) StartCoroutine(PerformDash());
     }
 
     IEnumerator PerformAttack(int step)
@@ -178,14 +287,10 @@ public class PlayerController : MonoBehaviour
         model.currentState = PlayerState.Attacking;
         model.currentComboStep = step;
         model.lastActionTime = Time.time;
-        
         view.TriggerAttack(step);
         RotateToCamera();
-
-        yield return new WaitForSeconds(0.4f); // Chờ animation
-        
-        if (model.currentState == PlayerState.Attacking) 
-            model.currentState = PlayerState.Idle;
+        yield return new WaitForSeconds(0.4f); 
+        if (model.currentState == PlayerState.Attacking) model.currentState = PlayerState.Idle;
     }
 
     IEnumerator PerformParry()
@@ -193,32 +298,8 @@ public class PlayerController : MonoBehaviour
         model.currentState = PlayerState.Parrying;
         view.TriggerParry();
         yield return new WaitForSeconds(model.parryWindow); 
-        // Logic thực sự của Parry (detect hit) sẽ nằm ở script nhận damage
-        
-        model.currentState = PlayerState.Idle;
+        if (model.currentState == PlayerState.Parrying) model.currentState = PlayerState.Idle;
     }
-
-    void ShootArrow()
-    {
-        model.lastActionTime = Time.time;
-        model.currentArrows--;
-        view.TriggerShoot();
-
-        Vector3 aimCenter = Camera.main.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, 100f));
-        Vector3 spawnPos = model.arrowSpawnPoint ? model.arrowSpawnPoint.position : transform.position + Vector3.up * 1.5f;
-        Vector3 dir = (aimCenter - spawnPos).normalized;
-
-        if (model.arrowPrefab)
-        {
-            GameObject arrow = Instantiate(model.arrowPrefab, spawnPos, Quaternion.LookRotation(dir));
-            Rigidbody rb = arrow.GetComponent<Rigidbody>();
-            if (rb) rb.linearVelocity = dir * 40f; 
-        }
-    }
-
-    // ========================================================================
-    // MOVEMENT & INTERACTION
-    // ========================================================================
 
     IEnumerator PerformDash()
     {
@@ -226,14 +307,12 @@ public class PlayerController : MonoBehaviour
         model.currentStamina -= model.dashCost;
         model.lastActionTime = Time.time;
         model.isInvincible = true;
-
         view.TriggerDash();
 
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
         Vector3 inputDir = new Vector3(h, 0, v).normalized;
-        
-        Vector3 dashDir = transform.forward; 
+        Vector3 dashDir;
 
         if (inputDir.magnitude > 0.1f)
         {
@@ -241,7 +320,7 @@ public class PlayerController : MonoBehaviour
             transform.rotation = Quaternion.Euler(0f, targetAngle, 0f);
             dashDir = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward;
         }
-        else dashDir = -transform.forward; // Backstep
+        else dashDir = -transform.forward; 
 
         float timer = 0;
         while (timer < model.dashDuration)
@@ -251,11 +330,31 @@ public class PlayerController : MonoBehaviour
             if (timer > model.dashIFrameDuration) model.isInvincible = false;
             yield return null;
         }
-
         model.isInvincible = false;
         model.currentState = PlayerState.Idle;
     }
 
+    void ShootArrow()
+    {
+        model.lastActionTime = Time.time;
+        model.currentArrows--;
+        view.TriggerShoot();
+        Vector3 aimCenter = Camera.main.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, 100f));
+        Vector3 spawnPos = model.arrowSpawnPoint ? model.arrowSpawnPoint.position : transform.position + Vector3.up * 1.5f;
+        Vector3 dir = (aimCenter - spawnPos).normalized;
+        if (model.arrowPrefab) {
+            GameObject arrow = Instantiate(model.arrowPrefab, spawnPos, Quaternion.LookRotation(dir));
+            if (arrow.TryGetComponent<Rigidbody>(out var rb)) rb.linearVelocity = dir * 40f; 
+        }
+    }
+    
+    void RotateToCamera()
+    {
+        if(_camTransform == null) return;
+        Vector3 camDir = _camTransform.forward; camDir.y = 0;
+        if (camDir != Vector3.zero) transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.LookRotation(camDir), Time.deltaTime * model.rotationSpeed);
+    }
+    
     void HandleMovement()
     {
         if (model.currentState == PlayerState.Dashing || model.currentState == PlayerState.Parrying) return;
@@ -263,62 +362,27 @@ public class PlayerController : MonoBehaviour
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
         Vector3 direction = new Vector3(h, 0f, v).normalized;
-
         float targetSpeed = (model.currentState == PlayerState.Aiming) ? model.aimMoveSpeed : model.walkSpeed;
         
         if (direction.magnitude >= 0.1f)
         {
             if (model.currentState != PlayerState.Aiming)
             {
-                // Naraka Rotation Style
                 float targetAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg + _camTransform.eulerAngles.y;
                 float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref _turnSmoothVelocity, 0.1f);
                 transform.rotation = Quaternion.Euler(0f, angle, 0f);
-
-                Vector3 moveDir = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward;
-                _cc.Move(moveDir * targetSpeed * Time.deltaTime);
+                _cc.Move(Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward * targetSpeed * Time.deltaTime);
                 model.currentState = PlayerState.Moving;
             }
             else
             {
-                // Strafe Movement when Aiming
-                Vector3 moveDir = _camTransform.right * h + _camTransform.forward * v;
-                moveDir.y = 0;
+                Vector3 moveDir = _camTransform.right * h + _camTransform.forward * v; moveDir.y = 0;
                 _cc.Move(moveDir.normalized * targetSpeed * Time.deltaTime);
             }
         }
-        else
-        {
-            if (model.currentState == PlayerState.Moving) model.currentState = PlayerState.Idle;
-        }
+        else if (model.currentState == PlayerState.Moving) model.currentState = PlayerState.Idle;
 
-        // Animation update
-        float currentVelocity = new Vector3(_cc.velocity.x, 0, _cc.velocity.z).magnitude;
-        view.UpdateMovementAnim(currentVelocity / model.walkSpeed, model.currentState == PlayerState.Aiming);
-
-        // Gravity
+        view.UpdateMovementAnim(new Vector3(_cc.velocity.x, 0, _cc.velocity.z).magnitude / model.walkSpeed, model.currentState == PlayerState.Aiming);
         if (!_cc.isGrounded) _cc.Move(Vector3.down * 9.8f * Time.deltaTime);
-    }
-
-    void HandleInteraction()
-    {
-        if (Input.GetKeyDown(KeyCode.E))
-        {
-            Collider[] hits = Physics.OverlapSphere(transform.position, model.interactionRange, model.interactionLayer);
-            foreach (var hit in hits)
-            {
-                if (hit.CompareTag("Branch")) { Destroy(hit.gameObject); return; }
-                if (hit.CompareTag("Anvil")) { Debug.Log("Open Smithing UI"); }
-            }
-        }
-    }
-    
-    void RotateToCamera()
-    {
-        if(_camTransform == null) return;
-        Vector3 camDir = _camTransform.forward;
-        camDir.y = 0;
-        if (camDir != Vector3.zero)
-            transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.LookRotation(camDir), Time.deltaTime * model.rotationSpeed);
     }
 }
