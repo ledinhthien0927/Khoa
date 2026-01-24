@@ -16,7 +16,9 @@ public class PlayerModel
 
     [Header("Movement Config")]
     public float walkSpeed = 6f;
-    public float aimMoveSpeed = 3f;         
+    public float aimMoveSpeed = 2f; // Đã giảm mặc định xuống cho dễ ngắm
+    public float accelerationTime = 0.25f;
+    public float decelerationTime = 0.4f;
     public float rotationSpeed = 15f;       
     public float dashForce = 15f;
     public float dashDuration = 0.4f;
@@ -33,30 +35,33 @@ public class PlayerModel
     public float parryWindow = 0.5f;        
     public float parryRecovery = 0.5f;      
     public float damageSwordBase = 10f;
+    public LayerMask enemyLayer;      
+    public float attackRange = 2.0f;  
 
     [Header("Bow Combat")]
+    public float arrowShootSpeed = 100f;    // [MỚI] Tốc độ bay của mũi tên (Tăng lên để bắn xa hơn)
     public float reloadTime = 0.8f;         
     public float damageBow = 15f;
     public float zoomFOV = 40f;             
     public float normalFOV = 60f;
 
-    // --- [ĐÃ KIỂM TRA: ĐẦY ĐỦ PHẦN RÈN] ---
     [Header("Interaction & Smithing")]
     public LayerMask interactionLayer;      
     public float interactionRange = 2.0f;
-    public GameObject smithingMinigamePrefab; // Prefab UI Minigame
-    public string interactionUIName = "UI_Prompt"; // Tên object chữ "F" trong Bàn Rèn
-    public bool isSmithing;                   // Trạng thái đang rèn
-
-    [Header("Runtime State")]
-    public PlayerState currentState;
-    public int currentComboStep = 0;
-    public float lastActionTime;            
-    public bool isInvincible;               
-    public bool isWeaponSwapping;
+    public GameObject smithingMinigamePrefab; 
+    public string interactionUIName = "UI_Prompt"; 
+    public bool isSmithing;                   
 
     [Header("Visuals & Effects")]
     public GameObject arrowPrefab;
     public Transform arrowSpawnPoint;
     public GameObject vfxParrySparks;
+
+    [Header("Runtime State")]
+    public Vector3 currentVelocity;      
+    public Vector3 smoothDampVelocity;   
+    public PlayerState currentState;
+    public int currentComboStep = 0;
+    public float lastActionTime;            
+    public bool isInvincible;               
 }

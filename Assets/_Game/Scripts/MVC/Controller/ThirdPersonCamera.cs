@@ -7,8 +7,11 @@ public class ThirdPersonCamera : MonoBehaviour
     public Vector3 pivotOffset = new Vector3(0, 1.5f, 0); 
     public Vector3 shoulderOffset = new Vector3(0.5f, 0, 0); 
 
+    [Header("Settings - Độ nhạy chuột")]
+    public float mouseSensitivity = 3.0f; // Độ nhạy bình thường
+    public float aimSensitivity = 1.0f;   // [MỚI] Độ nhạy khi ngắm (chậm hơn)
+    
     [Header("Settings - Di chuyển & Xoay")]
-    public float mouseSensitivity = 3.0f;
     public float followSpeed = 20f;    
     
     [Header("Zoom & Giới hạn")]
@@ -26,13 +29,12 @@ public class ThirdPersonCamera : MonoBehaviour
     private float _yaw;   
     private float _pitch; 
     private float _currentDistance;
-    private bool _isCursorLocked = true; // Biến kiểm soát trạng thái chuột
+    private bool _isCursorLocked = true;
+    private bool _isAiming = false; // [MỚI] Biến kiểm tra trạng thái ngắm
 
     void Start()
     {
-        // Mặc định khi vào game là khóa chuột ngay
         LockCursor(true);
-
         Vector3 angles = transform.eulerAngles;
         _yaw = angles.y;
         _pitch = angles.x;
@@ -41,43 +43,41 @@ public class ThirdPersonCamera : MonoBehaviour
 
     void Update()
     {
-        // Xử lý ẩn/hiện chuột
         HandleCursorInput();
     }
 
     void LateUpdate()
     {
         if (target == null) return;
-
-        // Nếu chuột đang hiện (đang dùng menu), thì KHÔNG xoay camera
         if (!_isCursorLocked) return;
 
-        // 1. Nhận Input xoay camera
-        _yaw += Input.GetAxis("Mouse X") * mouseSensitivity;
-        _pitch -= Input.GetAxis("Mouse Y") * mouseSensitivity;
+        // [CẬP NHẬT] Chọn độ nhạy dựa trên trạng thái ngắm
+        float currentSens = _isAiming ? aimSensitivity : mouseSensitivity;
+
+        // 1. Nhận Input với độ nhạy tương ứng
+        _yaw += Input.GetAxis("Mouse X") * currentSens;
+        _pitch -= Input.GetAxis("Mouse Y") * currentSens;
         _pitch = Mathf.Clamp(_pitch, pitchLimit.x, pitchLimit.y);
 
         // 2. Xử lý Zoom
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         distance = Mathf.Clamp(distance - scroll * 5, minDistance, maxDistance);
 
-        // 3. Tính toán vị trí & Va chạm
+        // 3. Tính toán vị trí
         CalculateCameraPosition();
     }
 
+    // [MỚI] Hàm này để PlayerController gọi sang
+    public void SetAiming(bool isAiming)
+    {
+        _isAiming = isAiming;
+    }
+
+    // ... (Giữ nguyên các hàm HandleCursorInput, LockCursor, CalculateCameraPosition cũ) ...
     void HandleCursorInput()
     {
-        // Bấm ESC để mở khóa chuột (hiện chuột)
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
-            LockCursor(false);
-        }
-
-        // Bấm chuột trái vào game để khóa lại (ẩn chuột)
-        if (Input.GetMouseButtonDown(0) && !_isCursorLocked)
-        {
-            LockCursor(true);
-        }
+        if (Input.GetKeyDown(KeyCode.Escape)) LockCursor(false);
+        if (Input.GetMouseButtonDown(0) && !_isCursorLocked) LockCursor(true);
     }
 
     void LockCursor(bool isLocked)
@@ -89,15 +89,11 @@ public class ThirdPersonCamera : MonoBehaviour
 
     void CalculateCameraPosition()
     {
-        // Tính toán vị trí gốc (Pivot)
         Vector3 targetPivotPosition = target.position + pivotOffset;
         Quaternion rotation = Quaternion.Euler(_pitch, _yaw, 0);
-
-        // Hướng lùi ra sau
         Vector3 desiredDirection = rotation * Vector3.back; 
         Vector3 desiredPosition = targetPivotPosition + (rotation * shoulderOffset) + (desiredDirection * distance);
 
-        // Xử lý va chạm
         RaycastHit hit;
         Vector3 directionToCam = (desiredPosition - targetPivotPosition).normalized;
         float distToCam = Vector3.Distance(targetPivotPosition, desiredPosition);
@@ -115,7 +111,6 @@ public class ThirdPersonCamera : MonoBehaviour
             finalPosition = targetPivotPosition + (rotation * shoulderOffset) + (desiredDirection * _currentDistance);
         }
 
-        // Di chuyển camera
         transform.position = Vector3.Lerp(transform.position, finalPosition, followSpeed * Time.deltaTime);
         transform.rotation = rotation; 
     }
