@@ -153,5 +153,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 267c06f207e8c6541b5558b10aa1341f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArrowProjectile
-  lifeTime: 10
+  lifeTime: 20
   damage: 15

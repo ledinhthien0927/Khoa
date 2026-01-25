@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro; // Nếu bạn dùng TextMeshPro
+using TMPro; // Thư viện TextMeshPro
 
 public class PlayerView : MonoBehaviour
 {
@@ -11,19 +11,18 @@ public class PlayerView : MonoBehaviour
     [Header("Weapon Models")]
     [SerializeField] private GameObject swordObject; 
     [SerializeField] private GameObject bowObject;   
+    [SerializeField] private GameObject arrowVisualObject; // [MỚI] Mũi tên giả ở tay trái (kéo dây)
 
     [Header("UI Components")]
     [SerializeField] private GameObject mainHUDCanvas; 
-    
     [SerializeField] private Slider hpSlider;
     [SerializeField] private Slider staminaSlider;
     [SerializeField] private GameObject crosshairUI; 
-    [SerializeField] private Text arrowCountText;    
+    [SerializeField] private TextMeshProUGUI arrowCountText; // Dùng TextMeshPro
 
     private GameObject _currentMinigameInstance; 
 
     // --- CẬP NHẬT UI ---
-    
     public void UpdateStatsUI(float hp, float maxHp, float stamina, float maxStamina, int arrows)
     {
         if (hpSlider) hpSlider.value = hp / maxHp;
@@ -31,15 +30,32 @@ public class PlayerView : MonoBehaviour
         if (arrowCountText) arrowCountText.text = arrows.ToString();
     }
 
+    // --- QUẢN LÝ HIỂN THỊ VŨ KHÍ ---
+    
     public void SwitchWeaponVisuals(WeaponType type)
     {
+        // 1. Xử lý Kiếm
         if (swordObject) swordObject.SetActive(type == WeaponType.Sword);
+        
+        // 2. Xử lý Cung (Hiện luôn nếu đang ở chế độ Bow)
         if (bowObject) bowObject.SetActive(type == WeaponType.Bow);
         
-        if (animator) animator.SetBool("IsBowMode", type == WeaponType.Bow);
+        // 3. Xử lý Mũi tên giả (Luôn ẩn khi vừa đổi vũ khí, chờ ngắm mới hiện)
+        if (arrowVisualObject) arrowVisualObject.SetActive(false);
         
+        // 4. Animation & Crosshair
+        if (animator) animator.SetBool("IsBowMode", type == WeaponType.Bow);
         ToggleCrosshair(false);
     }
+
+    // Bật/Tắt mũi tên giả (khi kéo dây)
+    public void SetArrowVisual(bool isActive)
+    {
+        if (arrowVisualObject && arrowVisualObject.activeSelf != isActive)
+            arrowVisualObject.SetActive(isActive);
+    }
+
+    // --- CÁC HÀM TIỆN ÍCH KHÁC ---
 
     public void ToggleCrosshair(bool show)
     {
@@ -53,26 +69,20 @@ public class PlayerView : MonoBehaviour
         mainCamera.fieldOfView = Mathf.Lerp(mainCamera.fieldOfView, fov, Time.deltaTime * 10f);
     }
 
-    // --- LOGIC ẨN/HIỆN UI ---
-
     public void ToggleCombatUI(bool isVisible)
     {
         if (mainHUDCanvas != null) mainHUDCanvas.SetActive(isVisible);
-        else 
-        {
-            if (hpSlider) hpSlider.gameObject.SetActive(isVisible);
-            if (staminaSlider) staminaSlider.gameObject.SetActive(isVisible);
-            if (arrowCountText && arrowCountText.transform.parent) 
-                arrowCountText.transform.parent.gameObject.SetActive(isVisible);
-        }
-
         if (!isVisible && crosshairUI) crosshairUI.SetActive(false);
-
+        
+        // Ẩn model vũ khí nếu tắt UI (ví dụ khi đi tàu)
         if (!isVisible) {
             if (swordObject) swordObject.SetActive(false);
             if (bowObject) bowObject.SetActive(false);
+            if (arrowVisualObject) arrowVisualObject.SetActive(false);
         } else {
-            if (swordObject) swordObject.SetActive(true);
+            // Khi bật lại, hiện lại vũ khí đang cầm (nếu bow active thì bật lại)
+            if (swordObject && !bowObject.activeSelf) swordObject.SetActive(true);
+            else if (bowObject && !swordObject.activeSelf) bowObject.SetActive(true);
         }
     }
 
@@ -97,13 +107,11 @@ public class PlayerView : MonoBehaviour
         }
     }
 
-    // --- ANIMATION (ĐÃ SỬA TÊN VÀ THAM SỐ) ---
-    
+    // --- ANIMATION TRIGGERS ---
     public void TriggerClimbUp() { if (animator) animator.SetTrigger("ClimbUp"); }
     public void TriggerClimbDown() { if (animator) animator.SetTrigger("ClimbDown"); }
     public void SetSteering(bool isSteering) { if (animator) animator.SetBool("IsSteering", isSteering); }
-
-    // [FIX LỖI TẠI ĐÂY] Đổi tên thành UpdateMovementAnimation và thêm 5 tham số
+    
     public void UpdateMovementAnimation(float speed, float localX, float localZ, bool isAiming, bool isBowMode)
     {
         if (!animator) return;

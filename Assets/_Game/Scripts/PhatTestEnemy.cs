@@ -1,88 +1,69 @@
 using UnityEngine;
-using System.Collections;
 
-[RequireComponent(typeof(Rigidbody))]
+// Script này gắn vào Object Enemy (cần có Collider và Rigidbody/CharacterController)
 public class PhatTestEnemy : MonoBehaviour, IDamageable
 {
-    private Rigidbody _rb;
-    private Renderer _renderer;
-    private Animator _animator;
-    private Color _originalColor;
-    private bool _isStunned;
+    [Header("Stats")]
+    public float maxHealth = 100f;
+    private float _currentHealth;
 
-    void Awake()
+    [Header("VFX")]
+    public GameObject hitVFX;    // Hiệu ứng khi bị đánh trúng (máu me)
+    public GameObject deathVFX;  // Hiệu ứng khi chết
+
+    void Start()
     {
-        _rb = GetComponent<Rigidbody>();
-        _renderer = GetComponentInChildren<Renderer>();
-        _animator = GetComponent<Animator>();
-        if (_renderer != null) _originalColor = _renderer.material.color;
-        _rb.constraints = RigidbodyConstraints.FreezeRotation; 
+        _currentHealth = maxHealth;
     }
 
-    void LateUpdate()
+    // --- TRIỂN KHAI GIAO DIỆN IDamageable ---
+   public HitResult TakeDamage(DamageInfo info)
     {
-        if (transform.rotation.x != 0 || transform.rotation.z != 0)
-        {
-            Vector3 currentRot = transform.rotation.eulerAngles;
-            transform.rotation = Quaternion.Euler(0, currentRot.y, 0);
-        }
-    }
+        if (_currentHealth <= 0) return HitResult.Ignored;
 
-    public HitResult TakeDamage(DamageInfo info)
-    {
-        if (_isStunned) return HitResult.Ignored;
+        // 1. Trừ máu
+        _currentHealth -= info.amount;
 
-        StartCoroutine(FlashColor(Color.red, 0.2f));
-
-        if (_animator != null) _animator.enabled = false;
-        _rb.linearVelocity = Vector3.zero;
-        _rb.angularVelocity = Vector3.zero;
-
-        // Xử lý Lực đẩy (Hỗ trợ Skill E, R, JumpSmash)
-        if (info.hitDirection == Vector3.up)
-        {
-            _rb.AddForce(Vector3.up * info.knockbackForce, ForceMode.VelocityChange);
-        }
-        else
-        {
-            Vector3 finalForce = info.hitDirection + (Vector3.up * 0.2f); 
-            _rb.AddForce(finalForce.normalized * info.knockbackForce, ForceMode.VelocityChange);
-        }
-
-        // Xử lý Thời gian Stun
-        // UltimateR, EarthUp và Stun dùng biến duration riêng
-        float recoverTime = (info.type == DamageType.UltimateR || info.type == DamageType.EarthUp || info.type == DamageType.Stun) 
-                            ? info.duration 
-                            : 0.6f;
+        // [FIX LỖI NULL] Kiểm tra kỹ trước khi lấy tên người đánh
+        string attackerName = (info.attacker != null) ? info.attacker.name : "Môi trường/Mũi tên lạ";
         
-        StartCoroutine(RecoverRoutine(recoverTime));
+        Debug.Log($"Enemy bị đánh bởi {attackerName} - Mất {info.amount} HP - Còn {_currentHealth}");
 
-        if (info.type == DamageType.Stun || info.type == DamageType.EarthUp || info.type == DamageType.UltimateR) 
-            StartCoroutine(StunEffectRoutine(recoverTime));
+        // 2. Hiệu ứng trúng đòn (Hit Reaction)
+        if (hitVFX != null)
+        {
+            // Kiểm tra hướng đánh để tránh lỗi xoay (Quaternion Error)
+            if (info.hitDirection != Vector3.zero)
+            {
+                Instantiate(hitVFX, info.hitPoint, Quaternion.LookRotation(info.hitDirection));
+            }
+            else
+            {
+                Instantiate(hitVFX, info.hitPoint, Quaternion.identity);
+            }
+        }
+
+        // 3. Xử lý Knockback (Đẩy lùi)
+        if (TryGetComponent<Rigidbody>(out var rb))
+        {
+            rb.AddForce(info.hitDirection * info.knockbackForce, ForceMode.Impulse);
+        }
+
+        // 4. Kiểm tra chết
+        if (_currentHealth <= 0)
+        {
+            Die();
+        }
 
         return HitResult.Hit;
     }
 
-    IEnumerator RecoverRoutine(float time)
+    void Die()
     {
-        yield return new WaitForSeconds(time);
-        _rb.linearVelocity = Vector3.zero;
-        if (_animator != null) _animator.enabled = true;
-    }
-
-    IEnumerator StunEffectRoutine(float time)
-    {
-        _isStunned = true;
-        if (_renderer) _renderer.material.color = Color.yellow;
-        yield return new WaitForSeconds(time);
-        if (_renderer) _renderer.material.color = _originalColor;
-        _isStunned = false;
-    }
-
-    IEnumerator FlashColor(Color color, float time)
-    {
-        if (_renderer) _renderer.material.color = color;
-        yield return new WaitForSeconds(time);
-        if (!_isStunned && _renderer) _renderer.material.color = _originalColor;
+        Debug.Log("Enemy đã chết!");
+        if (deathVFX != null) Instantiate(deathVFX, transform.position, Quaternion.identity);
+        
+        // Tạm thời destroy, sau này có thể dùng Object Pooling hoặc Animation chết
+        Destroy(gameObject);
     }
 }
