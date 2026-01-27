@@ -10,20 +10,31 @@ public class BoatController : MonoBehaviour
     public GameObject openMapMessage;   
     
     [Header("Boat Positions")]
-    public Transform steeringPos;     // Vị trí đứng lái
-    
-    // [THAY ĐỔI] Gộp điểm lên/xuống thành 1 điểm duy nhất
-    public Transform accessPoint;     // Điểm mép tàu (vừa để leo lên, vừa để leo xuống)
+    public Transform steeringPos;     
+    public Transform deckEdgePoint;   
+    public Transform accessPoint;     
     
     [Header("Camera")]
     public GameObject boatCamera; 
+
+    [Header("Realistic Movement Settings")]
+    [Tooltip("Tốc độ bẻ lái (Thấp = tàu nặng, Cao = tàu nhẹ)")]
+    [SerializeField] private float turnSpeed = 2.0f; 
+    
+    [Tooltip("Độ nghiêng thân tàu khi cua (Tạo cảm giác rẽ nước)")]
+    [SerializeField] private float tiltAmount = 5.0f; 
+    
+    [Tooltip("Tốc độ nghiêng trả về cân bằng")]
+    [SerializeField] private float tiltSpeed = 3.0f;
 
     private NavMeshAgent _agent;
 
     void Awake()
     {
         _agent = GetComponent<NavMeshAgent>();
-        _agent.updateRotation = true; 
+        
+        // [QUAN TRỌNG] Tắt tự động xoay của NavMesh để ta tự code xoay cho mượt
+        _agent.updateRotation = false; 
         _agent.updatePosition = true;
     }
 
@@ -32,6 +43,51 @@ public class BoatController : MonoBehaviour
         if (fPromptIcon != null) fPromptIcon.SetActive(false);
         if (openMapMessage != null) openMapMessage.SetActive(false);
         if (boatCamera != null) boatCamera.SetActive(false);
+    }
+
+    void Update()
+    {
+        // Gọi hàm xử lý xoay trong mỗi khung hình
+        HandleBoatRotation();
+    }
+
+    // --- LOGIC XOAY TÀU MƯỢT MÀ ---
+    void HandleBoatRotation()
+    {
+        // Chỉ xoay khi tàu đang di chuyển
+        if (_agent.velocity.sqrMagnitude > 0.1f)
+        {
+            // 1. Lấy hướng di chuyển hiện tại của NavMesh
+            Vector3 direction = _agent.velocity.normalized;
+
+            // 2. Tính toán góc quay mục tiêu (Chỉ xoay trục Y)
+            Quaternion targetRotation = Quaternion.LookRotation(direction);
+
+            // 3. Xoay từ từ thân tàu về hướng đó (Smooth Turn)
+            // Dùng Slerp để xoay mượt mà theo thời gian
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * turnSpeed);
+
+            // 4. Xử lý độ nghiêng (Banking)
+            // Tính góc cua hiện tại để biết nên nghiêng trái hay phải
+            // Vector3.Dot giúp so sánh hướng bên phải của tàu với hướng di chuyển
+            float turnAmount = Vector3.Dot(transform.right, direction); 
+            
+            // Tính độ nghiêng mục tiêu (Nghiêng trục Z)
+            float targetTiltZ = -turnAmount * tiltAmount; 
+
+            // Áp dụng độ nghiêng vào rotation hiện tại
+            Vector3 currentEuler = transform.rotation.eulerAngles;
+            float newTiltZ = Mathf.LerpAngle(currentEuler.z, targetTiltZ, Time.deltaTime * tiltSpeed);
+            
+            transform.rotation = Quaternion.Euler(currentEuler.x, currentEuler.y, newTiltZ);
+        }
+        else
+        {
+            // Khi dừng lại, trả thuyền về trạng thái cân bằng (hết nghiêng)
+            Vector3 currentEuler = transform.rotation.eulerAngles;
+            float newTiltZ = Mathf.LerpAngle(currentEuler.z, 0, Time.deltaTime * tiltSpeed);
+            transform.rotation = Quaternion.Euler(currentEuler.x, currentEuler.y, newTiltZ);
+        }
     }
 
     public void TogglePrompt(bool isVisible)

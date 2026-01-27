@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using UnityEngine.EventSystems; // [MỚI] Thêm thư viện này để check chuột trên UI
 
 // Kế thừa IDamageable để nhận sát thương từ quái
 [RequireComponent(typeof(CharacterController))]
@@ -162,6 +163,9 @@ public class PlayerController : MonoBehaviour, IDamageable
 
     // --- KIẾM (SWORD) ---
     void HandleSwordCombat() { 
+        // [QUAN TRỌNG] Nếu chuột đang đè lên UI (nút chọn đảo, inventory...) thì thoát hàm, KHÔNG ĐÁNH
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+
         if (Input.GetMouseButtonDown(0) && model.currentState != PlayerState.Parrying) { 
             if (Time.time - model.lastActionTime > model.comboResetTime) model.currentComboStep = 0; 
             if (model.currentComboStep < 3) StartCoroutine(PerformAttack(model.currentComboStep + 1)); 
@@ -186,37 +190,31 @@ public class PlayerController : MonoBehaviour, IDamageable
 
         switch (step)
         {
-            case 1: // Đòn 1: Nhanh
-                windUpTime = 0.45f; // Tăng lên chút nếu thấy trail hiện quá sớm
+            case 1: // Đòn 1
+                windUpTime = 0.45f;
                 activeTime = 0.18f;
                 break;
-            case 2: // Đòn 2: Nhanh vừa
+            case 2: // Đòn 2
                 windUpTime = 0.24f;
                 activeTime = 0.27f;
                 break;
-            case 3: // Đòn 3: Đòn kết liễu (THƯỜNG RẤT CHẬM)
-                // Bạn hãy nhìn animation đòn 3 để chỉnh số này
-                windUpTime = 0.9f;  // Chờ lâu hơn để nhân vật lấy đà/nhảy lên
-                activeTime = 0.47f;  // Thời gian chém cũng dài hơn
+            case 3: // Đòn 3
+                windUpTime = 0.9f;
+                activeTime = 0.47f;
                 break;
         }
 
         // 1. Giai đoạn Lấy Đà (Wind Up)
-        // Kiếm chưa gây dame, Trail chưa hiện
         yield return new WaitForSeconds(windUpTime);
 
         // 2. Giai đoạn Gây Dame (Active)
-        // Bật Hitbox & Trail
         if (swordScript != null) swordScript.StartAttack();
         
-        // Chờ cho kiếm chém hết quỹ đạo
         yield return new WaitForSeconds(activeTime); 
         
         // 3. Giai đoạn Thu Chiêu (Recovery)
-        // Tắt Hitbox & Trail
         if (swordScript != null) swordScript.StopAttack();
 
-        // Chờ thêm một chút để Animation về vị trí cũ mượt mà (tùy chọn)
         yield return new WaitForSeconds(recoveryTime);
 
         if (model.currentState == PlayerState.Attacking) model.currentState = PlayerState.Idle; 
@@ -237,6 +235,9 @@ public class PlayerController : MonoBehaviour, IDamageable
     // --- CUNG (BOW) ---
     void HandleBowCombat()
     {
+        // [QUAN TRỌNG] Nếu đang KHÔNG ngắm và chuột đè lên UI thì chặn lại
+        if (model.currentState != PlayerState.Aiming && EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+
         bool isHoldingAim = Input.GetMouseButton(1); 
 
         if (isHoldingAim)
