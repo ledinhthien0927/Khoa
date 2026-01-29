@@ -11,14 +11,18 @@ public class PlayerView : MonoBehaviour
     [Header("Weapon Models")]
     [SerializeField] private GameObject swordObject; 
     [SerializeField] private GameObject bowObject;   
-    [SerializeField] private GameObject arrowVisualObject; // [MỚI] Mũi tên giả ở tay trái (kéo dây)
+    [SerializeField] private GameObject arrowVisualObject; 
 
     [Header("UI Components")]
     [SerializeField] private GameObject mainHUDCanvas; 
     [SerializeField] private Slider hpSlider;
     [SerializeField] private Slider staminaSlider;
     [SerializeField] private GameObject crosshairUI; 
-    [SerializeField] private TextMeshProUGUI arrowCountText; // Dùng TextMeshPro
+    [SerializeField] private TextMeshProUGUI arrowCountText; 
+
+    // --- [MỚI] TEXT CHO HP VÀ STAMINA ---
+    [SerializeField] private TextMeshProUGUI hpText;      
+    [SerializeField] private TextMeshProUGUI staminaText; 
 
     private GameObject _currentMinigameInstance; 
 
@@ -27,35 +31,47 @@ public class PlayerView : MonoBehaviour
     {
         if (hpSlider) hpSlider.value = hp / maxHp;
         if (staminaSlider) staminaSlider.value = stamina / maxStamina;
+
+        // Cập nhật Text số liệu
+        if (hpText) hpText.text = $"{Mathf.CeilToInt(hp)} / {maxHp}";
+        if (staminaText) staminaText.text = $"{Mathf.CeilToInt(stamina)} / {maxStamina}";
+
         if (arrowCountText) arrowCountText.text = arrows.ToString();
     }
 
-    // --- QUẢN LÝ HIỂN THỊ VŨ KHÍ ---
-    
+    // --- LOGIC BƠI LỘI ---
+    public void SetSwimming(bool isSwimming)
+    {
+        if (animator)
+        {
+            animator.SetBool("IsSwimming", isSwimming);
+            
+            // Tắt vũ khí khi bơi cho gọn
+            if (isSwimming)
+            {
+                if (swordObject) swordObject.SetActive(false);
+                if (bowObject) bowObject.SetActive(false);
+                if (arrowVisualObject) arrowVisualObject.SetActive(false);
+            }
+            // (Khi lên bờ vũ khí sẽ được bật lại bởi logic SwitchWeaponVisuals trong Controller)
+        }
+    }
+
+    // --- QUẢN LÝ VŨ KHÍ ---
     public void SwitchWeaponVisuals(WeaponType type)
     {
-        // 1. Xử lý Kiếm
         if (swordObject) swordObject.SetActive(type == WeaponType.Sword);
-        
-        // 2. Xử lý Cung (Hiện luôn nếu đang ở chế độ Bow)
         if (bowObject) bowObject.SetActive(type == WeaponType.Bow);
-        
-        // 3. Xử lý Mũi tên giả (Luôn ẩn khi vừa đổi vũ khí, chờ ngắm mới hiện)
         if (arrowVisualObject) arrowVisualObject.SetActive(false);
-        
-        // 4. Animation & Crosshair
         if (animator) animator.SetBool("IsBowMode", type == WeaponType.Bow);
         ToggleCrosshair(false);
     }
 
-    // Bật/Tắt mũi tên giả (khi kéo dây)
     public void SetArrowVisual(bool isActive)
     {
         if (arrowVisualObject && arrowVisualObject.activeSelf != isActive)
             arrowVisualObject.SetActive(isActive);
     }
-
-    // --- CÁC HÀM TIỆN ÍCH KHÁC ---
 
     public void ToggleCrosshair(bool show)
     {
@@ -74,13 +90,11 @@ public class PlayerView : MonoBehaviour
         if (mainHUDCanvas != null) mainHUDCanvas.SetActive(isVisible);
         if (!isVisible && crosshairUI) crosshairUI.SetActive(false);
         
-        // Ẩn model vũ khí nếu tắt UI (ví dụ khi đi tàu)
         if (!isVisible) {
             if (swordObject) swordObject.SetActive(false);
             if (bowObject) bowObject.SetActive(false);
             if (arrowVisualObject) arrowVisualObject.SetActive(false);
         } else {
-            // Khi bật lại, hiện lại vũ khí đang cầm (nếu bow active thì bật lại)
             if (swordObject && !bowObject.activeSelf) swordObject.SetActive(true);
             else if (bowObject && !swordObject.activeSelf) bowObject.SetActive(true);
         }
@@ -128,5 +142,4 @@ public class PlayerView : MonoBehaviour
     public void TriggerShoot() { if (animator) { animator.ResetTrigger("Shoot"); animator.SetTrigger("Shoot"); }}
     public void SetAiming(bool isAiming) { if(animator) animator.SetBool("IsAiming", isAiming); }
     public void TriggerStun() { if (animator) { animator.ResetTrigger("Stun"); animator.SetTrigger("Stun"); }}
-    public void ResumeAnimator() { if (animator) animator.speed = 1f; }
 }

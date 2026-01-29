@@ -1,6 +1,7 @@
 using UnityEngine;
 
-public enum PlayerState { Idle, Moving, Dashing, Attacking, Parrying, ParryingRecovery, Aiming, Stunned, Dead }
+// Thêm Swimming vào Enum
+public enum PlayerState { Idle, Moving, Dashing, Attacking, Parrying, ParryingRecovery, Aiming, Stunned, Dead, Swimming } 
 public enum WeaponType1 { Sword, Bow }
 
 [System.Serializable]
@@ -16,7 +17,7 @@ public class PlayerModel
 
     [Header("Movement Config")]
     public float walkSpeed = 6f;
-    public float aimMoveSpeed = 2f; // Đã giảm mặc định xuống cho dễ ngắm
+    public float aimMoveSpeed = 2f; 
     public float accelerationTime = 0.25f;
     public float decelerationTime = 0.4f;
     public float rotationSpeed = 15f;       
@@ -24,6 +25,15 @@ public class PlayerModel
     public float dashDuration = 0.4f;
     public float dashCost = 25f;
     public float dashIFrameDuration = 0.3f; 
+
+    // --- [MỚI] CẤU HÌNH BƠI LỘI ---
+    [Header("Swimming Config")]
+    public float swimSpeed = 4f;            // Tốc độ bơi
+    public float waterLevelY = 0f;          // Độ cao mặt nước (Mặc định 0)
+    public float swimThreshold = 1.2f;      // Độ sâu ngập để bắt đầu bơi (1.2m ~ ngang bụng)
+    public float surfaceBuoyancy = 0.5f;    // Khoảng cách từ mặt nước đến mắt (để đầu ngoi lên)
+    public float buoyancySpeed = 2.0f;      // Tốc độ nổi lên
+    // -----------------------------
 
     [Header("Inventory & Weapons")]
     public WeaponType currentWeapon = WeaponType.Sword;
@@ -39,7 +49,7 @@ public class PlayerModel
     public float attackRange = 2.0f;  
 
     [Header("Bow Combat")]
-    public float arrowShootSpeed = 100f;    // [MỚI] Tốc độ bay của mũi tên (Tăng lên để bắn xa hơn)
+    public float arrowShootSpeed = 100f;    
     public float reloadTime = 0.8f;         
     public float damageBow = 15f;
     public float zoomFOV = 40f;             
