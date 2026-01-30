@@ -1,13 +1,20 @@
 using UnityEngine;
 
-[System.Serializable] // ⭐ BẮT BUỘC
+[System.Serializable]
 public class DialogueLine
 {
+    public string speaker;
+
     [TextArea(2, 6)]
     public string text;
 
-    public DialogueEvent dialogueEvent = DialogueEvent.None;
+    [Header("Camera")]
+    public Transform focusTarget;
 
-    [HideInInspector]
-    public bool eventPlayed;
+    [Header("UI")]
+    public bool showAccept;
+
+    [Header("Animation")]
+    public DialogueActor actor;
+    public string animationTrigger;
 }
