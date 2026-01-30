@@ -22,7 +22,7 @@ MonoBehaviour:
   detectionTime: 1.5
   callRange: 100
   alarmDelay: 2
-  wanderRadius: 20
+  wanderRadius: 40
   wanderWaitTime: 2
   attackRange: 1.5
   attackCooldown: 3
