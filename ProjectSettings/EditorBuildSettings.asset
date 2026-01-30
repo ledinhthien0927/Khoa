@@ -12,6 +12,9 @@ EditorBuildSettings:
     path: Assets/_Game/Scenes/LobbyScene.unity
     guid: fada6a9d813b72e41a38bf7359086003
   - enabled: 1
+    path: "Assets/_Nh\xE2n/_Nh\xE2n/nhancutscene/cutscenmodau/Nhan_test_cutscene.unity"
+    guid: d46988ffc8290fa41bea386363f65bc5
+  - enabled: 1
     path: Assets/_Game/Scenes/MainGame.unity
     guid: fcd6d849b2e172c479565f66a5a5dd43
   - enabled: 1

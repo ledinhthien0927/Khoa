@@ -968,8 +968,8 @@ ModelImporter:
   assetBundleVariant: 
 AssetOrigin:
   serializedVersion: 1
-  productId: 340690
-  packageName: Human Soldier Animations FREE
+  productId: 326043
+  packageName: Human Spellcasting Animations FREE
   packageVersion: 1.0
-  assetPath: Assets/_Game/Animations/Enemy_thg/AtkWithWepon/Animations/Male/Movement/Run/HumanM@Run01_Right.fbx
-  uploadId: 825260
+  assetPath: Assets/_Khoa/AtkWithWepon/Animations/Male/Movement/Run/HumanM@Run01_Right.fbx
+  uploadId: 825286
