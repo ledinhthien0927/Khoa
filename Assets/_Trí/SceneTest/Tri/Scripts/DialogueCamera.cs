@@ -5,135 +5,144 @@ public class DialogueCamera : MonoBehaviour
 {
     public static DialogueCamera Instance;
 
-    Camera cam;
-    Vector3 startPos;
-    Quaternion startRot;
-    float startFOV;
+    [Header("Camera")]
+    public Camera mainCam;
+    public Camera dialogueCam;
 
-    Coroutine routine;
+    [Header("Move")]
+    public float moveSpeed = 6f;
+    public float focusDuration = 0.7f; // thời gian zoom vào
+
+    [Header("Zoom")]
+    public float normalFOV = 60f;
+    public float closeFOV = 35f;
+
+    [Header("Offset")]
+    public Vector3 offset = new Vector3(0, 1.6f, 2f);
+
+    Transform target;
+    Transform currentTarget; // ⭐ lưu NPC đang focus
+
+    bool isFocusing = false;
 
     void Awake()
     {
-        Instance = this;
+        if (Instance == null)
+            Instance = this;
+        else
+            Destroy(gameObject);
 
-        cam = Camera.main;
-        if (cam == null)
-        {
-            Debug.LogError("DialogueCamera: No Main Camera found!");
-            return;
-        }
-
-        startPos = cam.transform.position;
-        startRot = cam.transform.rotation;
-        startFOV = cam.fieldOfView;
+        dialogueCam.gameObject.SetActive(false);
     }
 
-    void StopRoutine()
+    void LateUpdate()
     {
-        if (routine != null)
-            StopCoroutine(routine);
-    }
+        if (!target || isFocusing) return;
 
-    public void Focus(Transform target)
-    {
-        StopRoutine();
-        routine = StartCoroutine(FocusRoutine(target));
-    }
+        Vector3 pos =
+            target.position
+            - target.forward * offset.z
+            + Vector3.up * offset.y;
 
-    public void PanTo(Transform target)
-    {
-        StopRoutine();
-        routine = StartCoroutine(PanRoutine(target));
-    }
-
-    public void FocusOverShoulder(Transform npc)
-    {
-        StopRoutine();
-        routine = StartCoroutine(OverShoulderRoutine(npc));
-    }
-
-    public void ResetCam()
-    {
-        StopRoutine();
-        routine = StartCoroutine(ResetRoutine());
-    }
-
-   IEnumerator FocusRoutine(Transform target)
-{
-    if (target == null) yield break;
-
-    float t = 0;
-    while (t < 1)
-    {
-        t += Time.unscaledDeltaTime * 2f;
-
-        Vector3 dir = target.position - cam.transform.position;
-
-        if (dir.sqrMagnitude > 0.001f)
-        {
-            cam.transform.rotation = Quaternion.Lerp(
-                cam.transform.rotation,
-                Quaternion.LookRotation(dir),
-                t
+        dialogueCam.transform.position =
+            Vector3.Lerp(
+                dialogueCam.transform.position,
+                pos,
+                moveSpeed * Time.deltaTime
             );
-        }
 
-        cam.transform.position = Vector3.Lerp(
-            cam.transform.position,
-            target.position,
-            t
+        dialogueCam.transform.LookAt(
+            target.position + Vector3.up * 1.5f
         );
-
-        cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, 35, t);
-        yield return null;
     }
+
+    // =========================
+    // Focus NPC (SMOOTH)
+    // =========================
+   public void Focus(Transform npc)
+{
+    if (!npc) return;
+
+    // Nếu vẫn là NPC cũ → không zoom lại
+    if (currentTarget == npc)
+    {
+        target = npc;
+        return;
+    }
+
+    // NPC mới → zoom
+    currentTarget = npc;
+    target = npc;
+
+    mainCam.gameObject.SetActive(false);
+    dialogueCam.gameObject.SetActive(true);
+
+    StopAllCoroutines();
+    StartCoroutine(FocusRoutine());
 }
 
-
-    IEnumerator PanRoutine(Transform target)
+    IEnumerator FocusRoutine()
     {
-        float t = 0;
-        while (t < 1)
-        {
-            t += Time.unscaledDeltaTime * 1.5f;
-            cam.transform.rotation = Quaternion.Lerp(
-                cam.transform.rotation,
-                Quaternion.LookRotation(target.position - cam.transform.position),
-                t
-            );
-            yield return null;
-        }
-    }
+        isFocusing = true;
 
-    IEnumerator OverShoulderRoutine(Transform npc)
-    {
+        Vector3 startPos = dialogueCam.transform.position;
+        Quaternion startRot = dialogueCam.transform.rotation;
+        float startFOV = normalFOV;
+
         Vector3 targetPos =
-            npc.position - npc.forward * 3.5f + Vector3.up * 1.6f;
+            target.position
+            - target.forward * offset.z
+            + Vector3.up * offset.y;
 
         Quaternion targetRot =
-            Quaternion.LookRotation(npc.position + Vector3.up * 1.5f - targetPos);
+            Quaternion.LookRotation(
+                (target.position + Vector3.up * 1.5f) - targetPos
+            );
 
-        float t = 0;
-        while (t < 1)
+        float timer = 0;
+
+        dialogueCam.fieldOfView = normalFOV;
+
+        while (timer < focusDuration)
         {
-            t += Time.unscaledDeltaTime * 2f;
-            cam.transform.position = Vector3.Lerp(cam.transform.position, targetPos, t);
-            cam.transform.rotation = Quaternion.Lerp(cam.transform.rotation, targetRot, t);
-            cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, 45, t);
+            float t = timer / focusDuration;
+
+            dialogueCam.transform.position =
+                Vector3.Lerp(startPos, targetPos, t);
+
+            dialogueCam.transform.rotation =
+                Quaternion.Slerp(startRot, targetRot, t);
+
+            dialogueCam.fieldOfView =
+                Mathf.Lerp(normalFOV, closeFOV, t);
+
+            timer += Time.deltaTime;
+
             yield return null;
         }
+
+        // Fix cuối
+        dialogueCam.transform.position = targetPos;
+        dialogueCam.transform.rotation = targetRot;
+        dialogueCam.fieldOfView = closeFOV;
+
+        isFocusing = false;
     }
 
-    IEnumerator ResetRoutine()
+    // =========================
+    // Reset
+    // =========================
+    public void ResetCam()
     {
-        float t = 0;
-        while (t < 1)
-        {
-            t += Time.unscaledDeltaTime * 2f;
-            cam.transform.position = Vector3.Lerp(cam.transform.position, startPos, t);
-            cam.transform.rotation = Quaternion.Lerp(cam.transform.rotation, startRot, t);
-            cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, startFOV, t);
-            yield return null;
-        }
+        StopAllCoroutines();
+
+        target = null;
+        currentTarget = null; // ⭐ reset NPC
+
+        dialogueCam.gameObject.SetActive(false);
+        mainCam.gameObject.SetActive(true);
+
+        dialogueCam.fieldOfView = normalFOV;
     }
+
 }

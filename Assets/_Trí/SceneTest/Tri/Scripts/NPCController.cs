@@ -1,109 +1,101 @@
 using UnityEngine;
 
-public class NPCController : MonoBehaviour
+public abstract class NPCController : MonoBehaviour
 {
-    public static NPCController Current;
-
     [Header("NPC Info")]
-    public string npcName = "Hoàng Tử";
-    public Transform npcFace;
-    public Transform malricIsland;
-    public Transform brokenHammer;
+    public string npcName = "NPC";
 
-    [Header("Dialogue")]
-    public DialogueLine[] introDialogue;
-    public DialogueLine[] missionDialogue;
-    public DialogueLine[] idleDialogue;
-    public DialogueLine[] hammerCompleteDialogue;
-    public DialogueLine[] shipMissionDialogue;
-    
-    
+    [Header("Interact")]
+    public float interactDistance = 2f;
+    public KeyCode interactKey = KeyCode.E;
 
+    [Header("UI Hint")]
+    public GameObject interactHint;
 
-    public enum QuestPhase
+    [Header("Animation")]
+    public DialogueActor actor;
+
+    protected Transform player;
+
+    protected bool isInteracting;
+
+    protected virtual void Start()
     {
-        Intro,
-        HammerMission,
-        HammerInProgress,
-        HammerCompleted,
-        ShipMission
+        GameObject p =
+            GameObject.FindGameObjectWithTag("Player");
+
+        if (p != null)
+            player = p.transform;
+
+        if (interactHint != null)
+            interactHint.SetActive(false);
     }
 
-    QuestPhase phase = QuestPhase.Intro;
-    bool isTalking;
-    int lastIdle = -1;
-
-    public void Interact()
+    protected virtual void Update()
     {
-        Current = this;
-        DialogueCamera.Instance.Focus(npcFace);
-        switch (phase)
+        if (player == null) return;
+
+        if (DialogueUI.Instance != null &&
+            DialogueUI.Instance.IsShowing)
+            return;
+
+        float dist = Vector3.Distance(
+            transform.position,
+            player.position);
+
+        bool canTalk = dist <= interactDistance;
+
+        if (interactHint != null)
+            interactHint.SetActive(canTalk && !isInteracting);
+
+        if (canTalk &&
+            !isInteracting &&
+            Input.GetKeyDown(interactKey))
         {
-            case QuestPhase.Intro: PlayIntro(); break;
-            case QuestPhase.HammerMission: PlayMission(); break;
-            case QuestPhase.HammerInProgress: PlayIdle(); break;
-            case QuestPhase.HammerCompleted: PlayHammerComplete(); break;
-            case QuestPhase.ShipMission: PlayShipMission(); break;
+            StartInteract();
         }
     }
 
-    void PlayIntro()
+    protected virtual void StartInteract()
     {
-        isTalking = true;
-        DialogueUI.Instance.Show(npcName, introDialogue, () =>
-        {
-            phase = QuestPhase.HammerMission;
-            isTalking = false;
-        });
+        isInteracting = true;
+
+        LookAtPlayer();
+
+        if (actor != null)
+            actor.Play("Talk");
+
+        Interact();
     }
 
-    void PlayMission()
+    protected virtual void EndInteract()
     {
-        isTalking = true;
-        DialogueUI.Instance.Show(npcName, missionDialogue, () =>
-        {
-            PlayerQuestManager.Instance.AcceptQuest(QuestID.HammerQuest);
-            phase = QuestPhase.HammerInProgress;
-            isTalking = false;
-        });
+        isInteracting = false;
+
+        if (actor != null)
+            actor.Play("Idle");
     }
 
-    void PlayIdle()
+    protected virtual void LookAtPlayer()
     {
-        int r;
-        do
-        {
-            r = Random.Range(0, idleDialogue.Length);
-        }
-        while (idleDialogue.Length > 1 && r == lastIdle);
+        if (player == null) return;
 
-        lastIdle = r;
-        DialogueUI.Instance.ShowSingle(npcName, idleDialogue[r]);
+        Vector3 dir =
+            player.position - transform.position;
+
+        dir.y = 0;
+
+        if (dir.sqrMagnitude > 0.01f)
+            transform.rotation =
+                Quaternion.LookRotation(dir);
     }
 
-    public void OnHammerRepaired()
+    // ⭐ QUAN TRỌNG
+    // DialogueUI gọi khi đóng
+    public virtual void OnDialogueFinished()
     {
-        phase = QuestPhase.HammerCompleted;
+        EndInteract();
     }
 
-    void PlayHammerComplete()
-    {
-        isTalking = true;
-        DialogueUI.Instance.Show(npcName, hammerCompleteDialogue, () =>
-        {
-            PlayerQuestManager.Instance.CompleteQuest(QuestID.HammerQuest);
-            phase = QuestPhase.ShipMission;
-            isTalking = false;
-        });
-    }
-
-    void PlayShipMission()
-    {
-        isTalking = true;
-        DialogueUI.Instance.Show(npcName, shipMissionDialogue, () =>
-        {
-            PlayerQuestManager.Instance.AcceptQuest(QuestID.ShipQuest);
-            isTalking = false;
-        });
-    }
+    public abstract void Interact();
 }

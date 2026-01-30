@@ -1,72 +1,67 @@
 using UnityEngine;
 
-public class NPCInteractionPrompt : MonoBehaviour
+public class NPCInteraction : MonoBehaviour
 {
     [Header("References")]
-    public GameObject talkPrompt;
-    public NPCController npcDialogue;
+    public NPCController npc;
+    public GameObject hint;
 
-    [Header("Effect")]
-    public float blinkSpeed = 4f;
-    public float blinkScale = 0.05f;
-
-    bool playerInRange;
-    Vector3 originalScale;
-    float blinkTime;
+    bool inRange;
 
     void Start()
     {
-        talkPrompt.SetActive(false);
-        originalScale = talkPrompt.transform.localScale;
+        if (hint != null)
+            hint.SetActive(false);
     }
 
     void Update()
     {
-        // 🔴 Nếu đang mở hộp thoại → ẩn prompt
+        // Không cho bấm khi đang thoại
+        if (!inRange) return;
+
         if (DialogueUI.Instance != null &&
-            DialogueUI.Instance.panel.activeSelf)
-        {
-            talkPrompt.SetActive(false);
+            DialogueUI.Instance.IsShowing)
             return;
-        }
 
-        // 🟢 Player trong vùng → cho phép nhấp nháy + bấm E
-        if (playerInRange)
+        if (Input.GetKeyDown(KeyCode.E))
         {
-            BlinkEffect();
+            // Ẩn hint khi bắt đầu nói
+            if (hint != null)
+                hint.SetActive(false);
 
-            if (Input.GetKeyDown(KeyCode.E))
-            {
-                talkPrompt.SetActive(false);
-                npcDialogue.Interact();
-            }
+            npc.Interact();
         }
-    }
-
-    void BlinkEffect()
-    {
-        blinkTime += Time.deltaTime * blinkSpeed;
-        float scaleOffset = Mathf.Sin(blinkTime) * blinkScale;
-        talkPrompt.transform.localScale = originalScale * (1f + scaleOffset);
     }
 
     void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Player"))
+        if (!other.CompareTag("Player")) return;
+
+        inRange = true;
+
+        // Chỉ hiện khi KHÔNG đang thoại
+        if (DialogueUI.Instance == null ||
+            !DialogueUI.Instance.IsShowing)
         {
-            playerInRange = true;
-            blinkTime = 0f;
-            talkPrompt.SetActive(true);
+            if (hint != null)
+                hint.SetActive(true);
         }
     }
 
     void OnTriggerExit(Collider other)
     {
-        if (other.CompareTag("Player"))
-        {
-            playerInRange = false;
-            talkPrompt.SetActive(false);
-            talkPrompt.transform.localScale = originalScale;
-        }
+        if (!other.CompareTag("Player")) return;
+
+        inRange = false;
+
+        if (hint != null)
+            hint.SetActive(false);
+    }
+
+    // Gọi khi đóng thoại
+    public void ShowHintAgain()
+    {
+        if (inRange && hint != null)
+            hint.SetActive(true);
     }
 }

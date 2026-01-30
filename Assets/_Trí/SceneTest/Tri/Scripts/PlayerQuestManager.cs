@@ -1,33 +1,40 @@
 using UnityEngine;
-using System.Collections.Generic;
 
-public class PlayerQuestManager : MonoBehaviour
+public class QuestManager : MonoBehaviour
 {
-    public static PlayerQuestManager Instance;
+    public static QuestManager Instance;
 
-    Dictionary<QuestID, QuestState> quests =
-        new Dictionary<QuestID, QuestState>();
+    public PrinceQuestState princeState = PrinceQuestState.None;
+    public VillageQuestState villageState = VillageQuestState.None;
 
     void Awake()
     {
+        // Singleton
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         Instance = this;
+        DontDestroyOnLoad(gameObject);
+
+        Debug.Log("QuestManager Ready");
     }
 
-    public void AcceptQuest(QuestID id)
+    // ============ PRINCE ============
+
+    public void SetPrince(PrinceQuestState s)
     {
-        quests[id] = QuestState.InProgress;
+        princeState = s;
+        Debug.Log("Prince = " + s);
     }
 
-    public void CompleteQuest(QuestID id)
-    {
-        quests[id] = QuestState.Completed;
-    }
+    // ============ VILLAGE ============
 
-    public QuestState GetState(QuestID id)
+    public void SetVillage(VillageQuestState s)
     {
-        if (!quests.ContainsKey(id))
-            return QuestState.NotStarted;
-
-        return quests[id];
+        villageState = s;
+        Debug.Log("Village = " + s);
     }
 }
