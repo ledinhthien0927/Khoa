@@ -158,9 +158,43 @@ public class ShowcaseResult : MonoBehaviour
 
     public void OnCompleteClicked()
     {
-        // Hiện tại đang để reload lại game. 
-        // Sau này bạn có Scene Menu thì đổi dòng dưới thành: SceneManager.LoadScene("MenuName");
-        Debug.Log("Về màn hình chính!");
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        Debug.Log("Hoàn thành rèn! Đang cập nhật nhiệm vụ...");
+
+        // 1. CẬP NHẬT TRẠNG THÁI NHIỆM VỤ
+        if (QuestManager.Instance != null)
+        {
+            if (HeatingManager.CurrentWeaponType == WeaponType.Sword)
+            {
+                // Rèn kiếm xong -> Báo nhiệm vụ Kiếm hoàn tất (Completed)
+                QuestManager.Instance.SetPrince(PrinceQuestState.Completed);
+            }
+            else 
+            {
+                // Rèn khác xong -> Báo nhiệm vụ Thuyền hoàn tất (ShipDone)
+                QuestManager.Instance.SetPrince(PrinceQuestState.ShipDone);
+            }
+        }
+
+        // 2. [MỚI] TỰ ĐỘNG BẬT DẪN ĐƯỜNG VỀ HOÀNG TỬ
+        // Lúc này QuestManager đã update UI sang mục tiêu "Hoàng tử"
+        // Ta gọi hàm này để mũi tên tự hiện ra chỉ về hướng Hoàng tử
+        if (QuestUIManager.Instance != null)
+        {
+            QuestUIManager.Instance.AutoClickMainQuest();
+        }
+
+        // 3. THOÁT CHẾ ĐỘ RÈN (Về lại góc nhìn nhân vật)
+        PlayerController player = FindFirstObjectByType<PlayerController>();
+        if (player != null)
+        {
+            player.ExitSmithingMode();
+        }
+        else
+        {
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        }
+
+        // 4. HỦY UI MINIGAME
+        Destroy(transform.root.gameObject);
     }
 }

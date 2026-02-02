@@ -2,123 +2,77 @@ using UnityEngine;
 
 public class PrinceNPC : NPCController
 {
-    [Header("Sword Quest")]
-    public DialogueLine[] intro;
-    public DialogueLine[] quest;
-    public DialogueLine[] doing;
-    public DialogueLine[] finish;
+    [Header("1. Gặp Gỡ & Giao Sửa Kiếm")]
+    public DialogueLine[] introDialogue;       
+    public DialogueLine[] remindSwordDialogue; 
 
-    [Header("Ship Quest")]
-    public DialogueLine[] shipIntro;
-    public DialogueLine[] shipDoing;
-    public DialogueLine[] shipFinish;
+    [Header("2. Trả Nhiệm Vụ Kiếm & Giao Sửa Thuyền")]
+    public DialogueLine[] finishSwordDialogue; 
+    public DialogueLine[] remindShipDialogue;  
+
+    [Header("3. Trả Nhiệm Vụ Thuyền & Giao Mảnh Vỡ")]
+    public DialogueLine[] finishShipDialogue;      
+    public DialogueLine[] remindFragmentsDialogue; 
 
     public override void Interact()
     {
-        if (DialogueUI.Instance == null) return;
-        if (QuestManager.Instance == null) return;
+        if (DialogueUI.Instance == null || QuestManager.Instance == null) return;
 
         var qm = QuestManager.Instance;
+        var ui = DialogueUI.Instance;
 
         switch (qm.princeState)
         {
-            // ============ FIRST MEET ============
+            // ============ GIAI ĐOẠN 1: GIAO SỬA KIẾM ============
             case PrinceQuestState.None:
-
-                DialogueUI.Instance.Show(
-                    intro,
-                    this,
-                    () =>
-                    {
-                        qm.SetPrince(PrinceQuestState.IntroDone);
-                    });
-
+                ui.Show(introDialogue, this, () => 
+                {
+                    // 1. Cập nhật trạng thái
+                    qm.SetPrince(PrinceQuestState.IntroDone);
+                    
+                    // 2. [QUAN TRỌNG] Tự động bật dẫn đường đến LÒ RÈN
+                    if(QuestUIManager.Instance) QuestUIManager.Instance.AutoClickMainQuest();
+                });
                 break;
 
-            // ============ ACCEPT SWORD QUEST ============
             case PrinceQuestState.IntroDone:
-
-                DialogueUI.Instance.Show(
-                    quest,
-                    this,
-                    () =>
-                    {
-                        qm.SetPrince(PrinceQuestState.Accepted);
-                    });
-
+            case PrinceQuestState.Accepted: 
+                ui.Show(remindSwordDialogue, this);
                 break;
 
-            // ============ DOING SWORD ============
-            case PrinceQuestState.Accepted:
-
-                DialogueUI.Instance.Show(
-                    doing,
-                    this);
-
-                break;
-
-            // ============ FINISH SWORD ============
+            // ============ GIAI ĐOẠN 2: TRẢ KIẾM - GIAO THUYỀN ============
             case PrinceQuestState.Completed:
+                DialogueUI.Instance.Show(finishSwordDialogue, this, () => 
+                {
+                    // Bước 1: Phải chuyển trạng thái sang ShipQuest TRƯỚC
+                    // (Lúc này UI sẽ đổi chữ thành "Sửa thuyền" và mục tiêu thành Chiếc Thuyền)
+                    qm.SetPrince(PrinceQuestState.ShipQuest);
 
-                DialogueUI.Instance.Show(
-                    finish,
-                    this,
-                    () =>
-                    {
-                        qm.SetPrince(PrinceQuestState.ShipQuest);
-                    });
-
+                    // Bước 2: Sau đó mới gọi dẫn đường
+                    // (Lúc này nó sẽ click vào nút Sửa thuyền)
+                    if(QuestUIManager.Instance) QuestUIManager.Instance.AutoClickMainQuest();
+                });
                 break;
 
-            // ============ ACCEPT SHIP ============
             case PrinceQuestState.ShipQuest:
-
-                DialogueUI.Instance.Show(
-                    shipIntro,
-                    this,
-                    () =>
-                    {
-                        qm.SetPrince(PrinceQuestState.ShipDoing);
-                    });
-
-                break;
-
-            // ============ DOING SHIP ============
             case PrinceQuestState.ShipDoing:
-
-                DialogueUI.Instance.Show(
-                    shipDoing,
-                    this);
-
+                ui.Show(remindShipDialogue, this);
                 break;
 
-            // ============ FINISH SHIP ============
+            // ============ GIAI ĐOẠN 3: TRẢ THUYỀN - GIAO MẢNH VỠ ============
             case PrinceQuestState.ShipDone:
+                ui.Show(finishShipDialogue, this, () => 
+                {
+                    // 1. Cập nhật trạng thái sang tìm mảnh vỡ
+                    qm.SetPrince(PrinceQuestState.ShipDoneForever);
 
-                DialogueUI.Instance.Show(
-                    shipFinish,
-                    this,
-                    () =>
-                    {
-                        qm.SetPrince(
-                            PrinceQuestState.ShipDoneForever);
-                    });
-
+                    // 2. [QUAN TRỌNG] Tự động bật dẫn đường đến VÙNG MẢNH VỠ
+                    if(QuestUIManager.Instance) QuestUIManager.Instance.AutoClickMainQuest();
+                });
                 break;
 
-            // ============ END ============
             case PrinceQuestState.ShipDoneForever:
-
-                Debug.Log("Prince Quest Finished");
-
-                break;
-
-            default:
-
-                Debug.LogWarning(
-                    "PrinceNPC: Unknown state "
-                    + qm.princeState);
-
+                ui.Show(remindFragmentsDialogue, this);
                 break;
         }
     }

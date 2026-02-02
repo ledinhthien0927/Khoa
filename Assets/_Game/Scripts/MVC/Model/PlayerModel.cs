@@ -73,5 +73,9 @@ public class PlayerModel
     public PlayerState currentState;
     public int currentComboStep = 0;
     public float lastActionTime;            
-    public bool isInvincible;               
+    public bool isInvincible;    
+
+    [Header("Inventory - Túi đồ")]
+    public int woodCount = 0;
+    public int metalCount = 0;           
 }

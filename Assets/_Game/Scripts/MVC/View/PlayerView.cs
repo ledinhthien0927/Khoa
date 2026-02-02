@@ -125,6 +125,19 @@ public class PlayerView : MonoBehaviour
     public void TriggerClimbUp() { if (animator) animator.SetTrigger("ClimbUp"); }
     public void TriggerClimbDown() { if (animator) animator.SetTrigger("ClimbDown"); }
     public void SetSteering(bool isSteering) { if (animator) animator.SetBool("IsSteering", isSteering); }
+    public void TriggerRepair() 
+    { 
+        if (animator) 
+        {
+            // Reset các trigger khác để tránh lỗi chồng chéo
+            animator.ResetTrigger("Attack_1");
+            animator.ResetTrigger("Attack_2");
+            animator.ResetTrigger("Attack_3");
+            
+            // Kích hoạt Trigger "Repair" (Bạn cần tạo bên Animator)
+            animator.SetTrigger("Repair"); 
+        } 
+    }
     
     public void UpdateMovementAnimation(float speed, float localX, float localZ, bool isAiming, bool isBowMode)
     {

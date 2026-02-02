@@ -7,7 +7,7 @@ using UnityEngine.EventSystems; // Dùng để check chuột trên UI
 public class PlayerController : MonoBehaviour, IDamageable
 {
     [Header("MVC Components")]
-    [SerializeField] private PlayerModel model;
+    [SerializeField] public PlayerModel model;
     [SerializeField] private PlayerView view;
     [SerializeField] private ThirdPersonCamera tpsCamera; 
 
@@ -65,6 +65,14 @@ public class PlayerController : MonoBehaviour, IDamageable
     // ========================================================================
     void Update()
     {
+        if (DialogueUI.Instance != null && DialogueUI.Instance.IsShowing) 
+    {
+        // Reset các giá trị di chuyển để nhân vật đứng yên
+        model.currentVelocity = Vector3.zero;
+        if(view) view.UpdateMovementAnimation(0, 0, 0, false, false);
+        return; 
+    }
+    
         // 1. Kiểm tra các điều kiện dừng (Cutscene, Chết, Choáng)
         if (_isTraveling || model.currentHealth <= 0 || model.currentState == PlayerState.Stunned) return;
 
