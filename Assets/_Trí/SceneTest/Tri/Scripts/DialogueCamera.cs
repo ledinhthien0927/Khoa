@@ -140,7 +140,7 @@ public class DialogueCamera : MonoBehaviour
         currentTarget = null; // ⭐ reset NPC
 
         dialogueCam.gameObject.SetActive(false);
-        mainCam.gameObject.SetActive(true);
+            mainCam.gameObject.SetActive(true);
 
         dialogueCam.fieldOfView = normalFOV;
     }
