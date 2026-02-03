@@ -107,6 +107,12 @@ public class SmithingManager : MonoBehaviour
     // Hàm bắt đầu giai đoạn Rèn (được gọi từ HeatingManager)
     public void StartSmithingPhase()
     {
+        if (QuestUIManager.Instance != null)
+            QuestUIManager.Instance.SetQuestUIVisible(false);
+            
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+        // -------------------------------
         if (playerObject != null) playerObject.SetActive(true);
 
         // Bật/Tắt UI Canvas

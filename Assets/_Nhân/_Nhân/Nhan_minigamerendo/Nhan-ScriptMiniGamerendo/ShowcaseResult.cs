@@ -160,33 +160,42 @@ public class ShowcaseResult : MonoBehaviour
     {
         Debug.Log("Hoàn thành rèn! Đang cập nhật nhiệm vụ...");
 
-        // 1. CẬP NHẬT TRẠNG THÁI NHIỆM VỤ
+        // 1. CẬP NHẬT NHIỆM VỤ
         if (QuestManager.Instance != null)
         {
             if (HeatingManager.CurrentWeaponType == WeaponType.Sword)
-            {
-                // Rèn kiếm xong -> Báo nhiệm vụ Kiếm hoàn tất (Completed)
                 QuestManager.Instance.SetPrince(PrinceQuestState.Completed);
-            }
             else 
-            {
-                // Rèn khác xong -> Báo nhiệm vụ Thuyền hoàn tất (ShipDone)
                 QuestManager.Instance.SetPrince(PrinceQuestState.ShipDone);
-            }
         }
 
-        // 2. [MỚI] TỰ ĐỘNG BẬT DẪN ĐƯỜNG VỀ HOÀNG TỬ
-        // Lúc này QuestManager đã update UI sang mục tiêu "Hoàng tử"
-        // Ta gọi hàm này để mũi tên tự hiện ra chỉ về hướng Hoàng tử
+        // 2. KHÔI PHỤC UI & DẪN ĐƯỜNG
         if (QuestUIManager.Instance != null)
         {
-            QuestUIManager.Instance.AutoClickMainQuest();
+            QuestUIManager.Instance.SetQuestUIVisible(true); 
+            QuestUIManager.Instance.AutoClickMainQuest();    
         }
 
-        // 3. THOÁT CHẾ ĐỘ RÈN (Về lại góc nhìn nhân vật)
+        // 3. THOÁT CHẾ ĐỘ RÈN & TRAO KIẾM
         PlayerController player = FindFirstObjectByType<PlayerController>();
+
         if (player != null)
         {
+            // --- MỞ KHÓA KIẾM CHO NGƯỜI CHƠI ---
+            if (HeatingManager.CurrentWeaponType == WeaponType.Sword)
+            {
+                // [FIX LỖI CS0122] Giờ biến model đã là public nên truy cập được
+                player.model.hasSword = true; 
+                
+                // Cập nhật Visual: Hiện kiếm lên
+                if (player.GetView() != null)
+                {
+                    player.GetView().UpdateWeaponVisuals(true, false);
+                }
+                
+                Debug.Log("Đã nhận được Kiếm!");
+            }
+            
             player.ExitSmithingMode();
         }
         else

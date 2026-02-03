@@ -178,4 +178,15 @@ public class QuestUIManager : MonoBehaviour
             mainNavBtn.OnClickTask();
         }
     }
+    // Trong QuestUIManager.cs
+public void SetQuestUIVisible(bool isVisible)
+{
+    // Ẩn/Hiện toàn bộ Panel nhiệm vụ
+    if (questPanel != null)
+        questPanel.SetActive(isVisible);
+        
+    // Hoặc nếu bạn muốn ẩn từng thành phần con (để giữ lại khung nhưng mất chữ)
+    // mainQuestObj.SetActive(isVisible);
+    // sideQuestObj.SetActive(isVisible);
+}
 }

@@ -316,24 +316,42 @@ public class MapManager : MonoBehaviour
 
     IEnumerator BoatTravelRoutine(int destinationIndex)
     {
+        // 1. SETUP BAN ĐẦU
         if (Camera.main) Camera.main.gameObject.SetActive(false);
         boat.SetBoatCamera(true);
         boat.SetDestination(boatDockPoints[destinationIndex].position);
 
+        // --- [MỚI] BẬT CHUỘT & ẨN QUEST UI ---
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None; // Luôn mở khóa chuột khi lái
+        
+        if (QuestUIManager.Instance != null) 
+            QuestUIManager.Instance.SetQuestUIVisible(false); // Ẩn nhiệm vụ cho đỡ vướng
+        // -------------------------------------
+
         bool originalRootMotion = false;
         if (_playerAnim) { originalRootMotion = _playerAnim.applyRootMotion; _playerAnim.applyRootMotion = false; }
 
+        // 2. VÒNG LẶP DI CHUYỂN
         while (!boat.IsReachedDestination())
         {
+            // Trong lúc tàu chạy, chuột vẫn hiện để bạn click
             player.transform.position = boat.steeringPos.position;
             player.transform.rotation = boat.steeringPos.rotation;
             yield return null;
         }
 
+        // 3. KẾT THÚC
         if (_playerAnim) _playerAnim.applyRootMotion = originalRootMotion;
         
         boat.SetBoatCamera(false);
         if (_pc) _pc.EnableMainCamera();
+
+        // --- [MỚI] HIỆN LẠI QUEST UI ---
+        // (Lưu ý: Chuột sẽ tự động khóa lại khi PlayerController kích hoạt lại TPS Camera)
+        if (QuestUIManager.Instance != null) 
+            QuestUIManager.Instance.SetQuestUIVisible(true);
+        // -------------------------------
     }
 
     IEnumerator SimulateDrop(Vector3 targetGroundPos)

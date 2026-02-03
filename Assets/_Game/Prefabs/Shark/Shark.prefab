@@ -310,7 +310,7 @@ MonoBehaviour:
   patrolSpeed: 5
   chaseSpeed: 8
   burstSpeed: 15
-  detectionRange: 50
+  detectionRange: 30
   attackRange: 20
   attackDamage: 20
   attackCooldown: 2

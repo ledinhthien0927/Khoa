@@ -152,6 +152,13 @@ public class HeatingManager : MonoBehaviour
 
     public void StartHeatingPhase()
     {
+        // --- [MỚI] QUẢN LÝ UI CHUNG ---
+        if (QuestUIManager.Instance != null)
+            QuestUIManager.Instance.SetQuestUIVisible(false); // Ẩn Quest UI
+
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None; // Bật chuột
+        // ------------------------------
         // --- Setup Canvas ---
         if (heatingCanvas != null) heatingCanvas.SetActive(true);
         if (otherCanvasToHide != null) otherCanvasToHide.SetActive(false);

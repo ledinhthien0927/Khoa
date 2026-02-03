@@ -7,8 +7,8 @@ public class DialogueUI : MonoBehaviour
 {
     public static DialogueUI Instance;
 
-    [Header("UI")]
-    public GameObject panel;
+    [Header("UI References")]
+    public GameObject panel; // Panel hội thoại
 
     public TextMeshProUGUI nameText;
     public TextMeshProUGUI contentText;
@@ -18,21 +18,19 @@ public class DialogueUI : MonoBehaviour
 
     public TextMeshProUGUI spaceHint;
 
-    [Header("Typewriter")]
+    [Header("Settings")]
     public float speed = 0.03f;
 
+    // --- BIẾN NỘI BỘ ---
     DialogueLine[] lines;
     int index;
-
     bool typing;
     bool lockInput;
-
     Coroutine typingCo;
 
     System.Action onFinish;
     System.Action onAccept;
 
-    // ===== SỬA Ở ĐÂY =====
     NPCController currentNPC;
 
     public bool IsShowing => panel.activeSelf;
@@ -50,10 +48,7 @@ public class DialogueUI : MonoBehaviour
         Instance = this;
 
         panel.SetActive(false);
-
-        skipBtn.gameObject.SetActive(false);
-        acceptBtn.gameObject.SetActive(false);
-        spaceHint.gameObject.SetActive(false);
+        ResetButtons();
     }
 
     // ================= INPUT =================
@@ -69,136 +64,115 @@ public class DialogueUI : MonoBehaviour
         }
     }
 
-    // ================= SHOW =================
+    // ================= SHOW (BẮT ĐẦU THOẠI) =================
 
-    public void Show(
-        DialogueLine[] data,
-        NPCController npc = null,
-        System.Action finish = null,
-        System.Action accept = null)
+    public void Show(DialogueLine[] data, NPCController npc = null, System.Action finish = null, System.Action accept = null)
     {
         if (data == null || data.Length == 0) return;
 
         lines = data;
         index = 0;
-
         currentNPC = npc;
-
         onFinish = finish;
         onAccept = accept;
 
-        panel.SetActive(true);
+        panel.SetActive(true); 
 
         ShowLine();
         UpdateUI();
+
+        // 1. TẮT HUD NGƯỜI CHƠI (Máu, Stamina...)
+        TogglePlayerHUD(false);
+
+        // 2. BẬT CHUỘT
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+
+        // 3. [MỚI] TẮT BẢNG NHIỆM VỤ (QUEST UI)
+        if (QuestUIManager.Instance != null)
+        {
+            QuestUIManager.Instance.SetQuestUIVisible(false);
+        }
     }
 
-    // ================= LINE =================
+    // ================= LINE LOGIC =================
 
     void ShowLine()
     {
         DialogueLine line = lines[index];
-
         nameText.text = line.speaker;
 
-        // Camera focus
-        if (line.focusTarget != null &&
-            DialogueCamera.Instance != null)
+        if (line.focusTarget != null && DialogueCamera.Instance != null)
         {
             DialogueCamera.Instance.Focus(line.focusTarget);
         }
 
-        // Animation
         if (line.actor != null)
         {
             line.actor.Play(line.animationTrigger);
             line.actor.SetTalking(true);
         }
 
-        // Typewriter
-        if (typingCo != null)
-            StopCoroutine(typingCo);
-
+        if (typingCo != null) StopCoroutine(typingCo);
         typingCo = StartCoroutine(TypeText(line.text));
     }
 
     IEnumerator TypeText(string s)
     {
         typing = true;
-
         contentText.text = "";
-
         foreach (char c in s)
         {
             contentText.text += c;
             yield return new WaitForSeconds(speed);
         }
-
         typing = false;
 
-        DialogueLine line = lines[index];
-
-        if (line.actor != null)
-            line.actor.SetTalking(false);
+        if (lines[index].actor != null)
+            lines[index].actor.SetTalking(false);
     }
 
-    // ================= NEXT =================
+    // ================= NEXT LINE =================
 
     public void Next()
     {
-        // Skip typing
         if (typing)
         {
             StopCoroutine(typingCo);
-
             contentText.text = lines[index].text;
             typing = false;
-
-            DialogueLine line = lines[index];
-
-            if (line.actor != null)
-                line.actor.SetTalking(false);
-
+            if (lines[index].actor != null) lines[index].actor.SetTalking(false);
             return;
         }
 
-        // Last line
         if (index >= lines.Length - 1)
         {
-            UpdateUI();
+            UpdateUI(); 
             return;
         }
 
         index++;
-
         ShowLine();
         UpdateUI();
     }
 
-    // ================= UI =================
+    // ================= UI STATE =================
 
     void UpdateUI()
     {
         DialogueLine line = lines[index];
-
         bool isLast = index == lines.Length - 1;
 
         lockInput = false;
+        ResetButtons();
 
-        skipBtn.gameObject.SetActive(false);
-        acceptBtn.gameObject.SetActive(false);
-        spaceHint.gameObject.SetActive(false);
-
-        // Accept button
         if (line.showAccept)
         {
             lockInput = true;
-
             acceptBtn.gameObject.SetActive(true);
             return;
         }
 
-        // Last → Skip
         if (isLast)
         {
             skipBtn.gameObject.SetActive(true);
@@ -209,7 +183,14 @@ public class DialogueUI : MonoBehaviour
         }
     }
 
-    // ================= BUTTON =================
+    void ResetButtons()
+    {
+        skipBtn.gameObject.SetActive(false);
+        acceptBtn.gameObject.SetActive(false);
+        spaceHint.gameObject.SetActive(false);
+    }
+
+    // ================= BUTTON EVENTS =================
 
     public void Accept()
     {
@@ -222,30 +203,57 @@ public class DialogueUI : MonoBehaviour
         Close();
     }
 
-    // ================= CLOSE =================
+    // ================= CLOSE (KẾT THÚC THOẠI) =================
 
     void Close()
     {
-        panel.SetActive(false);
-
-        skipBtn.gameObject.SetActive(false);
-        acceptBtn.gameObject.SetActive(false);
-        spaceHint.gameObject.SetActive(false);
-
+        panel.SetActive(false); 
+        ResetButtons();
         lockInput = false;
 
-        if (typingCo != null)
-            StopCoroutine(typingCo);
+        if (typingCo != null) StopCoroutine(typingCo);
 
         if (DialogueCamera.Instance != null)
             DialogueCamera.Instance.ResetCam();
 
-        // Báo cho NPC kết thúc
         if (currentNPC != null)
+        {
             currentNPC.OnDialogueFinished();
-
-        currentNPC = null;
+            currentNPC = null;
+        }
 
         onFinish?.Invoke();
+
+        // 1. HIỆN LẠI HUD NGƯỜI CHƠI
+        TogglePlayerHUD(true);
+
+        // 2. [MỚI] HIỆN LẠI BẢNG NHIỆM VỤ (QUEST UI)
+        if (QuestUIManager.Instance != null)
+        {
+            QuestUIManager.Instance.SetQuestUIVisible(true);
+        }
+
+        // Lưu ý: Chuột sẽ được PlayerController tự động khóa lại khi HUD bật lên
+    }
+
+    // ================= TIỆN ÍCH =================
+
+    void TogglePlayerHUD(bool show)
+    {
+        PlayerController player = FindFirstObjectByType<PlayerController>();
+
+        if (player != null)
+        {
+            if (show && player.IsTraveling) 
+            {
+                return; 
+            }
+
+            PlayerView view = player.GetView();
+            if (view != null)
+            {
+                view.ToggleCombatUI(show); 
+            }
+        }
     }
 }
