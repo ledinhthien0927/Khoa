@@ -82,16 +82,38 @@ public class SharkManager : MonoBehaviour
             
             Transform spawnOrigin = fixedSpawnPoints[spawnIndex];
 
-            // Vị trí sinh ra (Ngẫu nhiên nhẹ 1 chút để không trùng mesh)
-            Vector3 spawnPos = spawnOrigin.position + Random.insideUnitSphere * 1.0f;
-            spawnPos.y = spawnOrigin.position.y; 
+            // --- [FIX LỖI NAVMESH TẠI ĐÂY] ---
+            // Tính toán vị trí mong muốn ban đầu
+            Vector3 rawSpawnPos = spawnOrigin.position + Random.insideUnitSphere * 1.0f;
+            rawSpawnPos.y = spawnOrigin.position.y; 
 
-            // Instantiate
-            GameObject newSharkObj = Instantiate(sharkPrefab, spawnPos, Quaternion.identity);
+            // Biến chứa vị trí cuối cùng hợp lệ
+            Vector3 finalSpawnPos = spawnOrigin.position; 
+            NavMeshHit hit;
+
+            // Kiểm tra: Nếu điểm random nằm trên NavMesh thì dùng nó
+            if (NavMesh.SamplePosition(rawSpawnPos, out hit, 2.0f, NavMesh.AllAreas))
+            {
+                finalSpawnPos = hit.position;
+            }
+            // Kiểm tra dự phòng: Nếu điểm random lỗi, thử tìm điểm gần spawnOrigin nhất
+            else if (NavMesh.SamplePosition(spawnOrigin.position, out hit, 5.0f, NavMesh.AllAreas))
+            {
+                finalSpawnPos = hit.position;
+            }
+            // ----------------------------------
+
+            // Instantiate tại vị trí ĐÃ ĐƯỢC KIỂM TRA (finalSpawnPos)
+            GameObject newSharkObj = Instantiate(sharkPrefab, finalSpawnPos, Quaternion.identity);
             
-            // Fix lỗi NavMesh: Tắt Agent -> Đặt vị trí -> Bật Agent
+            // Fix phụ: Tắt Agent -> Đặt vị trí (để chắc chắn) -> Bật Agent
             NavMeshAgent agent = newSharkObj.GetComponent<NavMeshAgent>();
-            if (agent != null) { agent.enabled = false; newSharkObj.transform.position = spawnPos; agent.enabled = true; }
+            if (agent != null) 
+            { 
+                agent.enabled = false; 
+                newSharkObj.transform.position = finalSpawnPos; 
+                agent.enabled = true; 
+            }
 
             SharkController sharkCtrl = newSharkObj.GetComponent<SharkController>();
             if (sharkCtrl != null) 
@@ -105,14 +127,14 @@ public class SharkManager : MonoBehaviour
                 // Chuyển góc thành Vector hướng
                 Vector3 burstDir = Quaternion.Euler(0, burstAngle, 0) * Vector3.forward;
 
-                // Điểm đến: Cách xa 80m theo hướng đó (15f * 5s = 75m -> lấy 80m cho dư)
-                Vector3 burstTarget = spawnPos + burstDir * 80f;
+                // Điểm đến: Cách xa 80m theo hướng đó (Dùng finalSpawnPos làm gốc)
+                Vector3 burstTarget = finalSpawnPos + burstDir * 80f;
 
                 // Kích hoạt chế độ bơi nhanh
                 sharkCtrl.SetupBurstMode(burstTarget);
             }
         }
-        Debug.Log($"SharkManager: Spawned {sharkCount} sharks with Burst Mode.");
+        Debug.Log($"SharkManager: Spawned {sharkCount} sharks with Burst Mode (NavMesh Safe).");
     }
 
     // --- LOGIC TÌM ĐIỂM THÔNG MINH (RESERVATION SYSTEM) ---
