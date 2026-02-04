@@ -15,7 +15,7 @@ MonoBehaviour:
   monsterName: SkeletonWarrior
   type: 0
   modelPrefab: {fileID: 197842, guid: c7eea14f40bca3140b396213ac8ca20b, type: 3}
-  maxHealth: 0
+  maxHealth: 100
   speed: 5
   detectionRange: 8
   viewAngle: 120

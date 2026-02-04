@@ -1,42 +1,61 @@
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.UI; 
+using System.Collections;
+// Đã xóa namespace _Khoa.Khoa để khớp với project nhóm
 
-// [QUAN TRỌNG] Thêm 'abstract'
-public abstract class MonsterController : MonoBehaviour
+public abstract class MonsterController : MonoBehaviour, IDamageable
 {
     public MonsterData data;
 
     [Header("Runtime Stats")]
-    public float currentHealth; 
+    public float currentHealth;
     public bool isAlerted = false;
-    public bool isTracking = false; 
+    public bool isTracking = false;
+    public bool isDead = false;          
+    public bool isInvulnerable = false;  
+
+    [Header("UI & Effects")]
+    public Slider healthSlider;          
+    public float hitStunDuration = 0.5f;
 
     [Header("Base Logic")]
     public float currentDetectionTime = 0f;
-    public Vector3? lastKnownPosition = null; 
-    public float searchWaitTime = 0f;         
-    public Vector3 startPosition;            
-    public float currentWanderWaitTime = 0f; 
+    public Vector3? lastKnownPosition = null;
+    public float searchWaitTime = 0f;
+    public Vector3 startPosition;
+    public float currentWanderWaitTime = 0f;
 
-    // [QUAN TRỌNG] Đổi thành protected để lớp con sử dụng được
     protected NavMeshAgent agent;
     protected Animator anim;
-    protected float lastAttackTime = -999f; // Để đánh được ngay đòn đầu
+    protected float lastAttackTime = -999f;
+    
+    public bool isHit = false; 
+    
+    // --- [MỚI] BIẾN KHÓA CHỐNG TRƯỢT ---
+    public bool isLockMovement = false; 
 
-    // Đổi Start thành virtual để lớp con có thể viết thêm nếu cần
+    // [FIX GIẬT] Biến này giúp giảm tải cho NavMesh
+    private float pathUpdateTimer = 0f; 
+
     protected virtual void Start()
     {
         agent = GetComponent<NavMeshAgent>();
-        anim = GetComponent<Animator>();
+        anim = GetComponentInChildren<Animator>(); 
 
-        if (data != null)
+        if (data != null) currentHealth = data.maxHealth;
+        
+        // [QUAN TRỌNG] Trả về 0 để code tự xử lý
+        if (agent != null) 
         {
-            currentHealth = data.maxHealth; 
-            if (agent != null)
-            {
-                agent.speed = data.speed;
-                agent.stoppingDistance = data.attackRange;
-            }
+            agent.speed = data.speed;
+            agent.stoppingDistance = 0f; 
+        }
+
+        if (healthSlider != null)
+        {
+            healthSlider.maxValue = (data != null) ? data.maxHealth : currentHealth;
+            healthSlider.value = currentHealth;
         }
         
         startPosition = transform.position;
@@ -45,16 +64,162 @@ public abstract class MonsterController : MonoBehaviour
 
     protected virtual void Update()
     {
-        if (agent != null && anim != null) anim.SetFloat("speed", agent.velocity.magnitude);
+        if (isDead) return;
+
+        // --- [LOGIC CHỐNG TRƯỢT + SAFE CHECK] ---
+        // Nếu đang bị khóa (Hú, Chết, Choáng) -> Ép đứng im tuyệt đối
+        if (isLockMovement || isHit)
+        {
+            // Thêm check isOnNavMesh để tránh lỗi đỏ khi quái chưa chạm đất
+            if (agent != null && agent.enabled && agent.isOnNavMesh) 
+            {
+                agent.velocity = Vector3.zero; // Triệt tiêu quán tính ngay lập tức
+                agent.isStopped = true;
+            }
+            // Ngắt animation di chuyển
+            if (anim != null) anim.SetFloat("speed", 0f); 
+            return; 
+        }
+        // ---------------------------------------
+
+        // Đồng bộ Animation chạy bình thường
+        if (agent != null && anim != null) 
+        {
+            anim.SetFloat("speed", agent.velocity.magnitude);
+        }
     }
 
-    // --- [TRÁI TIM CỦA KẾ THỪA] ---
-    // Đây là hàm trừu tượng. Mọi con quái con BẮT BUỘC phải tự viết nội dung cho hàm này.
+    // --- HÀM DI CHUYỂN AN TOÀN ---
+    public void MoveToPosition(Vector3 targetPos, bool ignoreStoppingDistance = false)
+    {
+        // Nếu đang bị khóa thì không nhận lệnh di chuyển
+        if (isDead || isHit || isLockMovement) return;
+
+        // [SAFE CHECK] Chỉ chạy khi Agent đã nằm trên NavMesh (Đã chạm đất xanh)
+        if (agent == null || !agent.enabled || !agent.isOnNavMesh) return;
+
+        if (agent.isStopped) agent.isStopped = false;
+
+        // Xử lý Stopping Distance
+        agent.stoppingDistance = ignoreStoppingDistance ? 0f : data.attackRange;
+
+        // [FIX GIẬT] Giảm tần suất gọi SetDestination
+        pathUpdateTimer += Time.deltaTime;
+        if (pathUpdateTimer >= 0.2f)
+        {
+            agent.SetDestination(targetPos);
+            pathUpdateTimer = 0f;
+        }
+    }
+
+    public void StopMoving()
+    {
+        // Thêm Safe Check isOnNavMesh
+        if (agent != null && agent.enabled && agent.isOnNavMesh) 
+        { 
+            if (agent.hasPath) agent.ResetPath();
+            agent.velocity = Vector3.zero; 
+            agent.isStopped = true;
+        }
+    }
+
+    public void RotateTowards(Vector3 target)
+    {
+        if (isDead || isHit) return; 
+        Vector3 direction = (target - transform.position).normalized;
+        direction.y = 0;
+        if (direction != Vector3.zero)
+        {
+            Quaternion lookRot = Quaternion.LookRotation(direction);
+            transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, Time.deltaTime * 5f);
+        }
+    }
+
+    // --- XỬ LÝ DAMAGE ---
+    public virtual HitResult TakeDamage(DamageInfo info)
+    {
+        if (isDead) return HitResult.Ignored;
+        if (isInvulnerable && info.type != DamageType.UltimateR) return HitResult.Ignored;
+
+        currentHealth -= info.amount;
+        if (healthSlider != null) healthSlider.value = currentHealth;
+
+        if (currentHealth <= 0)
+        {
+            Die(info);
+            return HitResult.Hit;
+        }
+
+        StopAllCoroutines(); 
+        StartCoroutine(ApplyHitReaction(info));
+
+        return HitResult.Hit;
+    }
+
+    protected IEnumerator ApplyHitReaction(DamageInfo info)
+    {
+        isHit = true; 
+        isLockMovement = true; // Khóa di chuyển
+        
+        StopMoving();
+
+        if (anim != null)
+        {
+            anim.ResetTrigger("attack"); 
+            anim.ResetTrigger("Hurt");
+            anim.ResetTrigger("Knockback");
+            
+            if (info.type == DamageType.Heavy || info.type == DamageType.EarthUp)
+                anim.SetTrigger("Knockback");
+            else
+                anim.SetTrigger("Hurt");
+        }
+
+        ApplyKnockbackPhysics(info); 
+
+        yield return new WaitForSeconds(hitStunDuration);
+        
+        isHit = false; 
+        isLockMovement = false; // Mở khóa lại
+        
+        // Safe Check trước khi mở lại Agent
+        if (agent != null && agent.enabled && agent.isOnNavMesh) agent.isStopped = false;
+    }
+
+    private void ApplyKnockbackPhysics(DamageInfo info)
+    {
+        if (info.knockbackForce > 0)
+        {
+            Rigidbody rb = GetComponent<Rigidbody>();
+            if (rb != null && !rb.isKinematic)
+            {
+                rb.AddForce(info.hitDirection * info.knockbackForce, ForceMode.Impulse);
+            }
+        }
+    }
+
+    protected void Die(DamageInfo finalHit)
+    {
+        if (isDead) return;
+        isDead = true;
+        isHit = true; 
+        isLockMovement = true; // Khóa chết cứng
+
+        StopMoving();
+        if (anim != null) anim.SetTrigger("Die");
+        
+        if (healthSlider != null) healthSlider.gameObject.SetActive(false);
+        if (agent != null) agent.enabled = false;
+        
+        Collider col = GetComponent<Collider>();
+        if (col != null) col.enabled = false;
+
+        if (MonsterManager.Instance != null) MonsterManager.Instance.UnregisterMonster(this);
+        Destroy(gameObject, 3f);
+    }
+
     public abstract void OnCombatBehavior(Transform player);
 
-    // --- CÁC HÀM DÙNG CHUNG (UTILITY) ---
-    
-    // Hàm hỗ trợ kiểm tra cooldown cho các con
     protected bool CanAttack()
     {
         if (Time.time >= lastAttackTime + data.attackCooldown)
@@ -65,24 +230,11 @@ public abstract class MonsterController : MonoBehaviour
         return false;
     }
 
-    public void MoveToPosition(Vector3 targetPos, bool ignoreStoppingDistance = false)
-    {
-        if (agent != null && agent.isActiveAndEnabled)
-        {
-            agent.isStopped = false;
-            agent.stoppingDistance = ignoreStoppingDistance ? 0f : data.attackRange;
-            agent.SetDestination(targetPos);
-        }
-    }
-
-    public void StopMoving()
-    {
-        if (agent != null && agent.isActiveAndEnabled) { agent.isStopped = true; agent.velocity = Vector3.zero; }
-    }
-
+    // Hàm tiện ích check đến nơi chưa (Safe Check)
     public bool HasReachedDestination()
     {
-        if (agent != null && !agent.pathPending)
+        // Phải check isOnNavMesh trước khi check pathPending
+        if (agent != null && agent.enabled && agent.isOnNavMesh && !agent.pathPending)
         {
             if (agent.remainingDistance <= agent.stoppingDistance + 0.5f)
                 return (!agent.hasPath || agent.velocity.sqrMagnitude == 0f);
@@ -90,81 +242,8 @@ public abstract class MonsterController : MonoBehaviour
         return false;
     }
 
-    public void RotateTowards(Vector3 target)
-    {
-        Vector3 direction = (target - transform.position).normalized;
-        direction.y = 0;
-        if (direction != Vector3.zero)
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), Time.deltaTime * 10f);
-    }
-
-    public void TakeDamage(float damage)
-    {
-        currentHealth -= damage;
-        if (anim != null) anim.SetTrigger("damage");
-        if (currentHealth <= 0) Die();
-    }
-
-    protected void Die()
-    {
-        if (anim != null) anim.SetTrigger("die"); 
-        if (agent != null) agent.isStopped = true;
-        this.enabled = false; 
-        Destroy(gameObject, 2f);
-        if (MonsterManager.Instance != null) MonsterManager.Instance.UnregisterMonster(this);
-    }
-    
-    // Hàm này cho AlarmMonster dùng
-    public void PlayAlarmAnimation() { if (anim != null) anim.SetTrigger("callAlarm"); }
-
     void OnDestroy()
     {
         if (MonsterManager.Instance != null) MonsterManager.Instance.UnregisterMonster(this);
     }
-    // ... (Các đoạn code logic phía trên giữ nguyên)
-
-    // --- PHẦN VẼ GIZMOS (DEBUG) ---
-#if UNITY_EDITOR
-    protected virtual void OnDrawGizmosSelected()
-    {
-        if (data == null) return;
-
-        // 1. Vẽ Tầm nhìn (Màu vàng nhạt)
-        Gizmos.color = new Color(1, 1, 0, 0.2f);
-        Gizmos.DrawWireSphere(transform.position, data.detectionRange);
-
-        // 2. Vẽ Góc nhìn (2 đường thẳng ranh giới)
-        Vector3 viewAngleA = DirFromAngle(-data.viewAngle / 2, false);
-        Vector3 viewAngleB = DirFromAngle(data.viewAngle / 2, false);
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawLine(transform.position, transform.position + viewAngleA * data.detectionRange);
-        Gizmos.DrawLine(transform.position, transform.position + viewAngleB * data.detectionRange);
-
-        // 3. Vẽ Tầm đánh (Màu đỏ)
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, data.attackRange);
-
-        // 4. Vẽ Phạm vi đi tuần (Màu xanh Cyan)
-        // Nếu đang chạy game thì vẽ từ vị trí bắt đầu (startPosition)
-        // Nếu chưa chạy game thì vẽ từ vị trí hiện tại
-        Vector3 center = Application.isPlaying ? startPosition : transform.position;
-        Gizmos.color = new Color(0, 1, 1, 0.2f);
-        Gizmos.DrawWireSphere(center, data.wanderRadius);
-
-        // 5. Vẽ vị trí Player lần cuối nhìn thấy (Tracking)
-        if (lastKnownPosition != null)
-        {
-            Gizmos.color = Color.magenta;
-            Gizmos.DrawWireSphere(lastKnownPosition.Value, 0.5f);
-            Gizmos.DrawLine(transform.position, lastKnownPosition.Value);
-        }
-    }
-
-    // Hàm phụ trợ tính góc
-    protected Vector3 DirFromAngle(float angleInDegrees, bool angleIsGlobal)
-    {
-        if (!angleIsGlobal) angleInDegrees += transform.eulerAngles.y;
-        return new Vector3(Mathf.Sin(angleInDegrees * Mathf.Deg2Rad), 0, Mathf.Cos(angleInDegrees * Mathf.Deg2Rad));
-    }
-#endif
-} // Kết thúc class MonsterController
+}

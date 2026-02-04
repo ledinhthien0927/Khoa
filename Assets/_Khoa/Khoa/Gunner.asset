@@ -15,7 +15,7 @@ MonoBehaviour:
   monsterName: Gunner
   type: 1
   modelPrefab: {fileID: 192002, guid: bc4987e2fb189ec4d96488b047577016, type: 3}
-  maxHealth: 0
+  maxHealth: 70
   speed: 3
   detectionRange: 15
   viewAngle: 120

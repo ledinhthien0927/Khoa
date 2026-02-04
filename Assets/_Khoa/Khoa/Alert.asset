@@ -15,13 +15,13 @@ MonoBehaviour:
   monsterName: Alert
   type: 2
   modelPrefab: {fileID: 178864, guid: 298b6af3224b899419309b7d9e05ace7, type: 3}
-  maxHealth: 0
+  maxHealth: 50
   speed: 5
   detectionRange: 15
   viewAngle: 160
   detectionTime: 1.5
-  callRange: 100
-  alarmDelay: 2
+  callRange: 1000
+  alarmDelay: 4
   wanderRadius: 40
   wanderWaitTime: 2
   attackRange: 1.5
