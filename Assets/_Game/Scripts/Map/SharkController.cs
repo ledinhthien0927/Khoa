@@ -15,24 +15,35 @@ public class SharkController : MonoBehaviour
     public float attackRange = 8.0f;     
     public float attackDamage = 20f;
     public float attackCooldown = 3.0f;
-
-    // [MỚI] Chỉ tấn công những gì thuộc Layer này
     public LayerMask targetLayer; 
 
     [Header("Lunge Attack Config")]
     public float lungeSpeed = 20.0f;     
     public float lungeDelay = 0.5f;      
     public float lungeDuration = 1.2f;   
-    public float damageRadius = 4.0f; // Bán kính cắn
+    public float damageRadius = 4.0f; 
 
     [Header("Visuals")]
     public Animator animator;
-    public TrailRenderer attackTrail; // Hiệu ứng vệt nước
+    public TrailRenderer attackTrail;
 
-    // Public Property
+    // --- Optimization Vars ---
+    private float _pathUpdateTimer;
+    private const float PATH_UPDATE_INTERVAL = 0.2f; 
+    private Collider[] _hitBuffer = new Collider[10]; 
+
+    // [TỐI ƯU]: Cache ID của Animator để không dùng string mỗi frame
+    private static readonly int AnimSpeed = Animator.StringToHash("Speed");
+    private static readonly int AnimAttack = Animator.StringToHash("Attack");
+
+    // [TỐI ƯU]: Tính bình phương khoảng cách 1 lần để so sánh nhanh
+    private float _attackRangeSqr;
+    private float _detectionRangeSqr;
+
+    // [LOGIC]: Điểm neo để tuần tra (tránh đi lạc quá xa điểm sinh ra)
+    public Vector3 AnchorPoint { get; set; } 
     public Vector3 CurrentDestination { get; private set; }
 
-    // Private Vars
     private NavMeshAgent _agent;
     private float _lastAttackTime;
     private SharkState _currentState;
@@ -41,7 +52,6 @@ public class SharkController : MonoBehaviour
     private float _burstEndTime;
     private bool _isLunging = false;
 
-    // Biến hỗ trợ bơi vòng quanh
     private Vector3 _circlingTarget;
     private float _circlingTimer;
 
@@ -57,10 +67,15 @@ public class SharkController : MonoBehaviour
 
     void Start()
     {
-        // Random độ ưu tiên để tránh kẹt nhau
         _agent.avoidancePriority = Random.Range(30, 70);
-        // Cho phép tấn công ngay lần đầu gặp mặt
         _lastAttackTime = -attackCooldown; 
+
+        // [TỐI ƯU]: Tính sẵn bình phương range
+        _attackRangeSqr = attackRange * attackRange;
+        _detectionRangeSqr = detectionRange * detectionRange;
+        
+        // Mặc định Anchor là vị trí ban đầu nếu Manager quên set
+        if (AnchorPoint == Vector3.zero) AnchorPoint = transform.position;
     }
 
     public void MoveTo(Vector3 targetPos)
@@ -81,42 +96,53 @@ public class SharkController : MonoBehaviour
         MoveTo(targetPosition);
     }
 
-    public void ManualUpdate(PlayerController player, bool isPlayerSafe)
+    public void ManualUpdate(PlayerController player, bool isPlayerSafe, IDamageable playerDamageable)
     {
         if (player == null) return;
-        if (animator) animator.SetFloat("Speed", _agent.velocity.magnitude);
+        
+        // [TỐI ƯU]: Dùng Hash ID thay vì String
+        if (animator) animator.SetFloat(AnimSpeed, _agent.velocity.magnitude);
 
-        // 1. Burst Mode (5s đầu)
-        if (_isBursting)
-        {
-            if (Time.time < _burstEndTime) { _agent.speed = burstSpeed; return; }
-            else { _isBursting = false; _agent.speed = patrolSpeed; }
-        }
-
-        // 2. Đang lao tấn công thì không xử lý logic khác
         if (_isLunging) return; 
 
-        // 3. Kiểm tra an toàn
-        if (isPlayerSafe || player.GetComponent<IDamageable>() == null)
+        // [LOGIC MỚI]: Tính khoảng cách bình phương (Siêu nhẹ)
+        Vector3 offset = player.transform.position - transform.position;
+        float sqrDist = offset.sqrMagnitude;
+
+        // [LOGIC MỚI]: Nếu đang Burst mà thấy địch trong tầm đánh -> Hủy Burst ngay để chiến đấu
+        if (_isBursting)
+        {
+            if (sqrDist <= _attackRangeSqr && !isPlayerSafe)
+            {
+                _isBursting = false; // Ngắt Burst
+            }
+            else if (Time.time < _burstEndTime) 
+            { 
+                _agent.speed = burstSpeed; 
+                return; 
+            }
+            else 
+            { 
+                _isBursting = false; 
+                _agent.speed = patrolSpeed; 
+            }
+        }
+
+        // State Machine Logic
+        if (isPlayerSafe || playerDamageable == null)
         {
             SetState(SharkState.Patrol);
             PatrolLogic(); 
             return;
         }
 
-        // 4. Tính khoảng cách phẳng (bỏ qua độ sâu Y)
-        float flatDistance = Vector3.Distance(
-            new Vector3(transform.position.x, 0, transform.position.z),
-            new Vector3(player.transform.position.x, 0, player.transform.position.z)
-        );
-
-        // 5. State Machine
-        if (flatDistance <= attackRange)
+        if (sqrDist <= _attackRangeSqr)
         {
             SetState(SharkState.Attack);
-            AttackLogic(player);
+            // Chỉ tính căn bậc 2 khi cần tham số chính xác cho logic hit & run
+            AttackLogic(player, Mathf.Sqrt(sqrDist));
         }
-        else if (flatDistance <= detectionRange)
+        else if (sqrDist <= _detectionRangeSqr)
         {
             SetState(SharkState.Chase);
             ChaseLogic(player);
@@ -137,6 +163,7 @@ public class SharkController : MonoBehaviour
         {
             if (SharkManager.Instance != null)
             {
+                // Truyền 'this' để Manager biết vị trí Anchor của con này
                 Vector3 smartDest = SharkManager.Instance.GetSmartPatrolPoint(this);
                 if (smartDest != Vector3.zero) MoveTo(smartDest);
             }
@@ -146,12 +173,15 @@ public class SharkController : MonoBehaviour
     void ChaseLogic(PlayerController player)
     {
         _agent.speed = chaseSpeed;
-        MoveTo(player.transform.position);
+        if (Time.time > _pathUpdateTimer)
+        {
+            MoveTo(player.transform.position);
+            _pathUpdateTimer = Time.time + PATH_UPDATE_INTERVAL;
+        }
     }
 
-    void AttackLogic(PlayerController player)
+    void AttackLogic(PlayerController player, float trueDist)
     {
-        // Stalking: Luôn quay mặt về phía player
         Vector3 dir = (player.transform.position - transform.position).normalized;
         dir.y = 0;
         if (dir != Vector3.zero) 
@@ -159,15 +189,12 @@ public class SharkController : MonoBehaviour
 
         if (Time.time - _lastAttackTime > attackCooldown)
         {
-            // TẤN CÔNG
             StartCoroutine(PerformLungeAttack(player));
         }
         else
         {
-            // CHỜ HỒI CHIÊU: Hit and Run logic
-            float dist = Vector3.Distance(transform.position, player.transform.position);
-
-            if (dist < 5.0f) // Nếu quá gần -> Bơi tản ra
+            // Hit and Run logic
+            if (trueDist < 5.0f)
             {
                 _agent.speed = 4.0f; 
                 if (Time.time > _circlingTimer)
@@ -175,37 +202,41 @@ public class SharkController : MonoBehaviour
                     Vector3 randomDir = Random.onUnitSphere;
                     randomDir.y = 0; 
                     _circlingTarget = player.transform.position + randomDir.normalized * 7.0f;
-                    _circlingTimer = Time.time + 1.5f; 
+                    _circlingTimer = Time.time + 1.5f;
+                    MoveTo(_circlingTarget);
                 }
-                MoveTo(_circlingTarget);
             }
-            else // Nếu đã xa -> Quay lại dọa
+            else
             {
                 _agent.speed = 2.0f; 
-                MoveTo(player.transform.position);
+                if (Time.time > _pathUpdateTimer)
+                {
+                    MoveTo(player.transform.position);
+                    _pathUpdateTimer = Time.time + PATH_UPDATE_INTERVAL;
+                }
             }
         }
     }
 
-    // --- COROUTINE TẤN CÔNG (ĐÃ SỬA ĐỂ KHÔNG CẮN ĐỒNG LOẠI) ---
     IEnumerator PerformLungeAttack(PlayerController player)
     {
         _isLunging = true;
         _lastAttackTime = Time.time;
 
-        // 1. Wind-up
         _agent.isStopped = true;
         _agent.velocity = Vector3.zero;
-        if (animator) animator.SetTrigger("Attack");
+        if (animator) animator.SetTrigger(AnimAttack); // Dùng Hash ID
         
         yield return new WaitForSeconds(lungeDelay);
 
-        // 2. Lunge (Bật Trail)
         if (attackTrail != null) { attackTrail.Clear(); attackTrail.emitting = true; }
 
         _agent.isStopped = false;
         _agent.speed = lungeSpeed;
         _agent.acceleration = 200f; 
+        
+        // [FIX NAVMESH SLIDING]: Reset path để đảm bảo agent nhận hướng mới sạch sẽ
+        _agent.ResetPath(); 
 
         float timer = 0f;
         bool hasDealtDamage = false;
@@ -214,26 +245,22 @@ public class SharkController : MonoBehaviour
         {
             if (player == null) break;
             
-            MoveTo(player.transform.position);
+            // Cập nhật vị trí liên tục để đuổi theo (Homing)
+            // Lưu ý: Với Lunge quá nhanh, đôi khi Move() tốt hơn SetDestination
+            _agent.SetDestination(player.transform.position);
 
             if (!hasDealtDamage)
             {
-                // [FIX QUAN TRỌNG] Sử dụng OverlapSphere + LayerMask
-                // Quét một vùng cầu bán kính damageRadius xung quanh cá mập
-                // CHỈ LẤY những vật thuộc "targetLayer" (Layer Player)
-                Collider[] hits = Physics.OverlapSphere(transform.position, damageRadius, targetLayer);
-
-                foreach (var hit in hits)
+                int hitCount = Physics.OverlapSphereNonAlloc(transform.position, damageRadius, _hitBuffer, targetLayer);
+                for (int i = 0; i < hitCount; i++)
                 {
-                    // Lấy IDamageable từ vật bị va chạm
-                    IDamageable damageable = hit.GetComponent<IDamageable>();
+                    IDamageable damageable = _hitBuffer[i].GetComponent<IDamageable>();
                     if (damageable != null)
                     {
-                        // Nếu trúng Player -> Gây damage và dừng
                         DamageInfo info = new DamageInfo { amount = attackDamage, attacker = gameObject };
                         damageable.TakeDamage(info);
                         hasDealtDamage = true;
-                        Debug.Log("Shark bit " + hit.name); // Sẽ chỉ hiện tên Player
+                        // Debug.Log("Shark bit " + _hitBuffer[i].name); // Comment lại để đỡ spam console
                         break; 
                     }
                 }
@@ -243,7 +270,6 @@ public class SharkController : MonoBehaviour
             yield return null;
         }
 
-        // 3. Recovery (Tắt Trail)
         if (attackTrail != null) { attackTrail.emitting = false; }
         
         _agent.speed = chaseSpeed;
@@ -251,10 +277,13 @@ public class SharkController : MonoBehaviour
         _isLunging = false;
     }
 
-    // Vẽ Gizmos để debug tầm đánh trong Scene
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, damageRadius);
+        
+        // Vẽ Anchor point để debug
+        Gizmos.color = Color.blue;
+        Gizmos.DrawWireSphere(AnchorPoint, 1.0f);
     }
 }

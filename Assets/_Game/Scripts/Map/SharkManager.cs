@@ -7,201 +7,157 @@ public class SharkManager : MonoBehaviour
     public static SharkManager Instance;
 
     [Header("Core Settings")]
-    [Tooltip("Prefab phải có SharkController và NavMeshAgent")]
     public GameObject sharkPrefab;
-    [Tooltip("Tổng số lượng cá mập muốn sinh ra")]
     public int sharkCount = 12;
 
     [Header("Spawn Configuration")]
-    [Tooltip("Kéo 4 điểm Spawn (GameObject) vào đây")]
     public Transform[] fixedSpawnPoints;
 
     [Header("Smart Patrol Settings")]
-    [Tooltip("Bán kính hoạt động của cá")]
-    public float patrolRadius = 200f;
-    [Tooltip("Số lần thử tìm điểm để chọn ra điểm tốt nhất (Càng cao càng thông minh)")]
-    public int searchIterations = 10; 
+    public float patrolRadius = 20f; // Giảm radius lại vì giờ patrol quanh Anchor
+    public int searchIterations = 5; 
 
-    // Danh sách quản lý công khai
     public List<SharkController> ActiveSharks = new List<SharkController>();
     
-    // Cache Player để tối ưu hiệu năng
     private PlayerController _playerRef;
+    private IDamageable _playerDamageable; 
 
     void Awake()
     {
+        // [AN TOÀN]: Singleton Check đúng chuẩn
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
         Instance = this;
     }
 
     void Start()
     {
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-        if (playerObj) _playerRef = playerObj.GetComponent<PlayerController>();
+        if (playerObj) 
+        {
+            _playerRef = playerObj.GetComponent<PlayerController>();
+            _playerDamageable = playerObj.GetComponent<IDamageable>(); 
+        }
         else Debug.LogWarning("SharkManager: Không tìm thấy Player!");
 
         SpawnSharks();
     }
 
-    // --- MAIN UPDATE LOOP (TỐI ƯU HÓA) ---
     void Update()
     {
         if (_playerRef == null) return;
 
-        // Kiểm tra trạng thái an toàn của người chơi 1 lần duy nhất cho cả đàn
         bool isPlayerSafe = _playerRef.IsTraveling; 
 
+        // [MỞ RỘNG SAU NÀY]: Có thể dùng vòng for ngược nếu có logic Destroy shark runtime
         for (int i = 0; i < ActiveSharks.Count; i++)
         {
             if (ActiveSharks[i] == null) continue;
-            // Gọi hàm update thủ công cho từng con
-            ActiveSharks[i].ManualUpdate(_playerRef, isPlayerSafe);
+            ActiveSharks[i].ManualUpdate(_playerRef, isPlayerSafe, _playerDamageable);
         }
     }
 
-    // --- LOGIC SPAWN & STARBURST (TỎA HÌNH SAO) ---
     public void SpawnSharks()
     {
-        // 1. Dọn dẹp cá cũ
         foreach (var shark in ActiveSharks) { if (shark != null) Destroy(shark.gameObject); }
         ActiveSharks.Clear();
 
-        if (fixedSpawnPoints == null || fixedSpawnPoints.Length == 0)
-        {
-            Debug.LogError("Chưa gán Fixed Spawn Points!");
-            return;
-        }
+        if (fixedSpawnPoints == null || fixedSpawnPoints.Length == 0) return;
 
-        // Tính toán góc chia: Ví dụ 12 con / 4 điểm = 3 con/điểm -> Mỗi con cách nhau 120 độ
         int sharksPerPoint = Mathf.CeilToInt((float)sharkCount / fixedSpawnPoints.Length);
         float angleStep = 360f / sharksPerPoint;
 
         for (int i = 0; i < sharkCount; i++)
         {
-            int spawnIndex = i % fixedSpawnPoints.Length;      // Điểm spawn số mấy
-            int orderInPoint = i / fixedSpawnPoints.Length;    // Con thứ mấy tại điểm đó
-            
+            int spawnIndex = i % fixedSpawnPoints.Length;
+            int orderInPoint = i / fixedSpawnPoints.Length;
             Transform spawnOrigin = fixedSpawnPoints[spawnIndex];
 
-            // --- [FIX LỖI NAVMESH TẠI ĐÂY] ---
-            // Tính toán vị trí mong muốn ban đầu
             Vector3 rawSpawnPos = spawnOrigin.position + Random.insideUnitSphere * 1.0f;
             rawSpawnPos.y = spawnOrigin.position.y; 
-
-            // Biến chứa vị trí cuối cùng hợp lệ
             Vector3 finalSpawnPos = spawnOrigin.position; 
             NavMeshHit hit;
 
-            // Kiểm tra: Nếu điểm random nằm trên NavMesh thì dùng nó
-            if (NavMesh.SamplePosition(rawSpawnPos, out hit, 2.0f, NavMesh.AllAreas))
-            {
+            if (NavMesh.SamplePosition(rawSpawnPos, out hit, 5.0f, NavMesh.AllAreas))
                 finalSpawnPos = hit.position;
-            }
-            // Kiểm tra dự phòng: Nếu điểm random lỗi, thử tìm điểm gần spawnOrigin nhất
-            else if (NavMesh.SamplePosition(spawnOrigin.position, out hit, 5.0f, NavMesh.AllAreas))
-            {
-                finalSpawnPos = hit.position;
-            }
-            // ----------------------------------
 
-            // Instantiate tại vị trí ĐÃ ĐƯỢC KIỂM TRA (finalSpawnPos)
             GameObject newSharkObj = Instantiate(sharkPrefab, finalSpawnPos, Quaternion.identity);
             
-            // Fix phụ: Tắt Agent -> Đặt vị trí (để chắc chắn) -> Bật Agent
+            // Fix NavMeshAgent placement issue
             NavMeshAgent agent = newSharkObj.GetComponent<NavMeshAgent>();
-            if (agent != null) 
-            { 
-                agent.enabled = false; 
-                newSharkObj.transform.position = finalSpawnPos; 
-                agent.enabled = true; 
-            }
+            if (agent != null) { agent.enabled = false; newSharkObj.transform.position = finalSpawnPos; agent.enabled = true; }
 
             SharkController sharkCtrl = newSharkObj.GetComponent<SharkController>();
             if (sharkCtrl != null) 
             {
+                // [LOGIC MỚI]: Gán Anchor Point là vị trí sinh ra
+                sharkCtrl.AnchorPoint = finalSpawnPos;
                 ActiveSharks.Add(sharkCtrl);
-
-                // --- TÍNH TOÁN HƯỚNG BURST (TỎA RA) ---
-                // Góc bơi = Góc cơ bản * Thứ tự
-                float burstAngle = (angleStep * orderInPoint); 
                 
-                // Chuyển góc thành Vector hướng
+                // Burst setup
+                float burstAngle = (angleStep * orderInPoint); 
                 Vector3 burstDir = Quaternion.Euler(0, burstAngle, 0) * Vector3.forward;
-
-                // Điểm đến: Cách xa 80m theo hướng đó (Dùng finalSpawnPos làm gốc)
                 Vector3 burstTarget = finalSpawnPos + burstDir * 80f;
-
-                // Kích hoạt chế độ bơi nhanh
                 sharkCtrl.SetupBurstMode(burstTarget);
             }
         }
-        Debug.Log($"SharkManager: Spawned {sharkCount} sharks with Burst Mode (NavMesh Safe).");
     }
 
-    // --- LOGIC TÌM ĐIỂM THÔNG MINH (RESERVATION SYSTEM) ---
     public Vector3 GetSmartPatrolPoint(SharkController requestingShark)
     {
         Vector3 bestPoint = Vector3.zero;
         float bestScore = -1f;
 
+        // [LOGIC MỚI]: Tâm tìm kiếm là Anchor của cá mập, KHÔNG PHẢI transform của Manager
+        Vector3 searchCenter = requestingShark.AnchorPoint;
+
         for (int i = 0; i < searchIterations; i++)
         {
-            Vector3 candidatePoint = GetRandomNavMeshPoint();
+            Vector3 candidatePoint = GetRandomNavMeshPoint(searchCenter);
             if (candidatePoint == Vector3.zero) continue;
-
-            // Tính điểm dựa trên vị trí VÀ điểm đến của các con khác
-            float distScore = GetScoreBasedOnOthers(candidatePoint, requestingShark);
             
-            // Cộng thêm nhiễu (Noise) để phá vỡ sự đồng bộ
+            float distScore = GetScoreBasedOnOthers(candidatePoint, requestingShark);
             float finalScore = distScore + Random.Range(0f, 25f); 
-
-            if (finalScore > bestScore)
-            {
-                bestScore = finalScore;
-                bestPoint = candidatePoint;
-            }
+            
+            if (finalScore > bestScore) { bestScore = finalScore; bestPoint = candidatePoint; }
         }
-        
-        // Nếu tìm được điểm tốt thì trả về, không thì trả về điểm random thường
-        return (bestPoint != Vector3.zero) ? bestPoint : GetRandomNavMeshPoint();
+        return (bestPoint != Vector3.zero) ? bestPoint : GetRandomNavMeshPoint(searchCenter);
     }
 
-    // Tính xem điểm candidatePoint có xa các con cá khác không
     float GetScoreBasedOnOthers(Vector3 candidatePoint, SharkController me)
     {
-        float minDst = float.MaxValue;
-
+        float minSqrDst = float.MaxValue; // Dùng bình phương khoảng cách
+        
+        // [TỐI ƯU]: Vòng lặp này vẫn O(N) nhưng dùng sqrMagnitude sẽ nhanh hơn nhiều
         foreach (var otherShark in ActiveSharks)
         {
-            if (otherShark == null) continue;
-            if (otherShark == me) continue; // Bỏ qua chính mình
-
-            // 1. Khoảng cách tới VỊ TRÍ HIỆN TẠI của con kia
-            float d1 = Vector3.Distance(candidatePoint, otherShark.transform.position);
+            if (otherShark == null || otherShark == me) continue;
             
-            // 2. Khoảng cách tới ĐIỂM ĐẾN DỰ KIẾN của con kia (Cơ chế Đặt Chỗ)
+            // Nếu con kia ở quá xa (> 50m) thì không cần quan tâm (Optimization check)
+            if ((otherShark.transform.position - candidatePoint).sqrMagnitude > 2500f) continue;
+
+            float d1 = (candidatePoint - otherShark.transform.position).sqrMagnitude;
             float d2 = float.MaxValue;
-            if (otherShark.CurrentDestination != Vector3.zero)
-            {
-                d2 = Vector3.Distance(candidatePoint, otherShark.CurrentDestination);
-            }
-
-            // Lấy khoảng cách nhỏ nhất (Rủi ro cao nhất)
+            if (otherShark.CurrentDestination != Vector3.zero) 
+                d2 = (candidatePoint - otherShark.CurrentDestination).sqrMagnitude;
+            
             float riskDistance = Mathf.Min(d1, d2);
-
-            if (riskDistance < minDst) minDst = riskDistance;
+            if (riskDistance < minSqrDst) minSqrDst = riskDistance;
         }
-        return minDst;
+        return minSqrDst; // Trả về điểm số (càng lớn càng tốt)
     }
 
-    // Tìm điểm ngẫu nhiên trên NavMesh (Public để Shark gọi nếu cần)
-    public Vector3 GetRandomNavMeshPoint()
+    public Vector3 GetRandomNavMeshPoint(Vector3 center)
     {
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < 5; i++) 
         {
-            Vector3 randomPos = transform.position + Random.insideUnitSphere * patrolRadius;
-            randomPos.y = transform.position.y;
+            Vector3 randomPos = center + Random.insideUnitSphere * patrolRadius;
+            randomPos.y = center.y;
             NavMeshHit hit;
-            if (NavMesh.SamplePosition(randomPos, out hit, 30f, NavMesh.AllAreas)) return hit.position;
+            if (NavMesh.SamplePosition(randomPos, out hit, 10f, NavMesh.AllAreas)) return hit.position;
         }
         return Vector3.zero;
     }

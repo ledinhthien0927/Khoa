@@ -12,6 +12,9 @@ public class PlayerController : MonoBehaviour, IDamageable
     [SerializeField] private ThirdPersonCamera tpsCamera; 
     [SerializeField] private SwordWeapon swordScript; // Script kích hoạt Trail/Damage
 
+    private bool _wasArmedBeforeSwim = false;
+    private int _savedStateBeforeSwim = 0;
+
     // --- BIẾN NỘI BỘ ---
     private CharacterController _cc;
     private Transform _camTransform;
@@ -358,17 +361,41 @@ public class PlayerController : MonoBehaviour, IDamageable
     }
 
     void StartSwimming() {
+        // [QUAN TRỌNG] Chụp ảnh trạng thái hiện tại trước khi bơi
+        if (view) 
+        {
+            _savedStateBeforeSwim = view.GetCurrentVisualState();
+        }
+        else 
+        {
+            _savedStateBeforeSwim = 0;
+        }
+
         model.currentState = PlayerState.Swimming;
         model.currentComboStep = 0; 
         if (view) view.SetSwimming(true); 
     }
 
     void StopSwimming() {
+        // 1. Reset trạng thái logic
         model.currentState = PlayerState.Idle; 
         model.currentVelocity = Vector3.zero;  
-        if (view) view.SetSwimming(false); 
-        // Khi lên bờ thì hiện lại vũ khí (nếu có)
-        if (view) view.SwitchWeaponVisuals(model.currentWeapon);
+        
+        if (view) 
+        {
+            // [QUAN TRỌNG] Set lại trạng thái Blend Tree TRƯỚC khi tắt Animation bơi
+            // Điều này đảm bảo khi chuyển state, Animator đã biết đích đến là Unarmed (0) hay Sword (1)
+            
+            // Logic an toàn: Nếu lỡ mất kiếm lúc bơi thì về 0
+            if (_savedStateBeforeSwim == 1 && !model.hasSword) _savedStateBeforeSwim = 0;
+            if (_savedStateBeforeSwim == 2 && !model.hasBow) _savedStateBeforeSwim = 0;
+
+            // Khôi phục trạng thái cũ (Ví dụ: 0 - Unarmed)
+            view.RestoreVisualState(_savedStateBeforeSwim);
+
+            // [SAU CÙNG] Mới tắt trạng thái bơi để Animator bắt đầu chuyển đổi (Transition)
+            view.SetSwimming(false); 
+        }
     }
 
     void HandleSwimmingMovement() {

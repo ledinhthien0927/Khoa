@@ -234,4 +234,42 @@ public class PlayerView : MonoBehaviour
         animator.SetFloat("Horizontal", localX, 0.1f, Time.deltaTime);
         animator.SetFloat("Vertical", localZ, 0.1f, Time.deltaTime);
     }
+    public bool IsHoldingWeapon()
+{
+    // Trả về true nếu Kiếm hoặc Cung đang được bật
+    return (swordObject != null && swordObject.activeSelf) || (bowObject != null && bowObject.activeSelf);
+}
+
+public int GetCurrentVisualState()
+    {
+        // Hỏi trực tiếp Animator: "Mày đang chạy WeaponType số mấy?"
+        // Đây là cách chính xác nhất để biết đang là Unarmed (0) hay Sword (1)
+        if (animator != null) 
+        {
+            return animator.GetInteger("WeaponType");
+        }
+        return 0; // Mặc định là tay không
+    }
+
+    // Hàm khôi phục lại trạng thái dựa trên số int đã lưu
+    public void RestoreVisualState(int stateToRestore)
+    {
+        // 1. Cập nhật Model hiển thị
+        if (swordObject) swordObject.SetActive(stateToRestore == 1);
+        if (bowObject) bowObject.SetActive(stateToRestore == 2);
+        if (arrowVisualObject) arrowVisualObject.SetActive(false);
+
+        // 2. Cập nhật Animator Blend Tree
+        if (animator)
+        {
+            // Trả về đúng blend tree cũ
+            animator.SetInteger("WeaponType", stateToRestore);
+            
+            // Cập nhật các biến bool phụ trợ
+            animator.SetBool("IsBowMode", stateToRestore == 2);
+        }
+        
+        // Tắt Crosshair nếu không phải là cung
+        ToggleCrosshair(stateToRestore == 2);
+    }
 }
