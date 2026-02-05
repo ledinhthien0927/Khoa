@@ -2956,7 +2956,7 @@ GameObject:
   - component: {fileID: 479280367080577207}
   m_Layer: 0
   m_Name: thgMinioEnemyskeleton
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -3103,8 +3103,8 @@ MonoBehaviour:
   CurrentHealth: 0
   RunSpeed: 3
   WalkSpeed: 1
-  HealthBarSlider: {fileID: 0}
-  HealthBarObj: {fileID: 0}
+  HealthBarSlider: {fileID: 598032448781443947}
+  HealthBarObj: {fileID: 7669536841201967995}
   PlaySpawnAnim: 1
   SpawnDuration: 1.2
   IsSimpleMinion: 1
@@ -3134,7 +3134,8 @@ MonoBehaviour:
   AoEPrefab: {fileID: 1415081627273719484, guid: 899041596c9e43647ab361cd7e62ee6d, type: 3}
   HellfireCooldown: 15
   HellfireDuration: 5
-  SpawnRate: 0.5
+  MinSpawnDistance: 3.5
+  WaveInterval: 1.5
   CanSummon: 0
   SummonCastTime: 2
   MinionPrefab: {fileID: 0}
