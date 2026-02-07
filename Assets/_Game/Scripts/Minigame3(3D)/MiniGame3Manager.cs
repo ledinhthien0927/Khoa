@@ -40,9 +40,10 @@ public class MiniGame3Manager : MonoBehaviour
         float darkPercent = darkPower / maxPower;
         float lightPercent = lightPower / maxPower;
 
+        energyBar.SetValue(lightPercent, darkPercent);
+
         crownVisual.UpdateVisual(darkPercent, lightPercent);
 
-        energyBar.AddDark(Time.deltaTime * 5f);
 
         if (energyBar.IsDarkWin())
         {
@@ -62,7 +63,6 @@ public class MiniGame3Manager : MonoBehaviour
 
          bgm.pitch = Mathf.Lerp(0.9f, 1.2f, darkPower / maxPower);
 
-        crackController.UpdateCrack(darkPower / maxPower, lightPower / maxPower);
 
     }
 
@@ -80,7 +80,6 @@ public class MiniGame3Manager : MonoBehaviour
 
     public AudioSource bgm;
 
-    public CrownCrackController crackController;
 
 
 

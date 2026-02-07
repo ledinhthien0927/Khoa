@@ -20,7 +20,7 @@ public class LightBubble : MonoBehaviour
 
     void OnMouseDown()
     {
-        MiniGame3Manager.Instance.energyBar.AddLight(10f);
+        MiniGame3Manager.Instance.AddLight(lightValue);
         Destroy(gameObject);
     }
 }
