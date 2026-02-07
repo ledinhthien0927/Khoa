@@ -20,10 +20,10 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
     public Slider HealthBarSlider;
     public GameObject HealthBarObj;
 
-    [Header("Minion Settings (QUAN TRỌNG)")]
-    public bool PlaySpawnAnim = false;     // Minion: TÍCH
+    [Header("Minion Settings")]
+    public bool PlaySpawnAnim = false;     
     public float SpawnDuration = 2.0f;     
-    public bool IsSimpleMinion = false;    // <--- TÍCH CÁI NÀY: Minion sẽ chạy thẳng vào đánh, ko đi vòng vèo
+    public bool IsSimpleMinion = false; 
 
     [Header("Patrol Settings")]
     public Transform[] PatrolPoints;
@@ -54,15 +54,17 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
     public float RapidHitInterval = 0.2f;  
     public float SkillAnimSpeed = 2.5f;    
     public float ChargeDuration = 1.0f;    
-    public float DashInSpeed = 12.0f;      
+    public float DashInSpeed = 12.0f;
+    public GameObject RapidSkillVFX; 
 
     [Header("SKILL 2: HELLFIRE")]
     public bool EnableHellfire = true;     
     public float HellfireCastTime = 1.5f;  
     public GameObject AoEPrefab;
     public float HellfireCooldown = 15f;
-    public float HellfireDuration = 5.0f;
-    public float SpawnRate = 0.5f;
+    public float HellfireDuration = 4.0f; 
+    public float MinSpawnDistance = 3.5f; 
+    public float WaveInterval = 1.5f; 
 
     [Header("SKILL 3: SUMMON")]
     public bool CanSummon = false;         
@@ -72,6 +74,23 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
     public int MaxMinions = 3;
     public float SummonCooldown = 20f;
     public float SummonRadius = 3.0f;
+
+    [Header("SKILL 4: JUMP ATTACK")]
+    public bool EnableJumpAttack = true;
+    public float JumpCooldown = 12.0f;
+    public float JumpChargeDuration = 1.2f; 
+
+    [Header("Jump Animation Physics")]
+    public float JumpAnimTotalDuration = 3.2f; 
+    public float JumpTakeOffTime = 1.0f; // Lúc bắt đầu bay
+    public float JumpLandTime = 2.5f;    // Lúc chạm đất
+
+    [Tooltip("Độ cao tối đa khi nhảy (Mét)")]
+    public float JumpHeight = 5.0f; 
+
+    public float JumpDamage = 40.0f;
+    public float JumpRadius = 4.0f;
+    public GameObject JumpAttackVFX; 
 
     [Header("Death Settings")]
     public float CorpseDestroyTime = 5.0f;
@@ -93,6 +112,7 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
     private float _skillTimer = 0f;
     private float _hellfireTimer = 0f;
     private float _summonTimer = 0f;
+    private float _jumpTimer = 0f;
     private float _strafeDirection = 1f;
     private float _strafeChangeTimer;
     private int _currentPatrolIndex = 0;
@@ -117,6 +137,8 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
         GameObject p = GameObject.FindGameObjectWithTag("Player");
         if (p != null) { _player = p.transform; _playerCombat = p.GetComponent<IDamageable>(); }
 
+        if (RapidSkillVFX != null) RapidSkillVFX.SetActive(false);
+
         if (PlaySpawnAnim) StartCoroutine(SpawnRoutine());
         else 
         {
@@ -133,7 +155,11 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
     {
         if (CurrentHealth <= 0 && CurrentState != State.Dead) { Die(); return; }
 
-        if (!IsEnraged && CurrentHealth <= MaxHealth * 0.5f) ActivatePhase2();
+        // [GIỮ NGUYÊN] Minion không có Phase 2
+        if (!IsEnraged && !IsSimpleMinion && CurrentHealth <= MaxHealth * 0.5f) 
+        {
+            ActivatePhase2();
+        }
 
         UpdateHealthUI();
         if (HealthBarObj != null && _mainCamera != null)
@@ -145,6 +171,7 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
         if (_skillTimer > 0) _skillTimer -= Time.deltaTime; 
         if (_hellfireTimer > 0) _hellfireTimer -= Time.deltaTime;
         if (_summonTimer > 0) _summonTimer -= Time.deltaTime;
+        if (_jumpTimer > 0) _jumpTimer -= Time.deltaTime;
 
         _activeMinions.RemoveAll(item => item == null);
         HandleAnimation();
@@ -171,13 +198,13 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
         _skillTimer = 0; _hellfireTimer = 0; _summonTimer = 0;
         transform.localScale = transform.localScale * 1.3f;
         Renderer[] rends = GetComponentsInChildren<Renderer>();
-        foreach (Renderer r in rends) { r.material.SetColor("_BaseColor", Color.red); r.material.color = Color.red; }
+        foreach (Renderer r in rends) 
+        { 
+            if (r.material.HasProperty("_BaseColor")) r.material.SetColor("_BaseColor", Color.red); 
+            r.material.color = Color.red; 
+        }
         if (SummonVFX != null) Instantiate(SummonVFX, transform.position, Quaternion.identity);
     }
-
-    // ==========================================
-    // LOGIC DI CHUYỂN
-    // ==========================================
 
     void LogicIdle()
     {
@@ -209,28 +236,12 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
     void LogicChasing()
     {
         float dist = Vector3.Distance(transform.position, _player.position);
+        if (dist > DetectionRange * 1.5f) { CurrentState = State.Patrol; if (PatrolPoints.Length > 0) _agent.SetDestination(PatrolPoints[_currentPatrolIndex].position); return; }
         
-        // Nếu người chơi chạy quá xa -> Quay về đi tuần
-        if (dist > DetectionRange * 1.5f) { CurrentState = State.Patrol; _agent.SetDestination(PatrolPoints[_currentPatrolIndex].position); return; }
-        
-        // Nếu đã đến gần (Tầm ChaseRange)
         if (dist <= ChaseRange) 
         { 
-            // --- SỬA LOGIC Ở ĐÂY ---
-            if (IsSimpleMinion)
-            {
-                // Nếu là Minion đơn giản: BỎ QUA trạng thái Strafing (đi vòng), lao vào Múc luôn!
-                CurrentState = State.Approaching;
-                HasToken = true; // Cấp quyền đánh luôn, không cần xếp hàng
-                return;
-            }
-            else
-            {
-                // Nếu là Boss: Đi vòng vòng tỏ vẻ nguy hiểm
-                CurrentState = State.Strafing; 
-                _timer = 2f; 
-                return; 
-            }
+            if (IsSimpleMinion) { CurrentState = State.Approaching; HasToken = true; return; }
+            else { CurrentState = State.Strafing; _timer = 2f; return; }
         }
 
         _agent.speed = RunSpeed; _agent.SetDestination(_player.position);
@@ -239,17 +250,13 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
 
     void LogicStrafing()
     {
-        // Nếu lỡ rơi vào đây mà là SimpleMinion thì thoát ngay
         if (IsSimpleMinion) { CurrentState = State.Approaching; HasToken = true; return; }
-
         float dist = Vector3.Distance(transform.position, _player.position);
         if (dist > ChaseRange + 3f) { CurrentState = State.Chasing; return; }
-        
         FaceTarget(); _agent.speed = WalkSpeed;
         Vector3 side = Vector3.Cross(Vector3.up, (_player.position - transform.position).normalized);
         _strafeChangeTimer -= Time.deltaTime; if (_strafeChangeTimer <= 0) { _strafeDirection *= -1; _strafeChangeTimer = Random.Range(2f, 4f); }
         _agent.SetDestination(transform.position + side * _strafeDirection * 2f);
-        
         _timer -= Time.deltaTime; 
         if (_timer <= 0 && !HasToken) TryGetToken();
     }
@@ -258,18 +265,22 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
     {
         float dist = Vector3.Distance(transform.position, _player.position);
 
-        if (CanSummon && _summonTimer <= 0 && _activeMinions.Count < MaxMinions) { StartCoroutine(SummonRoutine()); return; }
-        if (EnableHellfire && _hellfireTimer <= 0 && dist <= 10.0f) { StartCoroutine(HellfireRoutine()); return; }
-        if (EnableRapidSkill && _skillTimer <= 0 && dist <= AttackRange + 3.0f) { StartCoroutine(RapidSkillRoutine()); return; }
+        // [SỬA ĐỔI] Thêm điều kiện: Nếu KHÔNG PHẢI là Simple Minion thì mới được dùng Skill
+        if (!IsSimpleMinion)
+        {
+            if (EnableJumpAttack && _jumpTimer <= 0 && dist >= ChaseRange - 2f) { StartCoroutine(JumpAttackRoutine()); return; }
+            if (CanSummon && _summonTimer <= 0 && _activeMinions.Count < MaxMinions) { StartCoroutine(SummonRoutine()); return; }
+            if (EnableHellfire && _hellfireTimer <= 0 && dist <= 10.0f) { StartCoroutine(HellfireRoutine()); return; }
+            if (EnableRapidSkill && _skillTimer <= 0 && dist <= AttackRange + 3.0f) { StartCoroutine(RapidSkillRoutine()); return; }
+        }
         
-        // Logic Đánh thường
+        // Logic đánh thường (áp dụng cho cả Boss và Minion)
         if (dist <= AttackRange - 0.3f) {
             bool useCombo = Random.Range(0, 100) < 40; 
             StartCoroutine(AttackRoutine(useCombo));
             return;
         }
 
-        // Nếu là Simple Minion thì cứ chạy thẳng tới, không cần suy nghĩ
         _agent.speed = RunSpeed; 
         _agent.SetDestination(_player.position); 
         FaceTarget();
@@ -277,9 +288,7 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
 
     void LogicRetreating()
     {
-        // Minion đơn giản đánh xong không cần lùi, cứ đứng đó đánh tiếp
         if (IsSimpleMinion) { CurrentState = State.Approaching; return; }
-
         FaceTarget(); _agent.speed = WalkSpeed;
         Vector3 back = (transform.position - _player.position).normalized;
         _agent.SetDestination(transform.position + back * 4.0f);
@@ -298,8 +307,6 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
         yield return new WaitForSeconds(SpawnDuration);
         if (col != null) col.enabled = true;
         _agent.isStopped = false;
-        
-        // Sinh ra xong là lao vào đánh luôn
         CurrentState = State.Chasing; 
         if (IsSimpleMinion) HasToken = true; 
     }
@@ -323,8 +330,6 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
         }
         else yield return new WaitForSeconds(0.2f);
 
-        // Đánh xong: Nếu là Boss thì trả Token, lùi về
-        // Nếu là Simple Minion: Giữ Token để đánh tiếp (Spam đòn)
         if (!IsSimpleMinion) 
         {
             ReturnToken();
@@ -333,47 +338,198 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
         }
         else
         {
-            // Logic Minion đơn giản: Đánh xong đứng lại thở 1 tí rồi đánh tiếp
             _agent.isStopped = false;
             CurrentState = State.Approaching; 
-            yield return new WaitForSeconds(0.5f); // Nghỉ 0.5s giữa các cú đấm
+            yield return new WaitForSeconds(0.5f); 
         }
+    }
+
+    IEnumerator JumpAttackRoutine()
+    {
+        CurrentState = State.Attacking;
+        _jumpTimer = JumpCooldown;
+        _agent.isStopped = true;
+        _agent.velocity = Vector3.zero;
+        FaceTarget();
+
+        // 1. GỒNG
+        _animator.SetTrigger("SkillCharge");
+        if (RapidSkillVFX != null) RapidSkillVFX.SetActive(true); 
+        
+        yield return new WaitForSeconds(JumpChargeDuration); 
+
+        // 2. BẮT ĐẦU NHẢY
+        _animator.SetTrigger("JumpAttack"); 
+
+        yield return new WaitForSeconds(JumpTakeOffTime);
+
+        // --- XỬ LÝ BAY PARABOL ---
+        Vector3 startPos = transform.position;
+        Vector3 targetPos = _player.position;
+        
+        NavMeshHit hit;
+        if (NavMesh.SamplePosition(targetPos, out hit, 3.0f, NavMesh.AllAreas))
+        {
+            targetPos = hit.position;
+        }
+
+        _agent.enabled = false; 
+
+        float flyDuration = JumpLandTime - JumpTakeOffTime;
+        float elapsedTime = 0f;
+
+        while (elapsedTime < flyDuration)
+        {
+            elapsedTime += Time.deltaTime;
+            float t = elapsedTime / flyDuration; 
+            
+            Vector3 currentPos = Vector3.Lerp(startPos, targetPos, t);
+            currentPos.y += JumpHeight * 4.0f * t * (1.0f - t);
+            
+            transform.position = currentPos; 
+            yield return null;
+        }
+
+        transform.position = targetPos; 
+        _agent.enabled = true; 
+        // -------------------------
+
+        // 3. CHẠM ĐẤT
+        _agent.isStopped = true;
+        _agent.velocity = Vector3.zero;
+
+        if (JumpAttackVFX != null)
+        {
+            GameObject fx = Instantiate(JumpAttackVFX, transform.position, Quaternion.identity);
+            Destroy(fx, 3.0f);
+        }
+
+        Collider[] hits = Physics.OverlapSphere(transform.position, JumpRadius);
+        foreach (var h in hits)
+        {
+            if (h.CompareTag("Player"))
+            {
+                DealDamageToPlayer(JumpDamage, 10f);
+            }
+        }
+        
+        if (RapidSkillVFX != null) RapidSkillVFX.SetActive(false); 
+
+        // 4. HỒI PHỤC 
+        float remainingTime = JumpAnimTotalDuration - JumpLandTime;
+        if (remainingTime > 0) yield return new WaitForSeconds(remainingTime);
+
+        _agent.isStopped = false;
+        ReturnToken(); 
+        CurrentState = State.Strafing;
     }
 
     IEnumerator RapidSkillRoutine()
     {
-        CurrentState = State.Attacking; _skillTimer = SkillCooldown; _agent.isStopped = false;
-        _agent.velocity = Vector3.zero; _agent.isStopped = true; FaceTarget(); _animator.SetTrigger("SkillCharge");
+        CurrentState = State.Attacking; 
+        _skillTimer = SkillCooldown; 
+        _agent.isStopped = true;
+        _agent.velocity = Vector3.zero; 
+        FaceTarget(); 
+        _animator.SetTrigger("SkillCharge");
+        if (RapidSkillVFX != null) RapidSkillVFX.SetActive(true);
         yield return new WaitForSeconds(ChargeDuration);
-
-        _agent.isStopped = false; _agent.speed = DashInSpeed; _agent.acceleration = 100f; _agent.SetDestination(_player.position);
-        float t = 0; while (Vector3.Distance(transform.position, _player.position) > AttackRange - 0.2f && t < 1.0f) { t += Time.deltaTime; yield return null; }
-
-        _agent.velocity = Vector3.zero; _agent.isStopped = true; _animator.SetFloat("AttackSpeed", SkillAnimSpeed);
+        _agent.isStopped = false; 
+        _agent.speed = DashInSpeed; 
+        _agent.acceleration = 100f; 
+        _agent.SetDestination(_player.position);
+        _animator.SetTrigger("SkillDash"); 
+        float t = 0; 
+        while (Vector3.Distance(transform.position, _player.position) > AttackRange - 0.2f && t < 1.0f) 
+        { 
+            t += Time.deltaTime; 
+            yield return null; 
+        }
+        _agent.velocity = Vector3.zero; 
+        _agent.isStopped = true; 
+        _animator.SetFloat("AttackSpeed", SkillAnimSpeed);
         for (int i = 0; i < RapidHitCount; i++)
         {
-            FaceTarget(); _animator.Play("RapidSlash", 0, 0f);
+            FaceTarget(); 
+            _animator.Play("RapidSlash", 0, 0f); 
             DealDamageToPlayer(DamageAmount * 0.5f, 1f);
             yield return new WaitForSeconds(RapidHitInterval);
         }
         _animator.SetFloat("AttackSpeed", 1.0f);
-        ReturnToken(); yield return StartCoroutine(JumpBackRoutine());
+        if (RapidSkillVFX != null) RapidSkillVFX.SetActive(false);
+        ReturnToken(); 
+        yield return StartCoroutine(JumpBackRoutine());
     }
 
     IEnumerator HellfireRoutine()
     {
-        CurrentState = State.Attacking; _hellfireTimer = HellfireCooldown; _agent.isStopped = true; _agent.velocity = Vector3.zero;
-        FaceTarget(); _animator.SetTrigger("CastSpell"); 
+        CurrentState = State.Attacking;
+        _hellfireTimer = HellfireCooldown;
+        _agent.isStopped = true;
+        _agent.velocity = Vector3.zero;
+        FaceTarget();
+        _animator.SetTrigger("CastSpell"); 
         yield return new WaitForSeconds(HellfireCastTime);
         float duration = HellfireDuration;
+        List<Vector3> allFirePositions = new List<Vector3>();
         while (duration > 0)
         {
-            if (_player != null) { Vector3 t = _player.position; t.y = transform.position.y + 0.05f; SpawnAoE(t); }
-            Vector3 rnd = _player.position + Random.insideUnitSphere * 5.0f; rnd.y = transform.position.y + 0.05f; SpawnAoE(rnd);
-            yield return new WaitForSeconds(SpawnRate);
-            duration -= SpawnRate; FaceTarget();
+            if (CurrentState != State.Attacking) yield break;
+            if (_player != null)
+            {
+                Vector3 targetPos = _player.position;
+                targetPos.y = transform.position.y + 0.05f;
+                bool playerPosSafe = true;
+                foreach (Vector3 exist in allFirePositions)
+                {
+                    if (Vector3.Distance(targetPos, exist) < MinSpawnDistance) { playerPosSafe = false; break; }
+                }
+                if (playerPosSafe)
+                {
+                    SpawnAoE(targetPos);
+                    allFirePositions.Add(targetPos);
+                }
+            }
+            int randomCount = Random.Range(2, 4); 
+            for (int i = 0; i < randomCount; i++)
+            {
+                Vector3 bestPos = Vector3.zero;
+                bool foundPos = false;
+                for (int attempt = 0; attempt < 15; attempt++)
+                {
+                    Vector3 offset = Random.insideUnitSphere * 8.0f;
+                    if (offset.magnitude < 3.0f) offset = offset.normalized * 3.0f; 
+                    Vector3 candidate = transform.position + offset;
+                    candidate.y = transform.position.y + 0.05f;
+                    bool tooClose = false;
+                    foreach (Vector3 exist in allFirePositions)
+                    {
+                        if (Vector3.Distance(candidate, exist) < MinSpawnDistance)
+                        {
+                            tooClose = true;
+                            break;
+                        }
+                    }
+                    if (!tooClose)
+                    {
+                        bestPos = candidate;
+                        foundPos = true;
+                        break;
+                    }
+                }
+                if (foundPos)
+                {
+                    SpawnAoE(bestPos);
+                    allFirePositions.Add(bestPos);
+                }
+            }
+            yield return new WaitForSeconds(WaveInterval);
+            duration -= WaveInterval;
+            FaceTarget();
         }
-        ReturnToken(); _agent.isStopped = false; CurrentState = State.Strafing;
+        ReturnToken(); 
+        _agent.isStopped = false; 
+        CurrentState = State.Strafing;
     }
 
     IEnumerator SummonRoutine()
@@ -409,43 +565,62 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
 
     IEnumerator HitReactionRoutine()
     {
-        CurrentState = State.Hit; _agent.isStopped = true; _agent.velocity = Vector3.zero;
+        if (CurrentState == State.Dead) yield break;
+        CurrentState = State.Hit; 
+        _agent.isStopped = true; 
+        _agent.velocity = Vector3.zero;
         _animator.SetTrigger("Hit");
         yield return new WaitForSeconds(0.5f);
         _agent.isStopped = false; 
-        
-        // Nếu là Minion đơn giản, bị đánh xong thì quay lại lao vào đánh tiếp, không đi vòng
         if (IsSimpleMinion) CurrentState = State.Approaching; 
         else CurrentState = State.Strafing;
     }
 
-    // ==========================================
-    // HELPERS
-    // ==========================================
-
     public HitResult TakeDamage(DamageInfo info)
     {
         if (CurrentState == State.Dead) return HitResult.Ignored;
-        CurrentHealth -= info.amount; UpdateHealthUI();
+        CurrentHealth -= info.amount; 
+        UpdateHealthUI();
         if (CurrentHealth <= 0) { Die(); return HitResult.Critical; }
-
+        if (CurrentState == State.Attacking || CurrentState == State.Spawning) 
+        {
+            return HitResult.Hit; 
+        }
         bool shouldStagger = IsEnraged ? (Random.value < 0.3f) : true;
-        if (shouldStagger && CurrentState != State.Dodging && CurrentState != State.Attacking) 
-        { StopAllCoroutines(); StartCoroutine(HitReactionRoutine()); }
+        if (shouldStagger && CurrentState != State.Dodging) 
+        { 
+            StopAllCoroutines(); 
+            StartCoroutine(HitReactionRoutine()); 
+        }
         return HitResult.Hit;
     }
 
     void DealDamageToPlayer(float dmg, float force)
     {
         if (_playerCombat != null && Vector3.Distance(transform.position, _player.position) <= AttackRange + 1.0f)
-            _playerCombat.TakeDamage(new DamageInfo { amount = dmg, attacker = gameObject, hitPoint = _player.position + Vector3.up, type = DamageType.Physical, knockbackForce = force });
+        {
+            _playerCombat.TakeDamage(new DamageInfo { 
+                amount = dmg, 
+                attacker = gameObject, 
+                hitPoint = _player.position + Vector3.up, 
+                type = DamageType.Physical, 
+                knockbackForce = 0f, 
+                duration = 0f 
+            });
+        }
     }
 
     void SpawnAoE(Vector3 pos)
     {
-        if (AoEPrefab != null) {
+        if (AoEPrefab != null) 
+        {
             GameObject aoe = Instantiate(AoEPrefab, pos, Quaternion.identity);
-            if (aoe.TryGetComponent(out AoEZone z)) z.Setup(gameObject, DamageAmount * 1.5f);
+            Destroy(aoe, 4.0f); 
+            var zone = aoe.GetComponent<MonoBehaviour>(); 
+            if (zone != null) 
+            {
+                 aoe.SendMessage("Setup", new object[] { gameObject, DamageAmount * 1.5f }, SendMessageOptions.DontRequireReceiver);
+            }
         }
     }
 
@@ -453,6 +628,7 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
     {
         CurrentState = State.Dead; ReturnToken(); _agent.isStopped = true; _agent.velocity = Vector3.zero; StopAllCoroutines();
         _animator.SetTrigger("Die");
+        if (RapidSkillVFX != null) RapidSkillVFX.SetActive(false);
         if (TryGetComponent(out Collider col)) col.enabled = false;
         if (HealthBarObj != null) HealthBarObj.SetActive(false);
         Destroy(gameObject, CorpseDestroyTime);
@@ -461,7 +637,7 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
 
     void UpdateHealthUI() { if (HealthBarSlider != null) HealthBarSlider.value = CurrentHealth; }
     bool CheckForPlayer() { float d = Vector3.Distance(transform.position, _player.position); if (d <= DetectionRange) { CurrentState = State.Chasing; return true; } return false; }
-    void HandleAnimation() { Vector3 v = transform.InverseTransformDirection(_agent.velocity); _animator.SetFloat("InputX", v.z, 0.1f, Time.deltaTime); _animator.SetFloat("InputY", -v.x, 0.1f, Time.deltaTime); }
+    void HandleAnimation() { Vector3 v = transform.InverseTransformDirection(_agent.velocity); _animator.SetFloat("InputX", v.z, 0.1f, Time.deltaTime); _animator.SetFloat("InputY", -v.x, 0.1f, Time.deltaTime); } 
     void TryGetToken() { if (_currentAttackers < MAX_ATTACKERS) { _currentAttackers++; HasToken = true; CurrentState = State.Approaching; } }
     void ReturnToken() { if (HasToken) { _currentAttackers--; HasToken = false; } }
     void FaceTarget() { if (_player == null) return; Vector3 d = (_player.position - transform.position).normalized; d.y = 0; if (d != Vector3.zero) transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(d), Time.deltaTime * 15f); }

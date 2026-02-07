@@ -3129,12 +3129,14 @@ MonoBehaviour:
   SkillAnimSpeed: 2
   ChargeDuration: 4
   DashInSpeed: 12
+  RapidSkillVFX: {fileID: 0}
   EnableHellfire: 0
   HellfireCastTime: 1.5
   AoEPrefab: {fileID: 1415081627273719484, guid: 899041596c9e43647ab361cd7e62ee6d, type: 3}
   HellfireCooldown: 15
   HellfireDuration: 5
-  SpawnRate: 0.5
+  MinSpawnDistance: 3.5
+  WaveInterval: 1.5
   CanSummon: 0
   SummonCastTime: 2
   MinionPrefab: {fileID: 0}
@@ -3142,6 +3144,16 @@ MonoBehaviour:
   MaxMinions: 3
   SummonCooldown: 20
   SummonRadius: 3
+  EnableJumpAttack: 0
+  JumpCooldown: 12
+  JumpChargeDuration: 1.2
+  JumpAnimTotalDuration: 3.2
+  JumpTakeOffTime: 1
+  JumpLandTime: 2.5
+  JumpHeight: 5
+  JumpDamage: 40
+  JumpRadius: 4
+  JumpAttackVFX: {fileID: 0}
   CorpseDestroyTime: 5
   HasToken: 0
   CurrentState: 0

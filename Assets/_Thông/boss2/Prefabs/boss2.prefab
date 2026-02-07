@@ -2927,7 +2927,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &8856189240766009481
 Transform:
   m_ObjectHideFlags: 0
@@ -3187,7 +3187,7 @@ GameObject:
   - component: {fileID: 439819002916233910}
   m_Layer: 0
   m_Name: boss2
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -3356,7 +3356,7 @@ MonoBehaviour:
   SpinMoveSpeed: 1.7
   SpinAnimSpeed: 4
   SpinWarningTime: 0.5
-  EnableFireRing: 1
+  EnableFireRing: 0
   FireRingVFXObj: {fileID: 1805084806255952243}
   FireRingCooldown: 15
   FireCastTime: 1.5
