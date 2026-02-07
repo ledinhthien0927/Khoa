@@ -29,7 +29,7 @@ public class BossFireOrb : MonoBehaviour
         // Bắn quả cầu đi theo hướng ngẫu nhiên (chỉ trục X, Z)
         Vector2 rndDir = Random.insideUnitCircle.normalized;
         Vector3 initialVel = new Vector3(rndDir.x, 0, rndDir.y) * _targetSpeed;
-        _rb.velocity = initialVel;
+        _rb.linearVelocity = initialVel;
 
         Destroy(gameObject, _duration);
     }
@@ -44,9 +44,9 @@ public class BossFireOrb : MonoBehaviour
 
         // 1. Duy trì tốc độ không đổi (Để không bị chậm lại sau khi va chạm)
         // Nếu tốc độ hiện tại khác tốc độ mục tiêu, ta ép nó về tốc độ mục tiêu
-        if (_rb.velocity.magnitude != _targetSpeed)
+        if (_rb.linearVelocity.magnitude != _targetSpeed)
         {
-            _rb.velocity = _rb.velocity.normalized * _targetSpeed;
+            _rb.linearVelocity = _rb.linearVelocity.normalized * _targetSpeed;
         }
 
         // 2. Logic biên giới hạn (Tường ảo hình tròn)
@@ -59,11 +59,11 @@ public class BossFireOrb : MonoBehaviour
             Vector3 normal = offset.normalized;
 
             // Nếu đang bay ra ngoài (Velocity cùng hướng với Normal) thì mới phản xạ
-            if (Vector3.Dot(_rb.velocity, normal) > 0)
+            if (Vector3.Dot(_rb.linearVelocity, normal) > 0)
             {
                 // Phản xạ vận tốc vật lý
-                Vector3 reflectVel = Vector3.Reflect(_rb.velocity, -normal);
-                _rb.velocity = reflectVel;
+                Vector3 reflectVel = Vector3.Reflect(_rb.linearVelocity, -normal);
+                _rb.linearVelocity = reflectVel;
             }
 
             // Đẩy nhẹ vào trong để không bị kẹt

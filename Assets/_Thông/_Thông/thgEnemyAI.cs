@@ -86,7 +86,7 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
     public float JumpLandTime = 2.5f;    // Lúc chạm đất
 
     [Tooltip("Độ cao tối đa khi nhảy (Mét)")]
-    public float JumpHeight = 5.0f; // [MỚI] Chỉnh độ cao ở đây
+    public float JumpHeight = 5.0f; 
 
     public float JumpDamage = 40.0f;
     public float JumpRadius = 4.0f;
@@ -155,6 +155,7 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
     {
         if (CurrentHealth <= 0 && CurrentState != State.Dead) { Die(); return; }
 
+        // [GIỮ NGUYÊN] Minion không có Phase 2
         if (!IsEnraged && !IsSimpleMinion && CurrentHealth <= MaxHealth * 0.5f) 
         {
             ActivatePhase2();
@@ -264,11 +265,16 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
     {
         float dist = Vector3.Distance(transform.position, _player.position);
 
-        if (EnableJumpAttack && _jumpTimer <= 0 && dist >= ChaseRange - 2f) { StartCoroutine(JumpAttackRoutine()); return; }
-        if (CanSummon && _summonTimer <= 0 && _activeMinions.Count < MaxMinions) { StartCoroutine(SummonRoutine()); return; }
-        if (EnableHellfire && _hellfireTimer <= 0 && dist <= 10.0f) { StartCoroutine(HellfireRoutine()); return; }
-        if (EnableRapidSkill && _skillTimer <= 0 && dist <= AttackRange + 3.0f) { StartCoroutine(RapidSkillRoutine()); return; }
+        // [SỬA ĐỔI] Thêm điều kiện: Nếu KHÔNG PHẢI là Simple Minion thì mới được dùng Skill
+        if (!IsSimpleMinion)
+        {
+            if (EnableJumpAttack && _jumpTimer <= 0 && dist >= ChaseRange - 2f) { StartCoroutine(JumpAttackRoutine()); return; }
+            if (CanSummon && _summonTimer <= 0 && _activeMinions.Count < MaxMinions) { StartCoroutine(SummonRoutine()); return; }
+            if (EnableHellfire && _hellfireTimer <= 0 && dist <= 10.0f) { StartCoroutine(HellfireRoutine()); return; }
+            if (EnableRapidSkill && _skillTimer <= 0 && dist <= AttackRange + 3.0f) { StartCoroutine(RapidSkillRoutine()); return; }
+        }
         
+        // Logic đánh thường (áp dụng cho cả Boss và Minion)
         if (dist <= AttackRange - 0.3f) {
             bool useCombo = Random.Range(0, 100) < 40; 
             StartCoroutine(AttackRoutine(useCombo));
@@ -338,8 +344,6 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
         }
     }
 
-    // [CẬP NHẬT] Code Nhảy Parabol (Có độ cao thực tế)
-// [ĐÃ SỬA LỖI] Thêm ReturnToken để Boss biết quay lại đánh thường
     IEnumerator JumpAttackRoutine()
     {
         CurrentState = State.Attacking;
@@ -356,9 +360,10 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
 
         // 2. BẮT ĐẦU NHẢY
         _animator.SetTrigger("JumpAttack"); 
+
         yield return new WaitForSeconds(JumpTakeOffTime);
 
-        // --- BAY PARABOL ---
+        // --- XỬ LÝ BAY PARABOL ---
         Vector3 startPos = transform.position;
         Vector3 targetPos = _player.position;
         
@@ -368,7 +373,7 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
             targetPos = hit.position;
         }
 
-        _agent.enabled = false; // Tắt Agent để bay
+        _agent.enabled = false; 
 
         float flyDuration = JumpLandTime - JumpTakeOffTime;
         float elapsedTime = 0f;
@@ -381,12 +386,12 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
             Vector3 currentPos = Vector3.Lerp(startPos, targetPos, t);
             currentPos.y += JumpHeight * 4.0f * t * (1.0f - t);
             
-            transform.position = currentPos;
+            transform.position = currentPos; 
             yield return null;
         }
 
         transform.position = targetPos; 
-        _agent.enabled = true; // Bật lại Agent
+        _agent.enabled = true; 
         // -------------------------
 
         // 3. CHẠM ĐẤT
@@ -410,15 +415,12 @@ public class thgEnemyAI : MonoBehaviour, IDamageable
         
         if (RapidSkillVFX != null) RapidSkillVFX.SetActive(false); 
 
-        // 4. HỒI PHỤC
+        // 4. HỒI PHỤC 
         float remainingTime = JumpAnimTotalDuration - JumpLandTime;
         if (remainingTime > 0) yield return new WaitForSeconds(remainingTime);
 
         _agent.isStopped = false;
-        
-        // [QUAN TRỌNG] Trả lại Token để Reset quy trình tấn công
         ReturnToken(); 
-        
         CurrentState = State.Strafing;
     }
 
