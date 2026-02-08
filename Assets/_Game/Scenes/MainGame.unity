@@ -121671,7 +121671,7 @@ MonoBehaviour:
     maxStamina: 100
     currentStamina: 0
     staminaRegenRate: 15
-    staminaRegenDelay: 1
+    staminaRegenDelay: 0
     walkSpeed: 4
     runSpeed: 7
     aimMoveSpeed: 2
@@ -192442,7 +192442,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 013a7056ed3abbc449ee360fe4037433, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QuestManager
-  princeState: 0
+  princeState: 2
   villageState: 0
 --- !u!1001 &1594714007
 PrefabInstance:
