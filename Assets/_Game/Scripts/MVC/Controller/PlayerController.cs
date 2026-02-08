@@ -26,6 +26,11 @@ public class PlayerController : MonoBehaviour, IDamageable
     private bool _isTraveling = false;             
     private bool _canControl = true; // Biến khóa input (cho Intro/Rèn)
 
+    // --- [MỚI] BIẾN HỖ TRỢ COMBO NARAKA-STYLE ---
+    private bool _nextAttackQueued = false; // Đã bấm chuột trái chờ combo tiếp theo chưa?
+    private bool _canChainCombo = false;    // Đang ở trong giai đoạn cho phép nối combo?
+    private Coroutine _combatCoroutine;     // Lưu coroutine để có thể Stop (Hủy chiêu)
+
     public bool IsTraveling => _isTraveling; 
 
     // =========================================================
@@ -108,7 +113,7 @@ public class PlayerController : MonoBehaviour, IDamageable
         HandleStaminaRegen();
         HandleWeaponSwitch(); 
 
-        // 4. Xử lý Chiến đấu (Nếu không đang Lướt/Đỡ)
+        // 4. Xử lý Chiến đấu (Nếu không đang Lướt/Đỡ hồi phục)
         if (model.currentState != PlayerState.Dashing && model.currentState != PlayerState.ParryingRecovery)
         {
             if (model.currentWeapon == WeaponType.Sword) HandleSwordCombat();
@@ -126,7 +131,7 @@ public class PlayerController : MonoBehaviour, IDamageable
     //                  HỆ THỐNG DI CHUYỂN
     // =========================================================
     void HandleMovement() {
-        if (model.currentState == PlayerState.Dashing || model.currentState == PlayerState.Parrying) return;
+        if (model.currentState == PlayerState.Dashing || model.currentState == PlayerState.Parrying || model.currentState == PlayerState.Attacking) return;
         
         float h = Input.GetAxisRaw("Horizontal"); 
         float v = Input.GetAxisRaw("Vertical"); 
@@ -186,50 +191,110 @@ public class PlayerController : MonoBehaviour, IDamageable
     }
 
     // =========================================================
-    //              HỆ THỐNG CHIẾN ĐẤU (KIẾM) - ĐÃ KHÔI PHỤC
+    //              HỆ THỐNG CHIẾN ĐẤU (KIẾM) - [ĐÃ SỬA] NARAKA STYLE
     // =========================================================
     void HandleSwordCombat() { 
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
         
-        // Tấn công (Chuột trái)
-        if (Input.GetMouseButtonDown(0) && model.currentState != PlayerState.Parrying) { 
-            if (Time.time - model.lastActionTime > model.comboResetTime) model.currentComboStep = 0; 
-            if (model.currentComboStep < 3) StartCoroutine(PerformAttack(model.currentComboStep + 1)); 
-        } 
+        // --- 1. XỬ LÝ PARRY (Cancel Attack) ---
+        // Cho phép bấm Chuột Phải để hủy đòn đánh thường ngay lập tức và đỡ đòn
+        if (Input.GetMouseButtonDown(1)) {
+            // [QUAN TRỌNG] Phải có kiếm mới được đỡ
+            if (!model.hasSword) return;
+
+            if (model.currentState == PlayerState.Attacking || model.currentState == PlayerState.Idle || model.currentState == PlayerState.Moving) {
+                // Hủy Coroutine tấn công cũ nếu đang chạy (Cancel Animation)
+                if (_combatCoroutine != null) StopCoroutine(_combatCoroutine);
+                
+                // Tắt hitbox kiếm ngay lập tức
+                if (swordScript != null) swordScript.StopAttack(); 
+                
+                // Chuyển sang Parry ngay
+                _combatCoroutine = StartCoroutine(PerformParry());
+                return;
+            }
+        }
+
+        // --- 2. XỬ LÝ TẤN CÔNG (COMBO BUFFERING) ---
+        if (Input.GetMouseButtonDown(0)) { 
+            // [QUAN TRỌNG] Phải có kiếm mới được đánh
+            if (!model.hasSword) return;
+
+            // Trường hợp A: Đang đứng yên hoặc chạy -> Đánh luôn đòn 1
+            if (model.currentState == PlayerState.Idle || model.currentState == PlayerState.Moving) {
+                model.currentComboStep = 1;
+                _combatCoroutine = StartCoroutine(PerformAttack(1));
+            }
+            // Trường hợp B: Đang đánh và trong thời điểm cho phép nối chiêu -> Lưu lệnh (Queue)
+            else if (model.currentState == PlayerState.Attacking && _canChainCombo) {
+                _nextAttackQueued = true; // Game sẽ tự đánh đòn tiếp theo khi xong đòn này
+            }
+        }
         
-        // Đỡ đòn (Chuột phải)
-        if (Input.GetMouseButtonDown(1) && model.currentState != PlayerState.Attacking) StartCoroutine(PerformParry()); 
-        
-        // Lướt (Space)
-        if (Input.GetKeyDown(KeyCode.Space) && model.currentStamina >= model.dashCost) StartCoroutine(PerformDash()); 
+        // Lướt (Space) - Cũng cho phép Cancel đòn đánh để né
+        if (Input.GetKeyDown(KeyCode.Space) && model.currentStamina >= model.dashCost) {
+            if (_combatCoroutine != null) StopCoroutine(_combatCoroutine);
+            if (swordScript != null) swordScript.StopAttack();
+            StartCoroutine(PerformDash()); 
+        }
     }
 
     IEnumerator PerformAttack(int step) { 
         model.currentState = PlayerState.Attacking; 
-        model.currentComboStep = step; 
         model.lastActionTime = Time.time; 
         
+        // Reset trạng thái queue cho đòn mới
+        _nextAttackQueued = false;
+        _canChainCombo = false; 
+
         if(view) view.TriggerAttack(step); 
         RotateToCamera(); // Xoay người về phía tâm ngắm
 
-        // --- CẤU HÌNH TIMING CHO TỪNG ĐÒN (Như cũ) ---
-        float windUpTime = 0.1f, activeTime = 0.3f, recoveryTime = 0.1f;
+        // --- CẤU HÌNH TIMING (Đã tinh chỉnh cho cảm giác nhanh hơn) ---
+        // WindUp: Thời gian vung tay
+        // Active: Thời gian gây damage
+        // Recovery: Thời gian nghỉ (Cho phép bấm sẵn đòn tiếp theo ở đây)
+        float windUpTime = 0.1f, activeTime = 0.2f, recoveryTime = 0.1f;
+        
         switch (step) { 
-            case 1: windUpTime = 0.45f; activeTime = 0.18f; break; 
-            case 2: windUpTime = 0.24f; activeTime = 0.27f; break; 
-            case 3: windUpTime = 0.9f; activeTime = 0.47f; break; 
+            case 1: windUpTime = 0.2f; activeTime = 0.2f; recoveryTime = 0.2f; break; 
+            case 2: windUpTime = 0.15f; activeTime = 0.25f; recoveryTime = 0.2f; break; 
+            case 3: windUpTime = 0.4f; activeTime = 0.4f; recoveryTime = 0.3f; break; 
         }
-        // ---------------------------------------------
 
-        yield return new WaitForSeconds(windUpTime); // Chờ vung tay
+        // Giai đoạn 1: Wind Up (Chuẩn bị)
+        yield return new WaitForSeconds(windUpTime); 
         
-        if (swordScript != null) swordScript.StartAttack(); // BẬT TRAIL & DAMAGE
-        yield return new WaitForSeconds(activeTime);        // Thời gian gây damage
-        if (swordScript != null) swordScript.StopAttack();  // TẮT TRAIL & DAMAGE
+        // Giai đoạn 2: Gây Damage
+        if (swordScript != null) swordScript.StartAttack();
         
-        yield return new WaitForSeconds(recoveryTime); // Thời gian hồi
+        // [QUAN TRỌNG] Cho phép nhận lệnh combo sớm một chút trước khi hết Active
+        yield return new WaitForSeconds(activeTime * 0.5f);
+        _canChainCombo = true; 
+        yield return new WaitForSeconds(activeTime * 0.5f);
 
-        if (model.currentState == PlayerState.Attacking) model.currentState = PlayerState.Idle; 
+        if (swordScript != null) swordScript.StopAttack();
+        
+        // Giai đoạn 3: Recovery (Hồi phục & Kiểm tra Queue)
+        // Đây là "Cửa sổ vàng" để nối combo
+        float timer = 0;
+        while (timer < recoveryTime)
+        {
+            timer += Time.deltaTime;
+            
+            // Nếu người chơi ĐÃ bấm chuột trước đó (Queue) -> Chuyển đòn luôn
+            if (_nextAttackQueued && step < 3) {
+                model.currentComboStep = step + 1;
+                _combatCoroutine = StartCoroutine(PerformAttack(model.currentComboStep)); // Đệ quy sang đòn sau
+                yield break; // Kết thúc coroutine hiện tại ngay lập tức
+            }
+            yield return null;
+        }
+
+        // Nếu hết thời gian mà không bấm gì -> Về Idle
+        model.currentState = PlayerState.Idle; 
+        model.currentComboStep = 0; // Reset combo
+        _combatCoroutine = null;
     }
 
     void RotateToCamera() { 
@@ -241,6 +306,12 @@ public class PlayerController : MonoBehaviour, IDamageable
 
     IEnumerator PerformParry() { 
         model.currentState = PlayerState.Parrying; 
+        
+        // Reset tất cả trạng thái combo
+        _nextAttackQueued = false;
+        _canChainCombo = false;
+        model.currentComboStep = 0;
+
         if(view) view.TriggerParry(); 
         
         // Hiệu ứng Parry nếu có
@@ -251,6 +322,7 @@ public class PlayerController : MonoBehaviour, IDamageable
 
         yield return new WaitForSeconds(model.parryWindow); 
         if (model.currentState == PlayerState.Parrying) model.currentState = PlayerState.Idle; 
+        _combatCoroutine = null;
     }
 
     // =========================================================
@@ -384,8 +456,6 @@ public class PlayerController : MonoBehaviour, IDamageable
         if (view) 
         {
             // [QUAN TRỌNG] Set lại trạng thái Blend Tree TRƯỚC khi tắt Animation bơi
-            // Điều này đảm bảo khi chuyển state, Animator đã biết đích đến là Unarmed (0) hay Sword (1)
-            
             // Logic an toàn: Nếu lỡ mất kiếm lúc bơi thì về 0
             if (_savedStateBeforeSwim == 1 && !model.hasSword) _savedStateBeforeSwim = 0;
             if (_savedStateBeforeSwim == 2 && !model.hasBow) _savedStateBeforeSwim = 0;
