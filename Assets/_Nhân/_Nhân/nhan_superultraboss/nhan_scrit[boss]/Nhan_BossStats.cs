@@ -3,14 +3,15 @@ using UnityEngine;
 public class Nhan_BossStats : MonoBehaviour, IDamageable
 {
     [Header("Stats")]
+    public string bossName = "Bá Tước Valerius";
     public float Nhan_maxHealth = 1000f;
     public float Nhan_currentHealth;
     
     [Header("Phase Settings")]
-    public float Nhan_phase2Threshold = 0.1f; // 10%
+    public float Nhan_phase2Threshold = 0.1f; 
     public bool Nhan_isPhase2 = false;
 
-    private Nhan_ValeriusBT _ai; // Tham chiếu đến script BT
+    private Nhan_ValeriusBT _ai; 
     private Animator _animator;
 
     void Start()
@@ -18,30 +19,35 @@ public class Nhan_BossStats : MonoBehaviour, IDamageable
         Nhan_currentHealth = Nhan_maxHealth;
         _ai = GetComponent<Nhan_ValeriusBT>();
         _animator = GetComponent<Animator>();
+
+        // Kích hoạt thanh máu Boss trên màn hình
+        if (Nhan_BossUI.Instance != null)
+        {
+            Nhan_BossUI.Instance.ShowBoss(bossName, Nhan_maxHealth);
+        }
     }
 
     public HitResult TakeDamage(DamageInfo info)
     {
-        // 1. Logic Phản Đòn (Noble's Parry)
-        if (_ai != null && _ai.Nhan_IsParrying)
+        // Nếu Boss đang đỡ đòn
+        if (_ai != null && _ai.Nhan_IsParrying) return HitResult.Parried;
+
+        // Trừ máu
+        Nhan_currentHealth -= info.amount;
+        
+        // Cập nhật thanh máu trên màn hình
+        if (Nhan_BossUI.Instance != null)
         {
-            Debug.Log("BOSS PARRIED PLAYER!");
-            // Nếu muốn Boss phản công ngay lập tức thì code thêm hàm TriggerCounterAttack bên BT
-            return HitResult.Parried;
+            Nhan_BossUI.Instance.UpdateHP(Nhan_currentHealth);
         }
 
-        // 2. Nhận sát thương
-        Nhan_currentHealth -= info.amount;
-        Debug.Log($"Boss HP: {Nhan_currentHealth}/{Nhan_maxHealth}");
-        
         if (_animator) _animator.SetTrigger("GetHit");
 
-        // 3. Kiểm tra chuyển Phase 2 (Dưới 10% máu)
+        // Logic chuyển Phase
         if (Nhan_currentHealth <= Nhan_maxHealth * Nhan_phase2Threshold && !Nhan_isPhase2)
         {
             Nhan_isPhase2 = true;
-            Debug.Log("=== ENTERING PHASE 2: SOUL SHATTER ===");
-            // Tại đây bạn sẽ gọi hàm tách 5 bản thể (sẽ làm ở bước sau)
+            // Code tách bản thể sẽ viết ở đây
         }
 
         if (Nhan_currentHealth <= 0) Die();
@@ -52,7 +58,7 @@ public class Nhan_BossStats : MonoBehaviour, IDamageable
     void Die()
     {
         if (_animator) _animator.SetTrigger("Die");
-        // Logic rơi đồ, thắng game
+        if (Nhan_BossUI.Instance != null) Nhan_BossUI.Instance.HideBoss(); // Ẩn thanh máu
         Destroy(gameObject, 5f);
     }
 }
