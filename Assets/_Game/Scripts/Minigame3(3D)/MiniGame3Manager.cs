@@ -80,7 +80,7 @@ public class MiniGame3Manager : MonoBehaviour
 
     public AudioSource bgm;
 
-
+    public BGEnergyFX BG;
 
 
 }
