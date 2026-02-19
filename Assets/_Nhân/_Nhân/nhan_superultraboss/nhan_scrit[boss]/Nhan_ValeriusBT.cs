@@ -8,185 +8,250 @@ public class Nhan_ValeriusBT : MonoBehaviour
     public PlayerController Nhan_target;
     public Animator Nhan_anim;
     public CharacterController Nhan_cc;
-    public Nhan_BossWeapon weaponScript;    // Script trên cây kiếm
-    public Nhan_BossVision vision;          // Script tầm nhìn
-    public SkinnedMeshRenderer bossMesh;    // Mesh để tàng hình
+    
+    // List chứa 2 cây kiếm
+    public List<Nhan_BossWeapon> weaponScripts;    
+    
+    public Nhan_BossVision vision;          
+    public Nhan_BossStats stats; 
 
     [Header("--- MOVEMENT STATS ---")]
     public float Nhan_moveSpeed = 6.0f;       
     public float Nhan_sprintSpeed = 9.0f;     
     
-    [Header("Zig-Zag Settings (Né Cung)")]
-    public float Nhan_zigZagAmplitude = 4.0f; // Độ rộng
-    public float Nhan_zigZagFrequency = 4.0f; // Tốc độ đảo
+    [Header("Zig-Zag Settings")]
+    public float Nhan_zigZagAmplitude = 4.0f; 
+    public float Nhan_zigZagFrequency = 4.0f; 
 
-    [Header("--- COMBAT STATS ---")]
-    public float Nhan_attackRange = 2.0f;
-    public float Nhan_flankDist = 5.0f;       // Khoảng cách bắt đầu lướt tạt sườn
+    [Header("--- COMBAT ---")]
+    public float Nhan_attackRange = 2.5f;
+    public float Nhan_shootRange = 8.0f;     
 
-    [Header("Berserk Combo")]
-    public int Nhan_hitsToStrong = 3;         // 3 đòn thường -> 1 đòn mạnh
-    public float Nhan_timeToStrong = 5.0f;    // 5 giây -> 1 đòn mạnh
+    [Header("--- PHASE 2 SETTINGS ---")]
+    public float Nhan_hpCostPerDash = 15f;   
+    public float Nhan_phase2SpeedMult = 1.5f; 
+    public float Nhan_phase2DamageMult = 1.5f;
 
-    [Header("--- SKILLS & COOLDOWNS ---")]
-    public float Nhan_dashCooldown = 3.5f;    // Hồi chiêu lướt né
-    public float Nhan_ambushCooldown = 12f;   // Hồi chiêu Ám Sát (Chui tường)
-    public float Nhan_invisibleDuration = 1.5f; // Thời gian tàng hình
-    
-    // --- BIẾN RUNTIME ---
+    [Header("--- SKILLS ---")]
+    public GameObject Nhan_projectilePrefab;
+    public Transform Nhan_firePoint;
+    public float Nhan_shootCooldown = 6f;
+
+    [Header("--- NEW SKILLS (MỚI) ---")]
+    public float Nhan_tauntCooldown = 20f;     // Hồi chiêu múa kiếm
+    public float Nhan_buffDuration = 10f;      // Thời gian tăng dame sau khi múa
+    public float Nhan_dashSlashCooldown = 10f; // Hồi chiêu lướt chém
+    public float Nhan_dashSlashSpeed = 35f;    // Tốc độ lướt chém
+
+    [Header("--- COOLDOWNS ---")]
+    public float Nhan_dashCooldown = 3.5f;    
+    public float Nhan_ambushCooldown = 30f;   
+    public float Nhan_invisibleDuration = 1.5f;
+
+    // --- RUNTIME ---
+    [HideInInspector] public float _lastShootTime = -10f;
+    [HideInInspector] public float Nhan_lastAmbushTime = -100f; 
     [HideInInspector] public float Nhan_lastDashTime = -10f;
-    [HideInInspector] public float Nhan_lastAmbushTime = -20f;
-    [HideInInspector] public bool _hasFlanked = false;
-    [HideInInspector] public int _currentHitCount = 0;
-    [HideInInspector] public float _lastStrongAttackTime;
+    [HideInInspector] public float _lastTauntTime = -20f;      // [MỚI]
+    [HideInInspector] public float _lastDashSlashTime = -10f;  // [MỚI]
     
     private bool _isPerformingAction = false;
     private Nhan_Node _rootNode;
-    
-    public bool Nhan_IsParrying { get; private set; } = false;
+    public bool IsPhase2 { get; private set; } = false;
+    public bool IsBuffed { get; private set; } = false; // [MỚI] Đang được buff hay ko
 
     void Start()
     {
-        // 1. Tìm các Component cần thiết
         if (Nhan_target == null) Nhan_target = FindFirstObjectByType<PlayerController>();
         Nhan_anim = GetComponent<Animator>();
         Nhan_cc = GetComponent<CharacterController>();
         vision = GetComponent<Nhan_BossVision>();
-        
-        if (bossMesh == null) bossMesh = GetComponentInChildren<SkinnedMeshRenderer>();
+        stats = GetComponent<Nhan_BossStats>();
 
-        _lastStrongAttackTime = Time.time;
-
-        // 2. Khởi tạo cây hành vi
         SetupBehaviorTree();
     }
 
     void Update()
     {
-        // [CƠ CHẾ XOAY] Chỉ xoay về phía Player nếu ĐANG NHÌN THẤY và KHÔNG BẬN
         if (!_isPerformingAction && vision.canSeePlayer && Nhan_target != null)
         {
             Vector3 dir = (Nhan_target.transform.position - transform.position).normalized;
             dir.y = 0;
+            float rotSpeed = IsPhase2 ? 50f : 15f; 
             if (dir != Vector3.zero)
-                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir), Time.deltaTime * 15f);
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir), Time.deltaTime * rotSpeed);
         }
 
         if (_rootNode != null) _rootNode.Evaluate();
     }
 
-    // --- CẤU TRÚC CÂY HÀNH VI (BRAIN) ---
+    public void EnterPhase2()
+    {
+        IsPhase2 = true;
+        Nhan_anim.SetBool("IsPhase2", true);
+        ApplyDamageMultiplier(Nhan_phase2DamageMult); // Tăng dame vĩnh viễn P2
+    }
+
+    // --- HỆ THỐNG BUFF DAMAGE ---
+    public void ApplyTemporaryBuff()
+    {
+        StartCoroutine(BuffRoutine());
+    }
+
+    IEnumerator BuffRoutine()
+    {
+        IsBuffed = true;
+        // Tăng gấp đôi damage hiện tại
+        ApplyDamageMultiplier(2.0f);
+        Debug.Log("BOSS BUFFED: DAMAGE X2!");
+        
+        // Hiện effect nếu có (bạn tự thêm VFX vào đây)
+
+        yield return new WaitForSeconds(Nhan_buffDuration);
+
+        // Hết giờ thì chia đôi để về như cũ
+        ApplyDamageMultiplier(0.5f);
+        IsBuffed = false;
+        Debug.Log("BOSS BUFF ENDED");
+    }
+
+    void ApplyDamageMultiplier(float mult)
+    {
+        if (weaponScripts != null)
+        {
+            foreach (var sword in weaponScripts)
+            {
+                if (sword != null)
+                {
+                    sword.damage *= mult;
+                    sword.heavyDamage *= mult;
+                }
+            }
+        }
+    }
+
+    // --- HÀM BẬT/TẮT HITBOX ---
+    public void EnableAllWeapons(bool isHeavy)
+    {
+        if (weaponScripts == null) return;
+        foreach(var sword in weaponScripts)
+        {
+            if(sword != null) sword.EnableHitbox(isHeavy);
+        }
+    }
+
+    public void DisableAllWeapons()
+    {
+        if (weaponScripts == null) return;
+        foreach(var sword in weaponScripts)
+        {
+            if(sword != null) sword.DisableHitbox();
+        }
+    }
+
     void SetupBehaviorTree()
     {
-        // 1. NHÁNH PHẢN XẠ (Ưu tiên cao nhất: Player ngắm -> Lướt né)
-        Nhan_Sequence reactionSeq = new Nhan_Sequence(new List<Nhan_Node> {
-            new Nhan_CheckVision(this, true),     // Phải thấy mới né
-            new Nhan_CheckPlayerAiming(this),
-            new Nhan_Action_ReactionDash(this)
-        });
-
-        // 2. NHÁNH ÁM SÁT (Skill đặc biệt: Mất dấu hoặc Muốn đánh úp -> Chui tường)
+        // 1. KỸ NĂNG ĐẶC BIỆT
         Nhan_Action_ShadowAmbush ambushAction = new Nhan_Action_ShadowAmbush(this);
+        Nhan_Action_TauntBuff tauntAction = new Nhan_Action_TauntBuff(this); // [MỚI] Múa kiếm
 
-        // 3. NHÁNH TẤN CÔNG (Khi thấy Player & Đủ gần)
+        // 2. KỸ NĂNG TIẾP CẬN/TẤN CÔNG XA
+        Nhan_Action_DashSlash dashSlashAction = new Nhan_Action_DashSlash(this); // [MỚI] Lướt chém
+        Nhan_Action_BackstepShoot shootAction = new Nhan_Action_BackstepShoot(this);
+
+        // 3. COMBO CẬN CHIẾN
         Nhan_Sequence combatSeq = new Nhan_Sequence(new List<Nhan_Node> {
-            new Nhan_CheckVision(this, true),
             new Nhan_CheckRange(this, 0, Nhan_attackRange),
-            new Nhan_Action_BerserkAttack(this)
+            new Nhan_Action_RandomAttack(this)
         });
 
-        // 4. NHÁNH TRUY ĐUỔI (Khi thấy Player & Ở xa)
+        // 4. DI CHUYỂN
         Nhan_Sequence chaseSeq = new Nhan_Sequence(new List<Nhan_Node> {
-            new Nhan_CheckVision(this, true),
-            new Nhan_Action_SmartApproach(this)
+             new Nhan_CheckVision(this, true), 
+             new Nhan_Action_DashApproach(this)
         });
 
-        // 5. NHÁNH TÌM KIẾM (Khi MẤT DẤU -> Đi đến chỗ cuối cùng thấy)
+        // 5. TÌM KIẾM
         Nhan_Sequence investigateSeq = new Nhan_Sequence(new List<Nhan_Node> {
-            new Nhan_CheckVision(this, false),
+            new Nhan_CheckVision(this, false), 
             new Nhan_Action_Investigate(this)
         });
 
-        // --- ROOT ---
+        // --- ROOT SELECTOR (Ưu tiên từ trên xuống dưới) ---
         _rootNode = new Nhan_Selector(new List<Nhan_Node> {
-            reactionSeq,    // 1. Né đòn
-            ambushAction,   // 2. Móc lốp (nếu đủ điều kiện)
-            combatSeq,      // 3. Đánh nhau
-            chaseSeq,       // 4. Rượt đuổi
-            investigateSeq  // 5. Đi tìm
+            ambushAction,    // 1. Móc lốp (30s)
+            tauntAction,     // 2. [MỚI] Múa kiếm buff (20s)
+            dashSlashAction, // 3. [MỚI] Lướt chém (10s)
+            shootAction,     // 4. Bắn lén
+            combatSeq,       // 5. Đánh gần
+            chaseSeq,        // 6. Lao tới
+            investigateSeq   // 7. Đi tìm
         });
     }
 
-    // --- HELPER FUNCTIONS ---
+    // --- HELPER ---
     public bool Nhan_IsBusy() => _isPerformingAction;
     public void Nhan_SetBusy(bool busy) => _isPerformingAction = busy;
 
-    public bool Nhan_IsPlayerAiming()
+    public void FireProjectile()
     {
-        if (Nhan_target == null) return false;
-        return Nhan_target.GetView().GetComponent<Animator>().GetBool("IsAiming");
+        if (!Nhan_projectilePrefab) return;
+        Vector3 spawnPos = Nhan_firePoint ? Nhan_firePoint.position : transform.position + Vector3.up;
+        Vector3 targetPos = Nhan_target.transform.position + Vector3.up;
+        GameObject bullet = Instantiate(Nhan_projectilePrefab, spawnPos, Quaternion.LookRotation(targetPos - spawnPos));
+        
+        Collider c1 = bullet.GetComponent<Collider>();
+        Collider c2 = GetComponent<Collider>();
+        if(c1 && c2) Physics.IgnoreCollision(c1, c2);
     }
-
-    // Hàm Tàng Hình (Tắt Mesh + Tắt Va Chạm)
+    
     public void ToggleInvisibility(bool invisible)
     {
-        if(bossMesh) bossMesh.enabled = !invisible; 
-        if(Nhan_cc) Nhan_cc.enabled = !invisible; // Tắt CC để đi xuyên tường
+        SkinnedMeshRenderer mesh = GetComponentInChildren<SkinnedMeshRenderer>();
+        if(mesh) mesh.enabled = !invisible;
+        if(Nhan_cc) Nhan_cc.enabled = !invisible; 
     }
 }
 
 // ==========================================================
-// CÁC NODE ĐIỀU KIỆN (CONDITIONS)
+// CÁC NODE CŨ (GIỮ NGUYÊN)
 // ==========================================================
-
-public class Nhan_CheckRange : Nhan_Node
-{
-    private Nhan_ValeriusBT _boss;
-    private float _min, _max;
+public class Nhan_CheckRange : Nhan_Node {
+    private Nhan_ValeriusBT _boss; private float _min, _max;
     public Nhan_CheckRange(Nhan_ValeriusBT boss, float min, float max) { _boss = boss; _min = min; _max = max; }
-    public override Nhan_NodeState Evaluate()
-    {
+    public override Nhan_NodeState Evaluate() {
         float dist = Vector3.Distance(_boss.transform.position, _boss.Nhan_target.transform.position);
         return (dist >= _min && dist <= _max) ? Nhan_NodeState.SUCCESS : Nhan_NodeState.FAILURE;
     }
 }
-
-public class Nhan_CheckPlayerAiming : Nhan_Node
-{
-    private Nhan_ValeriusBT _boss;
-    public Nhan_CheckPlayerAiming(Nhan_ValeriusBT boss) => _boss = boss;
-    public override Nhan_NodeState Evaluate()
-    {
-        return _boss.Nhan_IsPlayerAiming() ? Nhan_NodeState.SUCCESS : Nhan_NodeState.FAILURE;
-    }
-}
-
-public class Nhan_CheckVision : Nhan_Node
-{
-    private Nhan_ValeriusBT _boss;
-    private bool _expectSee;
+public class Nhan_CheckVision : Nhan_Node {
+    private Nhan_ValeriusBT _boss; private bool _expectSee;
     public Nhan_CheckVision(Nhan_ValeriusBT boss, bool expectSee) { _boss = boss; _expectSee = expectSee; }
-    public override Nhan_NodeState Evaluate()
-    {
-        if (_boss.vision.canSeePlayer == _expectSee) return Nhan_NodeState.SUCCESS;
-        return Nhan_NodeState.FAILURE;
+    public override Nhan_NodeState Evaluate() {
+        return (_boss.vision.canSeePlayer == _expectSee) ? Nhan_NodeState.SUCCESS : Nhan_NodeState.FAILURE;
     }
 }
 
 // ==========================================================
-// CÁC NODE HÀNH ĐỘNG (ACTIONS)
+// CÁC NODE MỚI (SKILL)
 // ==========================================================
 
-// --- 1. REACTION DASH (Lướt né phản xạ) ---
-public class Nhan_Action_ReactionDash : Nhan_Node
+// --- [MỚI] TAUNT BUFF (MÚA KIẾM) ---
+public class Nhan_Action_TauntBuff : Nhan_Node
 {
     private Nhan_ValeriusBT _boss;
-    public Nhan_Action_ReactionDash(Nhan_ValeriusBT boss) => _boss = boss;
+    public Nhan_Action_TauntBuff(Nhan_ValeriusBT boss) => _boss = boss;
 
     public override Nhan_NodeState Evaluate()
     {
         if (_boss.Nhan_IsBusy()) return Nhan_NodeState.FAILURE;
-        if (Time.time < _boss.Nhan_lastDashTime + _boss.Nhan_dashCooldown) return Nhan_NodeState.FAILURE;
+        // Cooldown
+        if (Time.time < _boss._lastTauntTime + _boss.Nhan_tauntCooldown) return Nhan_NodeState.FAILURE;
+        // Chỉ múa khi Player ở hơi xa (để ko bị đánh lúc đang múa)
+        float dist = Vector3.Distance(_boss.transform.position, _boss.Nhan_target.transform.position);
+        if (dist < 4.0f) return Nhan_NodeState.FAILURE;
+        // Random 30%
+        if (Random.value > 0.3f) return Nhan_NodeState.FAILURE;
 
         _boss.StartCoroutine(Execute());
         return Nhan_NodeState.SUCCESS;
@@ -195,37 +260,37 @@ public class Nhan_Action_ReactionDash : Nhan_Node
     System.Collections.IEnumerator Execute()
     {
         _boss.Nhan_SetBusy(true);
-        _boss.Nhan_lastDashTime = Time.time;
-        _boss.Nhan_anim.SetTrigger("Dash");
+        _boss._lastTauntTime = Time.time;
 
-        Vector3 dashDir = (Random.value > 0.5f) ? _boss.transform.right : -_boss.transform.right;
-        
-        float timer = 0;
-        while(timer < 0.2f)
-        {
-            _boss.Nhan_cc.Move(dashDir * 30f * Time.deltaTime); // Dash cực nhanh
-            
-            // Xoay về Player
-            Vector3 lookDir = (_boss.Nhan_target.transform.position - _boss.transform.position).normalized;
-            lookDir.y = 0;
-            _boss.transform.rotation = Quaternion.LookRotation(lookDir);
+        // Trigger Animation Múa
+        _boss.Nhan_anim.SetTrigger("Taunt");
+        Debug.Log("BOSS: Ngươi quá yếu! (Taunting...)");
 
-            timer += Time.deltaTime;
-            yield return null;
-        }
+        // Đứng im múa trong 2s
+        yield return new WaitForSeconds(2.0f);
+
+        // Kích hoạt Buff Damage
+        _boss.ApplyTemporaryBuff();
+
         _boss.Nhan_SetBusy(false);
     }
 }
 
-// --- 2. BERSERK ATTACK (Tấn công điên cuồng) ---
-public class Nhan_Action_BerserkAttack : Nhan_Node
+// --- [MỚI] DASH SLASH (LƯỚT CHÉM) ---
+public class Nhan_Action_DashSlash : Nhan_Node
 {
     private Nhan_ValeriusBT _boss;
-    public Nhan_Action_BerserkAttack(Nhan_ValeriusBT boss) => _boss = boss;
+    public Nhan_Action_DashSlash(Nhan_ValeriusBT boss) => _boss = boss;
 
     public override Nhan_NodeState Evaluate()
     {
         if (_boss.Nhan_IsBusy()) return Nhan_NodeState.FAILURE;
+        if (Time.time < _boss._lastDashSlashTime + _boss.Nhan_dashSlashCooldown) return Nhan_NodeState.FAILURE;
+        
+        // Tầm sử dụng: Trung bình (4m - 10m)
+        float dist = Vector3.Distance(_boss.transform.position, _boss.Nhan_target.transform.position);
+        if (dist < 3.0f || dist > 12.0f) return Nhan_NodeState.FAILURE;
+
         _boss.StartCoroutine(Execute());
         return Nhan_NodeState.SUCCESS;
     }
@@ -233,237 +298,129 @@ public class Nhan_Action_BerserkAttack : Nhan_Node
     System.Collections.IEnumerator Execute()
     {
         _boss.Nhan_SetBusy(true);
+        _boss._lastDashSlashTime = Time.time;
 
-        // A. Xoay mặt về Player ngay lập tức (Để không chém vào không khí)
+        // 1. Chuẩn bị (Xoay mặt về Player)
         Vector3 dir = (_boss.Nhan_target.transform.position - _boss.transform.position).normalized;
         dir.y = 0;
-        if (dir != Vector3.zero) _boss.transform.rotation = Quaternion.LookRotation(dir);
+        _boss.transform.rotation = Quaternion.LookRotation(dir);
 
-        // B. Tính toán Combo
-        bool timeCondition = Time.time > _boss._lastStrongAttackTime + _boss.Nhan_timeToStrong;
-        bool hitCondition = _boss._currentHitCount >= _boss.Nhan_hitsToStrong;
-
-        if (timeCondition || hitCondition)
-        {
-            // === ĐÒN MẠNH (HEAVY) ===
-            _boss.Nhan_anim.SetTrigger("FeintStrike");
-            _boss._currentHitCount = 0;
-            _boss._lastStrongAttackTime = Time.time;
-            
-            yield return new WaitForSeconds(0.4f); // Chờ vung tay
-            if(_boss.weaponScript) _boss.weaponScript.EnableHitbox(true);
-            yield return new WaitForSeconds(0.5f); // Thời gian gây damage
-            if(_boss.weaponScript) _boss.weaponScript.DisableHitbox();
-        }
-        else
-        {
-            // === ĐÒN THƯỜNG (LIGHT) ===
-            _boss.Nhan_anim.SetTrigger("Attack");
-            _boss._currentHitCount++;
-            
-            yield return new WaitForSeconds(0.2f); // Chờ vung tay
-            if(_boss.weaponScript) _boss.weaponScript.EnableHitbox(false);
-            yield return new WaitForSeconds(0.3f); // Thời gian gây damage
-            if(_boss.weaponScript) _boss.weaponScript.DisableHitbox();
-        }
-
-        _boss._hasFlanked = false; // Reset tạt sườn
-        _boss.Nhan_SetBusy(false);
-    }
-}
-
-// --- 3. SMART APPROACH (Di chuyển thông minh) ---
-public class Nhan_Action_SmartApproach : Nhan_Node
-{
-    private Nhan_ValeriusBT _boss;
-    public Nhan_Action_SmartApproach(Nhan_ValeriusBT boss) => _boss = boss;
-
-    public override Nhan_NodeState Evaluate()
-    {
-        if (_boss.Nhan_IsBusy()) return Nhan_NodeState.FAILURE;
-
-        Vector3 targetPos = _boss.Nhan_target.transform.position;
-        Vector3 directionToTarget = (targetPos - _boss.transform.position).normalized;
-        float dist = Vector3.Distance(_boss.transform.position, targetPos);
-
-        // A. NẾU PLAYER NGẮM -> CHẠY ZIG-ZAG
-        if (_boss.Nhan_IsPlayerAiming())
-        {
-            float zigZag = Mathf.Sin(Time.time * _boss.Nhan_zigZagFrequency) * _boss.Nhan_zigZagAmplitude;
-            Vector3 moveDir = (directionToTarget + (_boss.transform.right * zigZag)).normalized;
-
-            _boss.Nhan_cc.Move(moveDir * _boss.Nhan_moveSpeed * Time.deltaTime);
-            _boss.Nhan_anim.SetFloat("Speed", 1f);
-
-            // Xoay người theo hướng lắc (Visual Trick)
-            if (moveDir != Vector3.zero)
-            {
-                Quaternion targetRot = Quaternion.LookRotation(directionToTarget);
-                Quaternion shakeRot = Quaternion.LookRotation(moveDir);
-                _boss.transform.rotation = Quaternion.Slerp(_boss.transform.rotation, Quaternion.Lerp(targetRot, shakeRot, 0.5f), Time.deltaTime * 10f);
-            }
-        }
-        // B. NẾU PLAYER CẦM KIẾM -> LAO THẲNG & TẠT SƯỜN
-        else
-        {
-            if (dist < _boss.Nhan_flankDist && dist > _boss.Nhan_attackRange && !_boss._hasFlanked)
-            {
-                _boss.StartCoroutine(PerformFlank());
-                return Nhan_NodeState.SUCCESS;
-            }
-
-            _boss.Nhan_cc.Move(directionToTarget * _boss.Nhan_sprintSpeed * Time.deltaTime);
-            _boss.Nhan_anim.SetFloat("Speed", 1f);
-            
-            directionToTarget.y = 0;
-            if(directionToTarget != Vector3.zero)
-                _boss.transform.rotation = Quaternion.Slerp(_boss.transform.rotation, Quaternion.LookRotation(directionToTarget), Time.deltaTime * 20f);
-        }
-
-        return Nhan_NodeState.RUNNING;
-    }
-
-    System.Collections.IEnumerator PerformFlank()
-    {
-        _boss.Nhan_SetBusy(true);
-        _boss._hasFlanked = true;
-        _boss.Nhan_anim.SetTrigger("Dash");
-
-        Vector3 flankDir = (Random.value > 0.5f) ? _boss.transform.right : -_boss.transform.right;
-        float timer = 0;
-        while(timer < 0.2f)
-        {
-            _boss.Nhan_cc.Move(flankDir * 35f * Time.deltaTime);
-            Vector3 lookDir = (_boss.Nhan_target.transform.position - _boss.transform.position).normalized;
-            lookDir.y = 0;
-            _boss.transform.rotation = Quaternion.LookRotation(lookDir);
-            timer += Time.deltaTime;
-            yield return null;
-        }
-        _boss.Nhan_SetBusy(false);
-    }
-}
-
-// --- 4. INVESTIGATE (Đi tìm khi mất dấu) ---
-public class Nhan_Action_Investigate : Nhan_Node
-{
-    private Nhan_ValeriusBT _boss;
-    public Nhan_Action_Investigate(Nhan_ValeriusBT boss) => _boss = boss;
-
-    public override Nhan_NodeState Evaluate()
-    {
-        if (_boss.Nhan_IsBusy()) return Nhan_NodeState.FAILURE;
-
-        Vector3 target = _boss.vision.lastKnownPosition;
-        float dist = Vector3.Distance(_boss.transform.position, target);
-
-        if (dist > 1.5f)
-        {
-            Vector3 dir = (target - _boss.transform.position).normalized;
-            _boss.Nhan_cc.Move(dir * _boss.Nhan_moveSpeed * Time.deltaTime);
-            _boss.Nhan_anim.SetFloat("Speed", 1f);
-            if(dir != Vector3.zero)
-                _boss.transform.rotation = Quaternion.Slerp(_boss.transform.rotation, Quaternion.LookRotation(dir), Time.deltaTime * 5f);
-            return Nhan_NodeState.RUNNING;
-        }
-        else
-        {
-            // Đến nơi mà ko thấy -> Kích hoạt Ám Sát ngay lập tức
-            _boss.Nhan_lastAmbushTime = -100f; // Reset cooldown giả
-            return Nhan_NodeState.SUCCESS;
-        }
-    }
-}
-
-// --- 5. SHADOW AMBUSH (Sửa đổi: Tàng hình + Chạy siêu tốc xuyên vật thể) ---
-public class Nhan_Action_ShadowAmbush : Nhan_Node
-{
-    private Nhan_ValeriusBT _boss;
-    public Nhan_Action_ShadowAmbush(Nhan_ValeriusBT boss) => _boss = boss;
-
-    public override Nhan_NodeState Evaluate()
-    {
-        if (_boss.Nhan_IsBusy()) return Nhan_NodeState.FAILURE;
+        _boss.Nhan_anim.SetTrigger("DashAttack"); 
         
-        // Check Cooldown
-        if (Time.time < _boss.Nhan_lastAmbushTime + _boss.Nhan_ambushCooldown) 
-            return Nhan_NodeState.FAILURE;
-
-        // Logic kích hoạt: 
-        // 1. Không thấy Player (để đi tìm)
-        // 2. HOẶC Random 30% khi đang đánh nhau để tạo bất ngờ
-        if (_boss.vision.canSeePlayer && Random.value > 0.3f) return Nhan_NodeState.FAILURE;
-
-        _boss.StartCoroutine(Execute());
-        return Nhan_NodeState.SUCCESS;
-    }
-
-    System.Collections.IEnumerator Execute()
-    {
-        _boss.Nhan_SetBusy(true);
-        _boss.Nhan_lastAmbushTime = Time.time;
-
-        // 1. BẮT ĐẦU ẨN THÂN
-        Debug.Log("BOSS: Shadow Step - Ghost Mode!");
-        _boss.Nhan_anim.SetTrigger("Dash"); 
+        // Delay 1 xíu để animation lấy đà
         yield return new WaitForSeconds(0.2f);
-        
-        _boss.ToggleInvisibility(true); // Tắt Mesh (Tàng hình)
-        
-        // Tắt CharacterController để có thể đi xuyên tường/nhà (Ghosting)
-        if(_boss.Nhan_cc) _boss.Nhan_cc.enabled = false;
 
-        // 2. DI CHUYỂN TỐC ĐỘ CAO (120% Sprint Speed)
-        float timer = 0;
-        float maxDuration = _boss.Nhan_invisibleDuration; // Thời gian tối đa
-        float ghostSpeed = _boss.Nhan_sprintSpeed * 1.2f; // 120% tốc độ chạy nhanh nhất
+        // 2. Lao lên & Bật kiếm
+        _boss.EnableAllWeapons(true); // Hitbox mạnh
+        
+        float dashTimer = 0;
+        float dashDuration = 0.4f; // Thời gian lướt
+        Vector3 dashDir = _boss.transform.forward;
 
-        while (timer < maxDuration)
+        while (dashTimer < dashDuration)
         {
-            // Mục tiêu: Vị trí ngay sau lưng Player (1.5m)
-            Vector3 targetPos = _boss.Nhan_target.transform.position - (_boss.Nhan_target.transform.forward * 1.5f);
-            
-            // Giữ độ cao Y bằng với Player (để không bị chìm xuống đất hoặc bay lên trời)
-            targetPos.y = _boss.Nhan_target.transform.position.y;
-
-            // Tính khoảng cách và hướng
-            float dist = Vector3.Distance(_boss.transform.position, targetPos);
-            Vector3 dir = (targetPos - _boss.transform.position).normalized;
-
-            // Di chuyển trực tiếp (Xuyên địa hình vì đã tắt CC)
-            _boss.transform.position += dir * ghostSpeed * Time.deltaTime;
-
-            // Xoay mặt theo hướng đang lao tới
-            if (dir != Vector3.zero)
-                _boss.transform.rotation = Quaternion.LookRotation(dir);
-
-            // Nếu đã đến rất gần vị trí sau lưng (< 1m) -> Dừng chạy sớm
-            if (dist < 1.0f) break;
-
-            timer += Time.deltaTime;
+            // Lướt cực nhanh
+            _boss.Nhan_cc.Move(dashDir * _boss.Nhan_dashSlashSpeed * Time.deltaTime);
+            dashTimer += Time.deltaTime;
             yield return null;
         }
 
-        // 3. XUẤT HIỆN SAU LƯNG
-        // Bật lại va chạm vật lý
-        if(_boss.Nhan_cc) _boss.Nhan_cc.enabled = true; 
+        // 3. Kết thúc
+        _boss.DisableAllWeapons();
         
-        _boss.ToggleInvisibility(false); // Hiện hình
-
-        // Xoay mặt thẳng vào lưng Player để đâm
-        Vector3 finalDir = (_boss.Nhan_target.transform.position - _boss.transform.position).normalized;
-        finalDir.y = 0;
-        if(finalDir != Vector3.zero) _boss.transform.rotation = Quaternion.LookRotation(finalDir);
-
-        // 4. TẤN CÔNG (Đâm lén)
-        _boss.Nhan_anim.SetTrigger("FeintStrike");
-
-        yield return new WaitForSeconds(0.3f); // Chờ vung tay
-        if(_boss.weaponScript) _boss.weaponScript.EnableHitbox(true); // Bật kiếm
-        yield return new WaitForSeconds(0.5f); // Thời gian gây damage
-        if(_boss.weaponScript) _boss.weaponScript.DisableHitbox(); // Tắt kiếm
+        // Khựng lại 1 chút sau khi chém
+        yield return new WaitForSeconds(0.5f);
 
         _boss.Nhan_SetBusy(false);
     }
+}
 
+// ==========================================================
+// CÁC ACTION CŨ (Ambush, Attack, Shoot...) - ĐÃ RÚT GỌN ĐỂ DỄ NHÌN
+// (Bạn giữ nguyên logic cũ, chỉ cần đảm bảo tên class khớp)
+// ==========================================================
+
+public class Nhan_Action_ShadowAmbush : Nhan_Node {
+    private Nhan_ValeriusBT _boss; public Nhan_Action_ShadowAmbush(Nhan_ValeriusBT b) => _boss = b;
+    public override Nhan_NodeState Evaluate() {
+        if (_boss.Nhan_IsBusy() || Time.time < _boss.Nhan_lastAmbushTime + _boss.Nhan_ambushCooldown) return Nhan_NodeState.FAILURE;
+        if (_boss.vision.canSeePlayer && Random.value > 0.2f) return Nhan_NodeState.FAILURE;
+        _boss.StartCoroutine(Execute()); return Nhan_NodeState.SUCCESS;
+    }
+    IEnumerator Execute() {
+        _boss.Nhan_SetBusy(true); _boss.Nhan_lastAmbushTime = Time.time;
+        _boss.Nhan_anim.SetTrigger("Dash"); yield return new WaitForSeconds(0.2f);
+        _boss.ToggleInvisibility(true);
+        float t = 0; while(t < _boss.Nhan_invisibleDuration) {
+            Vector3 target = _boss.Nhan_target.transform.position - _boss.Nhan_target.transform.forward * 1.5f; target.y = _boss.Nhan_target.transform.position.y;
+            Vector3 dir = (target - _boss.transform.position).normalized;
+            _boss.transform.position += dir * 15f * Time.deltaTime;
+            if(dir != Vector3.zero) _boss.transform.rotation = Quaternion.LookRotation(dir);
+            if(Vector3.Distance(_boss.transform.position, target) < 1f) break;
+            t += Time.deltaTime; yield return null;
+        }
+        _boss.ToggleInvisibility(false);
+        Vector3 finalDir = (_boss.Nhan_target.transform.position - _boss.transform.position).normalized; finalDir.y=0;
+        if(finalDir!=Vector3.zero) _boss.transform.rotation=Quaternion.LookRotation(finalDir);
+        _boss.Nhan_anim.SetTrigger("FeintStrike"); yield return new WaitForSeconds(0.3f);
+        _boss.EnableAllWeapons(true); yield return new WaitForSeconds(0.5f); _boss.DisableAllWeapons();
+        _boss.Nhan_SetBusy(false);
+    }
+}
+
+public class Nhan_Action_DashApproach : Nhan_Node {
+    private Nhan_ValeriusBT _boss; public Nhan_Action_DashApproach(Nhan_ValeriusBT b) => _boss = b;
+    public override Nhan_NodeState Evaluate() { if(_boss.Nhan_IsBusy()) return Nhan_NodeState.FAILURE; _boss.StartCoroutine(Execute()); return Nhan_NodeState.SUCCESS; }
+    IEnumerator Execute() {
+        _boss.Nhan_SetBusy(true); if(_boss.IsPhase2 && _boss.stats) _boss.stats.BurnHealth(_boss.Nhan_hpCostPerDash);
+        _boss.Nhan_anim.SetTrigger("Dash");
+        Vector3 dir = (_boss.Nhan_target.transform.position - _boss.transform.position).normalized;
+        Vector3 side = (Random.value>0.5f)?_boss.transform.right:-_boss.transform.right;
+        Vector3 move = (dir + side * (_boss.IsPhase2?0.2f:0.8f)).normalized;
+        float speed = _boss.IsPhase2 ? _boss.Nhan_sprintSpeed*_boss.Nhan_phase2SpeedMult : _boss.Nhan_sprintSpeed;
+        float t=0; while(t<0.2f){ _boss.Nhan_cc.Move(move*speed*Time.deltaTime); 
+        Vector3 ld=(_boss.Nhan_target.transform.position-_boss.transform.position).normalized; ld.y=0; _boss.transform.rotation=Quaternion.LookRotation(ld);
+        t+=Time.deltaTime; yield return null; }
+        yield return new WaitForSeconds(_boss.IsPhase2?0.1f:0.3f); _boss.Nhan_SetBusy(false);
+    }
+}
+
+public class Nhan_Action_RandomAttack : Nhan_Node {
+    private Nhan_ValeriusBT _boss; public Nhan_Action_RandomAttack(Nhan_ValeriusBT b) => _boss = b;
+    public override Nhan_NodeState Evaluate() { if(_boss.Nhan_IsBusy()) return Nhan_NodeState.FAILURE; _boss.StartCoroutine(Execute()); return Nhan_NodeState.SUCCESS; }
+    IEnumerator Execute() {
+        _boss.Nhan_SetBusy(true); Vector3 d = (_boss.Nhan_target.transform.position - _boss.transform.position).normalized; d.y=0; if(d!=Vector3.zero)_boss.transform.rotation=Quaternion.LookRotation(d);
+        _boss.Nhan_anim.SetInteger("AttackIndex", Random.Range(1,4)); _boss.Nhan_anim.SetTrigger("Attack");
+        yield return new WaitForSeconds(_boss.IsPhase2?0.1f:0.2f);
+        _boss.EnableAllWeapons(_boss.IsPhase2); yield return new WaitForSeconds(0.3f); _boss.DisableAllWeapons();
+        yield return new WaitForSeconds(_boss.IsPhase2?0.2f:0.5f); _boss.Nhan_SetBusy(false);
+    }
+}
+
+public class Nhan_Action_BackstepShoot : Nhan_Node {
+    private Nhan_ValeriusBT _boss; public Nhan_Action_BackstepShoot(Nhan_ValeriusBT b) => _boss = b;
+    public override Nhan_NodeState Evaluate() {
+        if(_boss.Nhan_IsBusy() || Time.time < _boss._lastShootTime + _boss.Nhan_shootCooldown) return Nhan_NodeState.FAILURE;
+        float dist = Vector3.Distance(_boss.transform.position, _boss.Nhan_target.transform.position);
+        if(dist>_boss.Nhan_shootRange||dist<2f || Random.value>0.4f) return Nhan_NodeState.FAILURE;
+        _boss.StartCoroutine(Execute()); return Nhan_NodeState.SUCCESS;
+    }
+    IEnumerator Execute() {
+        _boss.Nhan_SetBusy(true); _boss._lastShootTime = Time.time;
+        _boss.Nhan_anim.SetTrigger("Dash"); float t=0; while(t<0.3f){ _boss.Nhan_cc.Move(-_boss.transform.forward*20f*Time.deltaTime); t+=Time.deltaTime; yield return null; }
+        _boss.Nhan_anim.SetTrigger("Shoot"); yield return new WaitForSeconds(0.2f); _boss.FireProjectile(); yield return new WaitForSeconds(0.5f); _boss.Nhan_SetBusy(false);
+    }
+}
+
+public class Nhan_Action_Investigate : Nhan_Node {
+    private Nhan_ValeriusBT _boss; public Nhan_Action_Investigate(Nhan_ValeriusBT b) => _boss = b;
+    public override Nhan_NodeState Evaluate() {
+        if(_boss.Nhan_IsBusy()) return Nhan_NodeState.FAILURE;
+        Vector3 t = _boss.vision.lastKnownPosition;
+        if(Vector3.Distance(_boss.transform.position, t)>1.5f) {
+            Vector3 d = (t - _boss.transform.position).normalized; _boss.Nhan_cc.Move(d*_boss.Nhan_moveSpeed*Time.deltaTime);
+            _boss.Nhan_anim.SetFloat("Speed", 1f); if(d!=Vector3.zero) _boss.transform.rotation=Quaternion.Slerp(_boss.transform.rotation, Quaternion.LookRotation(d), Time.deltaTime*5f);
+            return Nhan_NodeState.RUNNING;
+        } else { _boss.Nhan_lastAmbushTime = -100f; return Nhan_NodeState.SUCCESS; }
+    }
 }

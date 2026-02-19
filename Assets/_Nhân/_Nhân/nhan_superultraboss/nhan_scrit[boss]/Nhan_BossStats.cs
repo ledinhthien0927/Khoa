@@ -3,13 +3,14 @@ using UnityEngine;
 public class Nhan_BossStats : MonoBehaviour, IDamageable
 {
     [Header("Stats")]
-    public string bossName = "Bá Tước Valerius";
-    public float Nhan_maxHealth = 1000f;
+    public string bossName = "Huyết Ảnh Valerius";
+    public float Nhan_maxHealth = 2000f;
     public float Nhan_currentHealth;
     
-    [Header("Phase Settings")]
-    public float Nhan_phase2Threshold = 0.1f; 
+    [Header("Phase 2 Settings")]
+    public float Nhan_phase2Threshold = 0.4f; 
     public bool Nhan_isPhase2 = false;
+    public GameObject Nhan_phase2AuraVFX; 
 
     private Nhan_ValeriusBT _ai; 
     private Animator _animator;
@@ -19,8 +20,10 @@ public class Nhan_BossStats : MonoBehaviour, IDamageable
         Nhan_currentHealth = Nhan_maxHealth;
         _ai = GetComponent<Nhan_ValeriusBT>();
         _animator = GetComponent<Animator>();
+        
+        if(Nhan_phase2AuraVFX) Nhan_phase2AuraVFX.SetActive(false);
 
-        // Kích hoạt thanh máu Boss trên màn hình
+        // Gọi sang BossUI
         if (Nhan_BossUI.Instance != null)
         {
             Nhan_BossUI.Instance.ShowBoss(bossName, Nhan_maxHealth);
@@ -29,36 +32,47 @@ public class Nhan_BossStats : MonoBehaviour, IDamageable
 
     public HitResult TakeDamage(DamageInfo info)
     {
-        // Nếu Boss đang đỡ đòn
-        if (_ai != null && _ai.Nhan_IsParrying) return HitResult.Parried;
-
-        // Trừ máu
         Nhan_currentHealth -= info.amount;
         
-        // Cập nhật thanh máu trên màn hình
+        // Cập nhật BossUI
         if (Nhan_BossUI.Instance != null)
         {
             Nhan_BossUI.Instance.UpdateHP(Nhan_currentHealth);
         }
+        
+        if (_animator && info.attacker != gameObject) 
+            _animator.SetTrigger("GetHit");
 
-        if (_animator) _animator.SetTrigger("GetHit");
+        CheckPhase();
 
-        // Logic chuyển Phase
+        if (Nhan_currentHealth <= 0) Die();
+        return HitResult.Hit;
+    }
+
+    public void BurnHealth(float amount)
+    {
+        Nhan_currentHealth -= amount;
+        if (Nhan_BossUI.Instance != null)
+        {
+            Nhan_BossUI.Instance.UpdateHP(Nhan_currentHealth);
+        }
+        if (Nhan_currentHealth <= 0) Die();
+    }
+
+    void CheckPhase()
+    {
         if (Nhan_currentHealth <= Nhan_maxHealth * Nhan_phase2Threshold && !Nhan_isPhase2)
         {
             Nhan_isPhase2 = true;
-            // Code tách bản thể sẽ viết ở đây
+            if(Nhan_phase2AuraVFX) Nhan_phase2AuraVFX.SetActive(true);
+            if (_ai) _ai.EnterPhase2();
         }
-
-        if (Nhan_currentHealth <= 0) Die();
-
-        return HitResult.Hit;
     }
 
     void Die()
     {
         if (_animator) _animator.SetTrigger("Die");
-        if (Nhan_BossUI.Instance != null) Nhan_BossUI.Instance.HideBoss(); // Ẩn thanh máu
+        if (Nhan_BossUI.Instance != null) Nhan_BossUI.Instance.HideBoss();
         Destroy(gameObject, 5f);
     }
 }
