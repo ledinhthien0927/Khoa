@@ -19,6 +19,13 @@ public class CrownVisual : MonoBehaviour
     public ParticleSystem orbitRight;
     public float maxOrbitSpeed = 3f;
 
+    [Header("Shockwave")]
+    public ParticleSystem shockwave;
+    [Range(0f, 1f)] public float shockThreshold = 0.8f;
+    public float shockCooldown = 1.2f;
+
+    float lastShockTime = -999f;
+
     Renderer rend;
     Material crownMat;
 
@@ -43,10 +50,12 @@ public class CrownVisual : MonoBehaviour
         // 🌟 Emission
         float pulse = Mathf.Sin(Time.time * pulseSpeed) * 0.5f + 0.5f;
         Color emissionColor = Color.Lerp(darkColor, lightColor, t);
-        crownMat.SetColor("_EmissionColor",
-            emissionColor * (lightDom + darkDom) * pulse * maxEmission);
+        crownMat.SetColor(
+            "_EmissionColor",
+            emissionColor * (lightDom + darkDom) * pulse * maxEmission
+        );
 
-        // ✨ Aura (Dark tăng → mạnh)
+        // ✨ Aura
         if (auraParticle != null)
         {
             var em = auraParticle.emission;
@@ -57,7 +66,7 @@ public class CrownVisual : MonoBehaviour
             main.startSize = Mathf.Lerp(0.05f, 0.18f, darkDom);
         }
 
-        // 🌀 Orbit trái (thuận chiều)
+        // 🌀 Orbit trái
         if (orbitLeft != null)
         {
             var vel = orbitLeft.velocityOverLifetime;
@@ -65,12 +74,33 @@ public class CrownVisual : MonoBehaviour
             vel.orbitalY = Mathf.Lerp(0.2f, maxOrbitSpeed, lightDom);
         }
 
-        // 🌀 Orbit phải (ngược chiều)
+        // 🌀 Orbit phải
         if (orbitRight != null)
         {
             var vel = orbitRight.velocityOverLifetime;
             vel.enabled = true;
             vel.orbitalY = -Mathf.Lerp(0.2f, maxOrbitSpeed, lightDom);
         }
+
+        // 💥 Shockwave trigger
+        if (Time.time - lastShockTime > shockCooldown)
+        {
+            if (darkPercent >= shockThreshold || lightPercent >= shockThreshold)
+            {
+                EmitShockwave();
+                lastShockTime = Time.time;
+            }
+        }
+    }
+    [SerializeField] BGEnergyFX bgFX;
+    [SerializeField] BGParticleControl bgParticle;
+    void EmitShockwave()
+   
+    {
+        shockwave.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        shockwave.Play();
+
+        if (bgParticle != null)
+            bgParticle.OnShockwave(1f);
     }
 }
