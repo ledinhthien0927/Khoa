@@ -139,6 +139,10 @@ public class MapManager : MonoBehaviour
         CloseMap();
         _pc.SetTravelMode(true);
 
+        if (boat != null)
+        {
+            boat.TogglePrompt(false);
+        }
         // ==========================================================
         // 2. TÌM ĐƯỜNG VỀ CẦU THANG (LOGIC MỚI)
         // ==========================================================
@@ -273,18 +277,39 @@ public class MapManager : MonoBehaviour
     {
         while (Vector3.Distance(player.transform.position, targetPos) > stopDistance)
         {
+            // Di chuyển vị trí
             player.transform.position = Vector3.MoveTowards(player.transform.position, targetPos, walkSpeed * Time.deltaTime);
             
+            // Xoay mặt về hướng đi
             Vector3 dir = (targetPos - player.transform.position).normalized;
             dir.y = 0; 
             if (dir != Vector3.zero)
             {
                 player.transform.rotation = Quaternion.Slerp(player.transform.rotation, Quaternion.LookRotation(dir), rotationSpeed * Time.deltaTime);
             }
+
+            // --- [THÊM MỚI] BẬT ANIMATION DI CHUYỂN ---
+            if (_view != null)
+            {
+                // Truyền vào: Speed = 0.5f (Đi bộ), trục Z (tiến lên) = 1f
+                _view.UpdateMovementAnimation(0.5f, 0f, 1f, false, false);
+            }
+            // ------------------------------------------
+
             yield return null;
         }
+        
+        // Cập nhật vị trí chính xác khi tới nơi
         player.transform.position = targetPos;
         
+        // --- [THÊM MỚI] TẮT ANIMATION KHI TỚI NƠI ---
+        if (_view != null)
+        {
+            _view.UpdateMovementAnimation(0f, 0f, 0f, false, false);
+        }
+        // ------------------------------------------
+        
+        // Khớp góc xoay cuối cùng (nếu có)
         if (targetRot.HasValue)
         {
             while (Quaternion.Angle(player.transform.rotation, targetRot.Value) > 1f)

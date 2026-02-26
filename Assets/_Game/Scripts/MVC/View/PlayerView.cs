@@ -8,11 +8,11 @@ public class PlayerView : MonoBehaviour
     [SerializeField] private Animator animator;
     [SerializeField] private Camera mainCamera;
 
-    // [ĐÃ SỬA] Chỉ giữ lại 1 bộ biến visual duy nhất.
     [Header("Weapon Visuals")]
     [SerializeField] private GameObject swordObject;       
     [SerializeField] private GameObject bowObject;         
     [SerializeField] private GameObject arrowVisualObject; 
+    [SerializeField] private GameObject hammerObject; // Thêm cái búa
 
     [Header("UI Components")]
     [SerializeField] private GameObject mainHUDCanvas; 
@@ -25,6 +25,40 @@ public class PlayerView : MonoBehaviour
 
     private GameObject _currentMinigameInstance; 
 
+    void Start()
+    {
+        // Tự động quét và đồng bộ vũ khí ngay khi vừa bật game hoặc vừa Load lại Scene
+        PlayerController pc = GetComponent<PlayerController>();
+        if (pc != null)
+        {
+            // Bật/tắt thanh kiếm theo đúng dữ liệu trong PlayerModel
+            UpdateWeaponVisuals(pc.model.hasSword, pc.model.hasBow);
+            
+            // Nếu chưa có vũ khí nào, ép Animator về dáng đứng tay không
+            if (!pc.model.hasSword && !pc.model.hasBow)
+            {
+                RestoreVisualState(0);
+            }
+        }
+    }
+    public void EquipHammer(bool isEquipped)
+    {
+        if (hammerObject) hammerObject.SetActive(isEquipped);
+        
+        // Nếu cầm búa, tạm thời cất vũ khí chính đi
+        if (isEquipped)
+        {
+            if (swordObject) swordObject.SetActive(false);
+            if (bowObject) bowObject.SetActive(false);
+            if (arrowVisualObject) arrowVisualObject.SetActive(false);
+        }
+        else
+        {
+            // Trả lại vũ khí cũ dựa trên logic hiện tại của View
+            RestoreVisualState(GetCurrentVisualState());
+        }
+    }
+
     // --- 1. VISUALIZATION ---
     public void UpdateWeaponVisuals(bool hasSword, bool hasBow)
     {
@@ -32,7 +66,6 @@ public class PlayerView : MonoBehaviour
         if (bowObject) bowObject.SetActive(hasBow);
         if (arrowVisualObject) arrowVisualObject.SetActive(false);
 
-        // Cập nhật Animator
         int type = hasSword ? 1 : 0;
         if (animator) animator.SetInteger("WeaponType", type);
     }
@@ -61,9 +94,18 @@ public class PlayerView : MonoBehaviour
 
         if (!isVisible) 
         {
+            // Ẩn mô hình vũ khí
             if (swordObject) swordObject.SetActive(false);
             if (bowObject) bowObject.SetActive(false);
             if (arrowVisualObject) arrowVisualObject.SetActive(false);
+            
+            // --- [THÊM MỚI] ÉP ANIMATOR VỀ DÁNG TAY KHÔNG (UNARMED) ---
+            if (animator) 
+            {
+                animator.SetInteger("WeaponType", 0);
+                animator.SetBool("IsBowMode", false);
+            }
+            // ----------------------------------------------------------
         }
         else
         {
@@ -74,9 +116,13 @@ public class PlayerView : MonoBehaviour
                 {
                     if (swordObject) swordObject.SetActive(false);
                     if (bowObject) bowObject.SetActive(false);
+                    
+                    // Nếu không có vũ khí nào, giữ dáng tay không
+                    if (animator) animator.SetInteger("WeaponType", 0);
                 }
                 else
                 {
+                    // Hàm này đã tự động cập nhật lại Animator sang 1 (Kiếm) hoặc 2 (Cung)
                     SwitchWeaponVisuals(pc.model.currentWeapon);
                 }
             }
@@ -128,9 +174,8 @@ public class PlayerView : MonoBehaviour
             arrowVisualObject.SetActive(isActive);
     }
 
-    // --- 3. ANIMATION TRIGGERS (ĐÃ KHÔI PHỤC ĐẦY ĐỦ) ---
+    // --- 3. ANIMATION TRIGGERS ---
     
-    // [MỚI] Intro & Quest
     public void TriggerWakeUp()
     {
         if (animator)
@@ -144,7 +189,6 @@ public class PlayerView : MonoBehaviour
     { 
         if (animator) 
         {
-            // Reset các trigger tấn công để tránh lỗi kẹt animation
             animator.ResetTrigger("Attack_1");
             animator.ResetTrigger("Attack_2");
             animator.ResetTrigger("Attack_3");
@@ -152,7 +196,6 @@ public class PlayerView : MonoBehaviour
         } 
     }
 
-    // [MỚI] Boat System
     public void SetSwimming(bool isSwimming)
     {
         if (animator)
@@ -166,16 +209,15 @@ public class PlayerView : MonoBehaviour
             }
         }
     }
+    
     public void TriggerClimbUp() { if (animator) animator.SetTrigger("ClimbUp"); }
     public void TriggerClimbDown() { if (animator) animator.SetTrigger("ClimbDown"); }
     public void SetSteering(bool isSteering) { if (animator) animator.SetBool("IsSteering", isSteering); }
 
-    // [KHÔI PHỤC] Combat System (QUAN TRỌNG)
     public void TriggerAttack(int step) 
     { 
         if (animator) 
         {
-            // Reset các trigger cũ để combo mượt hơn
             animator.ResetTrigger("Attack_1");
             animator.ResetTrigger("Attack_2");
             animator.ResetTrigger("Attack_3");
@@ -192,12 +234,21 @@ public class PlayerView : MonoBehaviour
         }
     }
 
+    // [CẬP NHẬT] - Hủy mọi đòn đánh để ép Animator chạy Dash ngay lập tức
     public void TriggerDash() 
     { 
         if (animator) 
         { 
+            // Xóa các lệnh tấn công đang xếp hàng
+            animator.ResetTrigger("Attack_1");
+            animator.ResetTrigger("Attack_2");
+            animator.ResetTrigger("Attack_3");
+            
+            // Đảm bảo không có trigger Dash nào bị kẹt lại
             animator.ResetTrigger("Dash"); 
-            animator.SetTrigger("Dash"); 
+            
+            // [ĐÃ SỬA] CHỈ dùng Play để ép chạy Dash ngay lập tức, KHÔNG dùng SetTrigger nữa
+            animator.Play("Dash", 0, 0f); 
         }
     }
 
@@ -224,7 +275,6 @@ public class PlayerView : MonoBehaviour
         }
     }
 
-    // [KHÔI PHỤC] Movement Blend Tree
     public void UpdateMovementAnimation(float speed, float localX, float localZ, bool isAiming, bool isBowMode)
     {
         if (!animator) return;
@@ -234,42 +284,46 @@ public class PlayerView : MonoBehaviour
         animator.SetFloat("Horizontal", localX, 0.1f, Time.deltaTime);
         animator.SetFloat("Vertical", localZ, 0.1f, Time.deltaTime);
     }
+    
     public bool IsHoldingWeapon()
-{
-    // Trả về true nếu Kiếm hoặc Cung đang được bật
-    return (swordObject != null && swordObject.activeSelf) || (bowObject != null && bowObject.activeSelf);
-}
-
-public int GetCurrentVisualState()
     {
-        // Hỏi trực tiếp Animator: "Mày đang chạy WeaponType số mấy?"
-        // Đây là cách chính xác nhất để biết đang là Unarmed (0) hay Sword (1)
+        return (swordObject != null && swordObject.activeSelf) || (bowObject != null && bowObject.activeSelf);
+    }
+
+    public int GetCurrentVisualState()
+    {
         if (animator != null) 
         {
             return animator.GetInteger("WeaponType");
         }
-        return 0; // Mặc định là tay không
+        return 0; 
     }
 
-    // Hàm khôi phục lại trạng thái dựa trên số int đã lưu
     public void RestoreVisualState(int stateToRestore)
     {
-        // 1. Cập nhật Model hiển thị
+        // 1. Trả lại hiển thị vũ khí cũ
         if (swordObject) swordObject.SetActive(stateToRestore == 1);
         if (bowObject) bowObject.SetActive(stateToRestore == 2);
         if (arrowVisualObject) arrowVisualObject.SetActive(false);
 
-        // 2. Cập nhật Animator Blend Tree
         if (animator)
         {
-            // Trả về đúng blend tree cũ
+            // 2. Trả lại thông số cho Base Layer
             animator.SetInteger("WeaponType", stateToRestore);
-            
-            // Cập nhật các biến bool phụ trợ
             animator.SetBool("IsBowMode", stateToRestore == 2);
+            
+            if (stateToRestore == 1) 
+                animator.Play("Sword Locomotion", 0, 0f); 
+            else if (stateToRestore == 2) 
+                animator.Play("Bow Locomotion", 0, 0f);   
+            else 
+                animator.Play("Unarmed Locomotion", 0, 0f); 
+
+            // 3. [QUAN TRỌNG] Tắt hoạt động của Action Layer (Layer 1)
+            // Ép Layer 1 chuyển ngay lập tức về state "Empty" để nhân vật buông thõng tay xuống
+            animator.Play("Empty", 1, 0f); 
         }
         
-        // Tắt Crosshair nếu không phải là cung
         ToggleCrosshair(stateToRestore == 2);
     }
 }

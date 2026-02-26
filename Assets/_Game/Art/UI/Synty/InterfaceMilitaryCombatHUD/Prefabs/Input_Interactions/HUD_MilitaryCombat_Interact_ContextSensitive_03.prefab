@@ -34,7 +34,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3881687657502562237, guid: cc0f40e12d02e2d4aa73680e02988d73, type: 3}
       propertyPath: m_Name
-      value: HUD_FantasyWarrior_Interact_ContextSensitive03
+      value: HUD_MilitaryCombat_Interact_ContextSensitive_03
       objectReference: {fileID: 0}
     - target: {fileID: 4898854678204676101, guid: cc0f40e12d02e2d4aa73680e02988d73, type: 3}
       propertyPath: m_AnchorMax.y
@@ -224,6 +224,10 @@ PrefabInstance:
       propertyPath: m_fontColor32.rgba
       value: 4289896049
       objectReference: {fileID: 0}
+    - target: {fileID: 8001905062453658058, guid: cc0f40e12d02e2d4aa73680e02988d73, type: 3}
+      propertyPath: 'm_ActiveFontFeatures.Array.data[0]'
+      value: 1801810542
+      objectReference: {fileID: 0}
     - target: {fileID: 8498904464950498610, guid: cc0f40e12d02e2d4aa73680e02988d73, type: 3}
       propertyPath: m_text
       value: Fortress Door
@@ -231,6 +235,10 @@ PrefabInstance:
     - target: {fileID: 8498904464950498610, guid: cc0f40e12d02e2d4aa73680e02988d73, type: 3}
       propertyPath: m_fontStyle
       value: 16
+      objectReference: {fileID: 0}
+    - target: {fileID: 8498904464950498610, guid: cc0f40e12d02e2d4aa73680e02988d73, type: 3}
+      propertyPath: 'm_ActiveFontFeatures.Array.data[0]'
+      value: 1801810542
       objectReference: {fileID: 0}
     - target: {fileID: 8695897238867267683, guid: cc0f40e12d02e2d4aa73680e02988d73, type: 3}
       propertyPath: m_AnchorMax.y
@@ -246,7 +254,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8695897238867267683, guid: cc0f40e12d02e2d4aa73680e02988d73, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 136.29001
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8695897238867267683, guid: cc0f40e12d02e2d4aa73680e02988d73, type: 3}
       propertyPath: m_AnchoredPosition.y

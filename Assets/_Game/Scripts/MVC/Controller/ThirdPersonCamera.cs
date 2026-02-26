@@ -1,5 +1,6 @@
 using UnityEngine;
-using UnityEngine.EventSystems; // BẮT BUỘC: Để kiểm tra chuột có nhấn vào UI không
+using UnityEngine.EventSystems;
+using System.Collections.Generic;
 
 public class ThirdPersonCamera : MonoBehaviour
 {
@@ -9,48 +10,54 @@ public class ThirdPersonCamera : MonoBehaviour
     public Vector3 shoulderOffset = new Vector3(0.5f, 0, 0); 
 
     [Header("Settings - Độ nhạy chuột")]
-    public float mouseSensitivity = 3.0f; // Độ nhạy bình thường
-    public float aimSensitivity = 1.0f;   // [ĐÃ KHÔI PHỤC] Độ nhạy khi ngắm (chậm hơn)
+    public float mouseSensitivity = 3.0f;
+    public float aimSensitivity = 1.0f;   
     
     [Header("Settings - Di chuyển & Xoay")]
     public float followSpeed = 20f;    
-    public Vector2 pitchLimit = new Vector2(-40, 80); // Giới hạn góc ngẩng lên/xuống
+    
+    [Header("Giới hạn góc ngẩng (Pitch)")]
+    [Tooltip("Góc giới hạn bình thường (Tránh nhìn xuyên đất, ví dụ: -10 đến 80)")]
+    public Vector2 normalPitchLimit = new Vector2(-10, 80); 
+    [Tooltip("Góc giới hạn khi bơi (Tránh nhìn dưới nước, ví dụ: 10 đến 80)")]
+    public Vector2 swimPitchLimit = new Vector2(10, 80);    
 
-    [Header("Zoom & Giới hạn")]
+    [Header("Khoảng cách")]
     public float distance = 5.0f;      
-    public float minDistance = 2.0f;
-    public float maxDistance = 10.0f;
 
-    [Header("Wall Collision - Xuyên tường")]
-    public LayerMask collisionLayers;
-    public float collisionRadius = 0.2f; 
-    public float collisionOffset = 0.2f; 
+    [Header("Ẩn vật thể che khuất")]
+    [Tooltip("Layer của các vật thể sẽ BỊ ẨN khi che khuất nhân vật (Cây cối, Lá, Mái nhà...)")]
+    public LayerMask hideableLayers; 
 
     // Private variables
     private float _yaw;   
     private float _pitch; 
     private float _currentDistance;
-    private bool _isCursorLocked = true; // True = Đang chơi, False = Đang dùng UI
-    private bool _isAiming = false;      // [ĐÃ KHÔI PHỤC] Biến kiểm tra trạng thái ngắm
+    private bool _isCursorLocked = true; 
+    private bool _isAiming = false;      
+    private bool _isSwimming = false;    
+
+    // Danh sách lưu các vật thể đang bị ẩn để bật lại
+    private List<Renderer> _hiddenRenderers = new List<Renderer>();
+
+    // --- [MỚI] Tham chiếu đến PlayerController ---
+    private PlayerController _pc;
 
     void Start()
     {
-        // Khởi đầu game: Khóa chuột để chơi ngay
         LockCursor(true);
-        
-        // Lấy góc quay hiện tại làm gốc
         Vector3 angles = transform.eulerAngles;
         _yaw = angles.y;
         _pitch = angles.x;
         _currentDistance = distance;
+
+        // Lấy thông tin Player để kiểm tra trạng thái (rèn đồ, nói chuyện...)
+        if (target != null) _pc = target.GetComponent<PlayerController>();
     }
 
     void Update()
     {
-        // 1. Luôn kiểm tra input chuột (Esc hoặc Click)
         HandleCursorInput();
-
-        // 2. Chỉ cho phép xoay Camera khi chuột ĐANG KHÓA (Ẩn)
         if (_isCursorLocked)
         {
             HandleRotationInput();
@@ -60,40 +67,52 @@ public class ThirdPersonCamera : MonoBehaviour
     void LateUpdate()
     {
         if (target == null) return;
-
-        // 3. Tính toán vị trí Camera (Luôn chạy để Camera bám theo Player dù đang bật UI)
         CalculateCameraPosition();
     }
 
-    // ================= [QUAN TRỌNG] KẾT NỐI VỚI PLAYER CONTROLLER =================
-
-    // Hàm này để PlayerController gọi sang khi giương cung
+    // --- KẾT NỐI VỚI PLAYER CONTROLLER ---
     public void SetAiming(bool isAiming)
     {
         _isAiming = isAiming;
     }
 
-    // ================= LOGIC XỬ LÝ CHUỘT & UI =================
+    public void SetSwimmingState(bool isSwimming)
+    {
+        _isSwimming = isSwimming;
+        
+        // Nếu vừa xuống nước mà góc nhìn đang thấp hơn giới hạn bơi, ép góc ngẩng lên
+        if (_isSwimming && _pitch < swimPitchLimit.x)
+        {
+            _pitch = swimPitchLimit.x;
+        }
+    }
 
+    // --- LOGIC XỬ LÝ CHUỘT (ĐÃ ĐƯỢC LÀM LẠI) ---
     void HandleCursorInput()
     {
-        // A. Nhấn ESC để bật/tắt chuột
-        if (Input.GetKeyDown(KeyCode.Escape))
+        // [QUAN TRỌNG NHẤT] Đồng bộ với thực tế!
+        // Nếu hệ thống Thoại/Rèn lén bật chuột lên, Camera phải cập nhật lại bộ nhớ ngay.
+        if (Cursor.visible) 
         {
-            LockCursor(!_isCursorLocked);
+            _isCursorLocked = false;
         }
 
-        // B. Nhấn Chuột Trái để quay lại game
-        if (Input.GetMouseButtonDown(0))
-        {
-            // Kiểm tra: Có đang nhấn lên UI (Nút, Bảng nhiệm vụ...) không?
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
-            {
-                // Đang nhấn vào UI -> KHÔNG LÀM GÌ CẢ (Giữ chuột để bấm tiếp)
-                return;
-            }
+        // 1. Phím Escape luôn được quyền bật/tắt chuột
+        if (Input.GetKeyDown(KeyCode.Escape)) LockCursor(!_isCursorLocked);
 
-            // Nếu nhấn vào Khoảng không (Màn hình game) -> Khóa chuột lại để chơi
+        // 2. CÁC TRƯỜNG HỢP NGOẠI LỆ (Không bao giờ được khóa chuột)
+        // Đang rèn đồ
+        if (_pc != null && _pc.model.isSmithing) return;
+        
+        // Đang nói chuyện (Bạn nhớ thay class kiểm tra thoại của bạn vào đây nhé)
+        // if (DialogueUI.Instance != null && DialogueUI.Instance.IsShowing) return;
+
+        // 3. CHỈ KHÓA CHUỘT KHI CÓ THAO TÁC DI CHUYỂN
+        bool isMoving = Input.GetAxisRaw("Horizontal") != 0 || Input.GetAxisRaw("Vertical") != 0;
+        
+        // Lúc này _isCursorLocked đã được đồng bộ chuẩn xác nên lệnh này sẽ chạy thành công
+        if (isMoving && !_isCursorLocked)
+        {
             LockCursor(true);
         }
     }
@@ -105,54 +124,61 @@ public class ThirdPersonCamera : MonoBehaviour
         Cursor.lockState = isLocked ? CursorLockMode.Locked : CursorLockMode.None;
     }
 
-    // ================= LOGIC XOAY CAMERA (ĐÃ SỬA LẠI LOGIC NGẮM) =================
-
+    // --- LOGIC XOAY CAMERA ---
     void HandleRotationInput()
     {
-        // [ĐÃ KHÔI PHỤC] Chọn độ nhạy dựa trên trạng thái ngắm
-        // Nếu đang ngắm (_isAiming = true) thì dùng aimSensitivity, ngược lại dùng mouseSensitivity
         float currentSens = _isAiming ? aimSensitivity : mouseSensitivity;
 
-        // Xoay trái phải (Yaw)
         _yaw += Input.GetAxis("Mouse X") * currentSens;
-        
-        // Ngẩng lên xuống (Pitch)
         _pitch -= Input.GetAxis("Mouse Y") * currentSens;
-        _pitch = Mathf.Clamp(_pitch, pitchLimit.x, pitchLimit.y);
-
-        // Zoom ra vào bằng con lăn
-        float scroll = Input.GetAxis("Mouse ScrollWheel");
-        distance = Mathf.Clamp(distance - scroll * 5, minDistance, maxDistance);
+        
+        // Chọn giới hạn góc tùy vào việc có đang bơi hay không
+        Vector2 currentPitchLimit = _isSwimming ? swimPitchLimit : normalPitchLimit;
+        _pitch = Mathf.Clamp(_pitch, currentPitchLimit.x, currentPitchLimit.y);
     }
 
-    // ================= LOGIC TÍNH TOÁN VỊ TRÍ & XUYÊN TƯỜNG =================
-
+    // --- TÍNH TOÁN VỊ TRÍ & ẨN VẬT THỂ ---
     void CalculateCameraPosition()
     {
         Vector3 targetPivotPosition = target.position + pivotOffset;
         Quaternion rotation = Quaternion.Euler(_pitch, _yaw, 0);
         Vector3 desiredDirection = rotation * Vector3.back; 
-        Vector3 desiredPosition = targetPivotPosition + (rotation * shoulderOffset) + (desiredDirection * distance);
+        
+        // Luôn giữ khoảng cách cố định, bỏ cơ chế thu gần lại khi chạm tường
+        _currentDistance = distance;
+        
+        Vector3 finalPosition = targetPivotPosition + (rotation * shoulderOffset) + (desiredDirection * _currentDistance);
 
-        RaycastHit hit;
-        Vector3 directionToCam = (desiredPosition - targetPivotPosition).normalized;
-        float distToCam = Vector3.Distance(targetPivotPosition, desiredPosition);
-        Vector3 finalPosition;
-
-        if (Physics.SphereCast(targetPivotPosition, collisionRadius, directionToCam, out hit, distToCam, collisionLayers))
-        {
-            _currentDistance = hit.distance - collisionOffset;
-            if (_currentDistance < collisionRadius) _currentDistance = collisionRadius;
-            
-            finalPosition = targetPivotPosition + (rotation * shoulderOffset) + (directionToCam * _currentDistance);
-        }
-        else
-        {
-            _currentDistance = Mathf.Lerp(_currentDistance, distance, Time.deltaTime * 20f); 
-            finalPosition = targetPivotPosition + (rotation * shoulderOffset) + (desiredDirection * _currentDistance);
-        }
-
+        // Di chuyển camera
         transform.position = Vector3.Lerp(transform.position, finalPosition, followSpeed * Time.deltaTime);
         transform.rotation = rotation; 
+
+        // Ẩn vật cản (Foliage, Mái nhà...) nằm giữa Camera và Player để nhìn xuyên rõ ràng
+        HandleObstacles(targetPivotPosition, transform.position);
+    }
+
+    void HandleObstacles(Vector3 targetPos, Vector3 cameraPos)
+    {
+        // Bật lại các vật thể cũ không còn che khuất
+        foreach (var renderer in _hiddenRenderers)
+        {
+            if (renderer != null) renderer.enabled = true;
+        }
+        _hiddenRenderers.Clear();
+
+        // Bắn tia từ Player tới Camera để tìm vật che khuất
+        float dist = Vector3.Distance(targetPos, cameraPos);
+        Vector3 dir = (cameraPos - targetPos).normalized;
+
+        RaycastHit[] hits = Physics.RaycastAll(targetPos, dir, dist, hideableLayers);
+        foreach (var hit in hits)
+        {
+            Renderer r = hit.collider.GetComponent<Renderer>();
+            if (r != null)
+            {
+                r.enabled = false; // Tạm thời ẩn vật thể
+                _hiddenRenderers.Add(r);
+            }
+        }
     }
 }

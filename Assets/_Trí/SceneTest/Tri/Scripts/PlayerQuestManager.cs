@@ -23,14 +23,27 @@ public class QuestManager : MonoBehaviour
 
     // Cập nhật trạng thái nhiệm vụ Hoàng tử
     public void SetPrince(PrinceQuestState s)
-{
-    princeState = s;
-    Debug.Log("Prince = " + s);
-    
-    // CẬP NHẬT UI TỰ ĐỘNG
-    if (QuestUIManager.Instance != null)
-        QuestUIManager.Instance.UpdateQuestUI();
-}
+    {
+        princeState = s;
+        Debug.Log("Prince = " + s);
+        
+        // CẬP NHẬT UI TỰ ĐỘNG
+        if (QuestUIManager.Instance != null)
+            QuestUIManager.Instance.UpdateQuestUI();
+
+        // [MỚI] KIỂM TRA NẾU LÀ NHIỆM VỤ SỬA THUYỀN -> BẬT GỖ VÀ SẮT LÊN
+        if (s == PrinceQuestState.ShipQuest || s == PrinceQuestState.ShipDoing)
+        {
+            // Tìm bến thuyền trong Scene hiện tại
+            BoatRepairStation boatStation = FindObjectOfType<BoatRepairStation>();
+            
+            if (boatStation != null)
+            {
+                boatStation.ToggleQuestItems(true);
+                Debug.Log("Đã bật Gỗ và Sắt trên Scene!");
+            }
+        }
+    }
 
     // Cập nhật trạng thái nhiệm vụ Làng
     public void SetVillage(VillageQuestState s)

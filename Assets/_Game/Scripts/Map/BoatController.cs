@@ -120,4 +120,36 @@ public class BoatController : MonoBehaviour
         }
         return false;
     }
+    // --- BẮT SỰ KIỆN TƯƠNG TÁC VỚI NHÂN VẬT ---
+    void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Player"))
+        {
+            PlayerController player = other.GetComponent<PlayerController>();
+            if (player != null)
+            {
+                // Báo cho nhân vật biết mục tiêu đang đứng gần là chiếc thuyền này
+                player.SetCurrentInteractable(this.gameObject);
+                
+                // Hiện UI hướng dẫn "Nhấn F"
+                TogglePrompt(true); 
+            }
+        }
+    }
+
+    void OnTriggerExit(Collider other)
+    {
+        if (other.CompareTag("Player"))
+        {
+            PlayerController player = other.GetComponent<PlayerController>();
+            if (player != null)
+            {
+                // Xóa mục tiêu khi nhân vật đi ra xa
+                player.ClearInteractable();
+                
+                // Ẩn UI hướng dẫn
+                TogglePrompt(false); 
+            }
+        }
+    }
 }
