@@ -1699,7 +1699,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 2001415592188843677}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.00001
+  m_Radius: 0.5
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -1708,8 +1708,8 @@ NavMeshAgent:
   m_AutoTraverseOffMeshLink: 1
   m_AutoBraking: 1
   m_AutoRepath: 1
-  m_Height: 0.00001
-  m_BaseOffset: -7.24
+  m_Height: 2
+  m_BaseOffset: 0
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
 --- !u!120 &7243602675509009748
@@ -1842,6 +1842,7 @@ MonoBehaviour:
   isInvulnerable: 0
   healthSlider: {fileID: 0}
   hitStunDuration: 0.5
+  bloodPrefab: {fileID: 0}
   currentDetectionTime: 1.5
   searchWaitTime: 1
   startPosition: {x: 0, y: 0, z: 0}
@@ -1851,6 +1852,8 @@ MonoBehaviour:
   bulletPrefab: {fileID: 5410096437377437364, guid: 2f7a5f2f16a2afc4388cb9258466baa8, type: 3}
   firePoint: {fileID: 6446520916355697638}
   aimDuration: 1.5
+  attackAnimTrigger: attack
+  fireAnimationTime: 0.5
 --- !u!136 &8687239163237778821
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -6678,43 +6681,43 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 460526, guid: d70905084a649974b946c56d8431d017, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 2
+      value: -0.4
       objectReference: {fileID: 0}
     - target: {fileID: 460526, guid: d70905084a649974b946c56d8431d017, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.6
+      value: 0.8
       objectReference: {fileID: 0}
     - target: {fileID: 460526, guid: d70905084a649974b946c56d8431d017, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -10
+      value: -6.2
       objectReference: {fileID: 0}
     - target: {fileID: 460526, guid: d70905084a649974b946c56d8431d017, type: 3}
       propertyPath: m_LocalRotation.w
-      value: -0.00000009085092
+      value: 0.61786526
       objectReference: {fileID: 0}
     - target: {fileID: 460526, guid: d70905084a649974b946c56d8431d017, type: 3}
       propertyPath: m_LocalRotation.x
-      value: -1
+      value: -0.4018289
       objectReference: {fileID: 0}
     - target: {fileID: 460526, guid: d70905084a649974b946c56d8431d017, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0.000000064663666
+      value: 0.3853724
       objectReference: {fileID: 0}
     - target: {fileID: 460526, guid: d70905084a649974b946c56d8431d017, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0.00000004097819
+      value: -0.5552155
       objectReference: {fileID: 0}
     - target: {fileID: 460526, guid: d70905084a649974b946c56d8431d017, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
+      value: -176.065
       objectReference: {fileID: 0}
     - target: {fileID: 460526, guid: d70905084a649974b946c56d8431d017, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
+      value: -112.392
       objectReference: {fileID: 0}
     - target: {fileID: 460526, guid: d70905084a649974b946c56d8431d017, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
+      value: 93.479
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

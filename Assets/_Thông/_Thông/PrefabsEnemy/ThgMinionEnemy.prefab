@@ -1379,6 +1379,9 @@ MonoBehaviour:
   WalkSpeed: 1
   HealthBarSlider: {fileID: 4798076048711782593}
   HealthBarObj: {fileID: 4066270331199363475}
+  PlaySpawnAnim: 0
+  SpawnDuration: 2
+  IsSimpleMinion: 0
   PatrolPoints: []
   PatrolSpeed: 2
   IdleTime: 5
@@ -1401,11 +1404,13 @@ MonoBehaviour:
   ChargeDuration: 4
   DashInSpeed: 12
   EnableHellfire: 0
+  HellfireCastTime: 1.5
   AoEPrefab: {fileID: 1415081627273719484, guid: 899041596c9e43647ab361cd7e62ee6d, type: 3}
   HellfireCooldown: 15
   HellfireDuration: 5
   SpawnRate: 0.5
   CanSummon: 0
+  SummonCastTime: 2
   MinionPrefab: {fileID: 0}
   SummonVFX: {fileID: 0}
   MaxMinions: 3
@@ -1414,6 +1419,7 @@ MonoBehaviour:
   CorpseDestroyTime: 5
   HasToken: 0
   CurrentState: 0
+  IsEnraged: 0
 --- !u!1 &3174978038924415256
 GameObject:
   m_ObjectHideFlags: 0

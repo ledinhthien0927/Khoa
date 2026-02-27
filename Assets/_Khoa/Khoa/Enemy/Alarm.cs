@@ -15,7 +15,7 @@ public class AlarmMonster : MonsterController
 
     public override HitResult TakeDamage(DamageInfo info)
     {
-        // Bị đánh thì ngắt hết
+        // Bị đánh thì ngắt hết quá trình hú
         if (isScreaming)
         {
             StopAllCoroutines();
@@ -78,8 +78,11 @@ public class AlarmMonster : MonsterController
 
         if (anim != null) anim.SetTrigger("callAlarm");
         
-        yield return new WaitForSeconds(2.0f); // Thời gian hú
+        // [ĐÃ SỬA] Lấy trực tiếp thông số từ MonsterData của bạn!
+        // Lưu ý: Nếu biến trong data của bạn viết hoa (VD: AlarmDelay), hãy sửa lại cho khớp tên nhé.
+        yield return new WaitForSeconds(data.alarmDelay); 
 
+        // Sau khi đợi xong thời gian delay mới bắt đầu gọi hội
         if (MonsterManager.Instance != null)
             MonsterManager.Instance.AlertNearbyMonsters(transform.position, data.callRange);
         

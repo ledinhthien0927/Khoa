@@ -2424,11 +2424,13 @@ MonoBehaviour:
   isInvulnerable: 0
   healthSlider: {fileID: 1996842022350428308}
   hitStunDuration: 0.5
+  bloodPrefab: {fileID: 0}
   currentDetectionTime: 1.5
   searchWaitTime: 1
   startPosition: {x: 0, y: 0, z: 0}
   currentWanderWaitTime: 1
   isHit: 0
+  isLockMovement: 0
 --- !u!1 &3661284198750389651
 GameObject:
   m_ObjectHideFlags: 0

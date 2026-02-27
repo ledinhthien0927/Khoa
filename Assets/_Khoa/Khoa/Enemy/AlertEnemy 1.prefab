@@ -4649,7 +4649,6 @@ GameObject:
   - component: {fileID: 2042257188056606174}
   - component: {fileID: 929998805687674965}
   - component: {fileID: 2777077912865987711}
-  - component: {fileID: 2447401668721418546}
   m_Layer: 0
   m_Name: AlertEnemy 1
   m_TagString: Enemy
@@ -4771,25 +4770,17 @@ MonoBehaviour:
   currentHealth: 0
   isAlerted: 0
   isTracking: 0
+  isDead: 0
+  isInvulnerable: 0
+  healthSlider: {fileID: 0}
+  hitStunDuration: 0.5
+  bloodPrefab: {fileID: 0}
   currentDetectionTime: 1.5
   searchWaitTime: 1
   startPosition: {x: 0, y: 0, z: 0}
   currentWanderWaitTime: 1
---- !u!114 &2447401668721418546
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7280540320661417701}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f4f165a4bb9dcb943b03f6a8ca8e5457, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::EnemyHealth
-  maxHealth: 3
-  isDead: 0
-  isInvulnerable: 0
+  isHit: 0
+  isLockMovement: 0
 --- !u!1 &7396288883711024556
 GameObject:
   m_ObjectHideFlags: 0

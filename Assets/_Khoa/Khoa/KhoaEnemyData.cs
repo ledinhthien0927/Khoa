@@ -33,7 +33,9 @@ public class MonsterData : ScriptableObject
     [Header("Tấn công")]
     public float attackRange;
     
-    // [MỚI] Thêm biến này để quy định tốc độ đánh
+    [Tooltip("Lượng sát thương gây ra mỗi đòn đánh")]
+    public float damage = 10f;
+    
     [Header("Tốc độ đánh")]
     [Tooltip("Thời gian chờ giữa các đòn đánh (giây). Ví dụ: 2.0 nghĩa là đánh xong nghỉ 2 giây.")]
     public float attackCooldown = 2.0f; 

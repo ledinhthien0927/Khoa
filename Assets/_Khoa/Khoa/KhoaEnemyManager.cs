@@ -26,7 +26,7 @@ public class MonsterManager : MonoBehaviour
 
     void Update() { if (playerTransform != null) ExecuteAI(); }
 
-    // --- LOGIC TẦM NHÌN (GIỮ NGUYÊN CỦA BẠN - VÌ ĐANG TỐT) ---
+    // --- LOGIC TẦM NHÌN ---
     public bool CanSeePlayer(MonsterController m)
     {
         if (playerTransform == null) return false;
@@ -50,14 +50,15 @@ public class MonsterManager : MonoBehaviour
 
         if (Physics.Raycast(eyePos, dirToTarget, checkDist, obstacleMask)) return false; 
 
-        // FOV
-        if (m.isAlerted || m.isTracking || dist < 2.0f) return true;
+        // FOV (ĐÃ XÓA: || dist < 2.0f để quái không tự phát hiện khi lại gần)
+        if (m.isAlerted || m.isTracking) return true;
+        
         if (Vector3.Angle(m.transform.forward, dirToTarget) > m.data.viewAngle / 2f) return false; 
 
         return true; 
     }
     
-    // --- [SỬA LẠI LOGIC AI CORE] ---
+    // --- LOGIC AI CORE ---
     void ExecuteAI()
     {
         for (int i = 0; i < allMonsters.Count; i++)
@@ -91,11 +92,7 @@ public class MonsterManager : MonoBehaviour
                 monster.searchWaitTime = 0f;
             }
 
-            // --- C. QUYẾT ĐỊNH HÀNH VI (ĐÃ FIX) ---
-            // [FIX QUAN TRỌNG]: Điều kiện cũ của bạn là (isAlerted && canSee).
-            // Điều này sai, vì Range Enemy nghe báo động (Alerted) nhưng đang ở xa chưa thấy Player (CanSee=false) -> Nó sẽ không đánh.
-            // SỬA THÀNH: (isAlerted || canSee || isTracking) -> Nghe thấy là chiến luôn!
-            
+            // --- C. QUYẾT ĐỊNH HÀNH VI ---
             if (monster.isTracking || monster.isAlerted || canSee)
             {
                 // Khi đã vào mode chiến đấu, bật luôn tracking để nó bám theo dai dẳng
@@ -119,17 +116,12 @@ public class MonsterManager : MonoBehaviour
 
     void HandleWanderBehavior(MonsterController m)
     {
-        // Dùng hàm HasReachedDestination có sẵn trong MonsterController (code trước đã có)
-        // Nếu bạn chưa copy code MonsterController mới thì dùng logic cũ: 
-        // if (m.agent.remainingDistance <= m.agent.stoppingDistance + 0.5f)
-        
         if (m.HasReachedDestination())
         {
             m.currentWanderWaitTime += Time.deltaTime;
             if (m.currentWanderWaitTime >= m.data.wanderWaitTime)
             {
                 Vector3 newPos = GetRandomPoint(m.transform.position, m.data.wanderRadius);
-                // False = đi tuần dùng stopping distance mặc định
                 m.MoveToPosition(newPos); 
                 m.currentWanderWaitTime = 0f;
             }
@@ -147,7 +139,6 @@ public class MonsterManager : MonoBehaviour
 
     void HandleSearchBehavior(MonsterController m)
     {
-        // True = Ép chạy đến tận điểm nghi ngờ
         m.MoveToPosition(m.lastKnownPosition.Value); 
         
         if (m.HasReachedDestination())
@@ -165,7 +156,7 @@ public class MonsterManager : MonoBehaviour
         }
     }
 
-    // --- [ĐÃ FIX] LOGIC GỌI HỘI ---
+    // --- LOGIC GỌI HỘI ---
     public void AlertNearbyMonsters(Vector3 alarmPosition, float radius)
     {
         foreach (var monster in allMonsters)
@@ -183,7 +174,7 @@ public class MonsterManager : MonoBehaviour
                 monster.isTracking = true; 
                 monster.searchWaitTime = 0f;
                 
-                // 3. [FIX] Cập nhật vị trí Player cho quái biết đường mà chạy tới
+                // 3. Cập nhật vị trí Player cho quái biết đường mà chạy tới
                 if (playerTransform != null)
                 {
                     monster.lastKnownPosition = playerTransform.position;

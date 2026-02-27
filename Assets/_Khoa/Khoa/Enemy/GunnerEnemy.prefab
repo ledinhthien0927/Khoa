@@ -3563,8 +3563,8 @@ Transform:
   m_GameObject: {fileID: 5331203272389334625}
   serializedVersion: 2
   m_LocalRotation: {x: 0.48126498, y: -0.39673313, z: 0.58073556, w: -0.5231951}
-  m_LocalPosition: {x: 15.3, y: 2.7, z: -8.5}
-  m_LocalScale: {x: 0.69470066, y: 0.6947005, z: 0.69470036}
+  m_LocalPosition: {x: 5.1, y: 2.8, z: -6.9}
+  m_LocalScale: {x: 1.2386079, y: 1.2386076, z: 1.2386074}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4435464607300344309}
@@ -5552,14 +5552,22 @@ MonoBehaviour:
   currentHealth: 0
   isAlerted: 0
   isTracking: 0
+  isDead: 0
+  isInvulnerable: 0
+  healthSlider: {fileID: 0}
+  hitStunDuration: 0.5
+  bloodPrefab: {fileID: 0}
   currentDetectionTime: 1.5
   searchWaitTime: 1
   startPosition: {x: 0, y: 0, z: 0}
   currentWanderWaitTime: 1
+  isHit: 0
+  isLockMovement: 0
   bulletPrefab: {fileID: 5410096437377437364, guid: c66151650f9362b4ebad2b71774267bb, type: 3}
   firePoint: {fileID: 5271425761832679021}
   aimDuration: 0.5
-  useLaserSight: 1
+  attackAnimTrigger: attack
+  fireAnimationTime: 0.5
 --- !u!120 &1567482997685924430
 LineRenderer:
   serializedVersion: 2
@@ -5683,6 +5691,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyHealth
   maxHealth: 3
+  healthSlider: {fileID: 0}
   isDead: 0
   isInvulnerable: 0
 --- !u!1 &7774366960648874297
