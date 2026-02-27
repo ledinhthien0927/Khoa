@@ -3,6 +3,7 @@ using UnityEngine;
 [System.Serializable]
 public class DialogueLine
 {
+    [Header("Basic")]
     public string speaker;
 
     [TextArea(2, 6)]
@@ -16,5 +17,7 @@ public class DialogueLine
 
     [Header("Animation")]
     public DialogueActor actor;
+
+    [Tooltip("Tên Trigger trong Animator")]
     public string animationTrigger;
 }
