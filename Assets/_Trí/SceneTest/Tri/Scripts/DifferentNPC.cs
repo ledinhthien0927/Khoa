@@ -7,48 +7,73 @@ public class DifferentNPC : MonoBehaviour
     [Header("Movement")]
     public NavMeshAgent agent;
     public Animator anim;
-    public float wanderRadius = 5f;
-    public float idleTime = 3f;
+
+    public float wanderRadius = 8f;
+    public float idleTime = 2f;
+    public float minMoveDistance = 2.5f;
+    public float stuckTimeout = 3f;
 
     [Header("Talk")]
     public float talkDuration = 5f;
+    public float talkCooldown = 30f;
 
-    bool isIdle;
     bool isTalking;
+    bool canTalk = true;
 
     void Start()
     {
         if (!agent) agent = GetComponent<NavMeshAgent>();
         if (!anim) anim = GetComponent<Animator>();
 
-        StartCoroutine(WanderRoutine());
+        agent.autoBraking = true;
+        agent.stoppingDistance = 0.2f;
+
+        StartCoroutine(WanderLoop());
     }
 
     // =====================================================
-    IEnumerator WanderRoutine()
+    IEnumerator WanderLoop()
     {
         while (true)
         {
-            if (isTalking) yield return null;
+            if (isTalking)
+            {
+                yield return null;
+                continue;
+            }
 
-            // IDLE
-            isIdle = true;
+            // -------- IDLE --------
+            agent.isStopped = true;
+            agent.ResetPath();
             anim.SetBool("IsWalking", false);
+
             yield return new WaitForSeconds(idleTime);
 
             if (isTalking) continue;
 
-            // WALK
-            Vector3 randomPos = RandomNavmeshLocation(wanderRadius);
+            // -------- WALK --------
+            Vector3 destination;
+            if (!FindValidPoint(out destination))
+                continue;
+
             agent.isStopped = false;
-            agent.SetDestination(randomPos);
+            agent.SetDestination(destination);
             anim.SetBool("IsWalking", true);
 
-            isIdle = false;
+            float timer = 0f;
 
-            while (agent.pathPending || agent.remainingDistance > agent.stoppingDistance)
+            while (true)
             {
-                if (isTalking) yield break;
+                if (isTalking) break;
+
+                if (agent.pathStatus == NavMeshPathStatus.PathComplete &&
+                    agent.remainingDistance <= agent.stoppingDistance)
+                    break;
+
+                timer += Time.deltaTime;
+                if (timer > stuckTimeout)
+                    break;
+
                 yield return null;
             }
 
@@ -57,58 +82,73 @@ public class DifferentNPC : MonoBehaviour
     }
 
     // =====================================================
-    void OnTriggerEnter(Collider other)
+    bool FindValidPoint(out Vector3 result)
     {
-        if (isTalking) return;
-
-        if (other.CompareTag("Villager"))
+        for (int i = 0; i < 15; i++)
         {
-            StartCoroutine(TalkWithVillager(other.transform));
+            Vector3 randomDir = Random.insideUnitSphere * wanderRadius;
+            randomDir += transform.position; // QUANH VỊ TRÍ HIỆN TẠI
+
+            NavMeshHit hit;
+            if (!NavMesh.SamplePosition(randomDir, out hit, wanderRadius, NavMesh.AllAreas))
+                continue;
+
+            if (Vector3.Distance(transform.position, hit.position) < minMoveDistance)
+                continue;
+
+            NavMeshPath path = new NavMeshPath();
+            agent.CalculatePath(hit.position, path);
+
+            if (path.status != NavMeshPathStatus.PathComplete)
+                continue;
+
+            result = hit.position;
+            return true;
         }
+
+        result = transform.position;
+        return false;
     }
 
     // =====================================================
-    IEnumerator TalkWithVillager(Transform villager)
+    void OnTriggerEnter(Collider other)
+    {
+        if (!canTalk || isTalking) return;
+        if (!other.CompareTag("Villager")) return;
+
+        StartCoroutine(TalkRoutine(other.transform));
+    }
+
+    IEnumerator TalkRoutine(Transform target)
     {
         isTalking = true;
+        canTalk = false;
 
-        // DỪNG DI CHUYỂN
         agent.isStopped = true;
-        agent.velocity = Vector3.zero;
+        agent.ResetPath();
         anim.SetBool("IsWalking", false);
 
-        // QUAY MẶT
-        Vector3 dir = villager.position - transform.position;
-        dir.y = 0;
-        if (dir.sqrMagnitude > 0.01f)
-            transform.rotation = Quaternion.LookRotation(dir);
-
-        // BẬT TALK
+        Face(target);
         anim.SetBool("IsTalking", true);
 
-        // GỌI NPC DÂN LÀNG TALK
-        VillagerWanderNPC villagerNPC = villager.GetComponent<VillagerWanderNPC>();
-        if (villagerNPC != null)
-        {
-            villagerNPC.ForceTalk(transform, talkDuration);
-        }
+        VillagerWanderNPC villager = target.GetComponent<VillagerWanderNPC>();
+        if (villager)
+            villager.ForceTalk(transform, talkDuration);
 
         yield return new WaitForSeconds(talkDuration);
 
         anim.SetBool("IsTalking", false);
         isTalking = false;
 
-        StartCoroutine(WanderRoutine());
+        yield return new WaitForSeconds(talkCooldown);
+        canTalk = true;
     }
 
-    // =====================================================
-    Vector3 RandomNavmeshLocation(float radius)
+    void Face(Transform t)
     {
-        Vector3 randomDir = Random.insideUnitSphere * radius;
-        randomDir += transform.position;
-
-        NavMeshHit hit;
-        NavMesh.SamplePosition(randomDir, out hit, radius, NavMesh.AllAreas);
-        return hit.position;
+        Vector3 dir = t.position - transform.position;
+        dir.y = 0;
+        if (dir.sqrMagnitude > 0.01f)
+            transform.rotation = Quaternion.LookRotation(dir);
     }
 }

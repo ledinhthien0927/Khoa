@@ -691,7 +691,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 108908, guid: 4f09f22bd0388634ca4fba2e3f689ae9, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 462238, guid: 4f09f22bd0388634ca4fba2e3f689ae9, type: 3}
       propertyPath: m_LocalPosition.x
@@ -756,7 +756,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 114778, guid: 1bf1768dff1fcca4893dbb6aed184337, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 441596, guid: 1bf1768dff1fcca4893dbb6aed184337, type: 3}
       propertyPath: m_LocalScale.x
@@ -1013,221 +1013,12 @@ MonoBehaviour:
   interactKey: 101
   interactHint: {fileID: 0}
   actor: {fileID: 0}
-  intro:
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "Ng\u01B0\u01A1i nh\xECn xem..."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "C\u1EDD c\u1EE7a Malric \u0111\xE3 c\u1EAFm tr\xEAn \u0111\u1EC9nh th\xE1p
-      canh."
-    focusTarget: {fileID: 866102713}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: " H\u1EAFn g\u1ECDi \u0111\xF3 l\xE0 'Ng\u1ECDn l\u1EEDa Thanh l\u1ECDc',
-      nh\u01B0ng ta ch\u1EC9 th\u1EA5y s\u1EF1 ph\u1EA3n b\u1ED9i ch\xE1y r\u1EF1c."
-    focusTarget: {fileID: 866102713}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: Hmmm...
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "Ch\xFAng ta \u0111\xE3 m\u1EA5t V\u01B0\u01A1ng Mi\u1EC7n S\u1EAFt."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "L\xEDnh c\u1EE7a ta \u0111\xE3 ch\u1EBFt, ho\u1EB7c \u0111\u1EA7u h\xE0ng."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "Gi\u1EDD \u0111\xE2y, hy v\u1ECDng duy nh\u1EA5t c\u1EE7a d\xF2ng t\u1ED9c
-      l\u1EA1i n\u1EB1m trong tay m\u1ED9t... th\u1EE3 r\xE8n."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  quest:
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "\u0110\xE2y l\xE0 Th\xE1nh Kh\xED c\u1EE7a t\u1ED5 ti\xEAn ta."
-    focusTarget: {fileID: 1033551969}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "N\xF3 \u0111\xE3 v\u1EE1 n\xE1t khi ta c\u1ED1 \u0111\u1EE1 \u0111\xF2n
-      c\u1EE7a t\xEAn \u0110\u1EA1i C\xF4ng T\u01B0\u1EDBc \u0111i\xEAn cu\u1ED3ng
-      \u0111\xF3."
-    focusTarget: {fileID: 1033551969}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "Th\xE9p th\u01B0\u1EDDng kh\xF4ng th\u1EC3 l\xE0m h\u1EAFn x\u01B0\u1EDBc
-      da."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "Ch\u1EC9 c\xF3 Th\xE1nh Kh\xED m\u1EDBi \u0111\u1EADp tan \u0111\u01B0\u1EE3c
-      t\xE0 thu\u1EADt c\u1EE7a Malric."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "N\xE0y Th\u1EE3 R\xE8n, \u0111\xF4i tay ng\u01B0\u01A1i chai s\u1EA1n
-      v\xEC l\u1EEDa v\xE0 b\xFAa, kh\xF4ng ph\u1EA3i v\xEC g\u01B0\u01A1m gi\xE1o."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "Nh\u01B0ng l\xFAc n\xE0y, ta c\u1EA7n k\u1EF9 n\u0103ng c\u1EE7a ng\u01B0\u01A1i
-      h\u01A1n b\u1EA5t k\u1EF3 hi\u1EC7p s\u0129 n\xE0o."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "H\xE3y \u0111em n\xF3 \u0111\u1EBFn \u0111e r\xE8n."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "H\u1ED3i ph\u1EE5c l\u1EA1i linh h\u1ED3n cho n\xF3."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "\u0110\u1EEBng \u0111\u1EC3 ng\u1ECDn l\u1EEDa cu\u1ED1i c\xF9ng c\u1EE7a
-      ch\xFAng ta l\u1EE5i t\xE0n."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  doing:
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "Th\u1EDDi gian kh\xF4ng ch\u1EDD \u0111\u1EE3i \u0111\xE2u."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "Ti\u1EBFng b\xFAa c\u1EE7a ng\u01B0\u01A1i l\xE0 \xE2m thanh duy nh\u1EA5t
-      khi\u1EBFn ta an l\xF2ng l\xFAc n\xE0y, h\xE3y \u0111i \u0111i."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  finish:
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "Tuy\u1EC7t v\u1EDDi... Ng\u01B0\u01A1i th\u1EA5y kh\xF4ng?"
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "N\xF3 kh\xF4ng c\xF2n l\xE0 s\u1EAFt l\u1EA1nh n\u1EEFa. N\xF3 \u0111ang...
-      th\u1EDF."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "Nh\u1EDD c\xF3 ng\u01B0\u01A1i, ta m\u1EDBi c\xF3 th\xEAm hy v\u1ECDng
-      \u0111\u1EC3 b\u1EA3o v\u1EC7 v\xF9ng bi\u1EC3n n\xE0y."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "Nh\u01B0ng\u2026 e r\u1EB1ng th\u1EED th\xE1ch c\u1EE7a ch\xFAng ta v\u1EABn
-      ch\u01B0a k\u1EBFt th\xFAc."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  shipIntro:
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "Con thuy\u1EC1n c\u1EE7a ch\xFAng ta \u0111\xE3 b\u1ECB h\u01B0 h\u1EA1i
-      n\u1EB7ng n\u1EC1 trong tr\u1EADn b\xE3o v\u1EEBa r\u1ED3i."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "N\u1EBFu kh\xF4ng s\u1EEDa n\xF3 k\u1ECBp th\u1EDDi, ch\xFAng ta s\u1EBD
-      kh\xF4ng th\u1EC3 r\u1EDDi kh\u1ECFi h\xF2n \u0111\u1EA3o n\xE0y."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "V\xE0 khi b\u1ECDn h\u1EA3i t\u1EB7c quay l\u1EA1i\u2026 ch\xFAng ta s\u1EBD
-      kh\xF4ng c\xF3 \u0111\u01B0\u1EDDng lui."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "Ta tin r\u1EB1ng ch\u1EC9 c\xF3 ng\u01B0\u01A1i m\u1EDBi c\xF3 th\u1EC3
-      gi\xFAp ch\xFAng ta l\u1EA7n n\xE0y."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "H\xE3y s\u1EEDa con thuy\u1EC1n \u0111\xF3. S\u1ED1 ph\u1EADn c\u1EE7a
-      c\u1EA3 l\xE0ng\u2026 ta \u0111\u1EB7t v\xE0o tay ng\u01B0\u01A1i."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  shipDoing:
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "H\xE3y nhanh l\xEAn, kh\xF4ng th\xEC ch\xFAng ta s\u1EBD th\xE0nh m\u1ED7i
-      c\u1EE7a b\u1ECDn h\u1EA3i t\u1EB7c \u0111\xF3 m\u1EA5t !"
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  shipFinish:
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "Th\u1EADt tuy\u1EC7t v\u1EDDi"
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "\u0110\xFAng l\xE0 m\u1ED9t ng\u01B0\u1EDDi r\u1EA5t \u0111a n\u0103ng,
-      ta th\u1EADt l\xF2ng c\u1EA3m \u01A1n ng\u01B0\u01A1i nhi\u1EC1u l\u1EAFm."
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
-  - speaker: "Ho\xE0ng t\u1EED"
-    text: "B\xE2y gi\u1EDD ch\xFAng ta \u0111\xE3 c\xF3 ph\u01B0\u01A1ng ti\u1EC7n
-      \u0111\u1EC3 di chuy\u1EC3n qua c\xE1c h\xF2n \u0111\u1EA3o "
-    focusTarget: {fileID: 726372787}
-    showAccept: 0
-    actor: {fileID: 0}
-    animationTrigger: 
+  introDialogue: []
+  remindSwordDialogue: []
+  finishSwordDialogue: []
+  remindShipDialogue: []
+  finishShipDialogue: []
+  remindFragmentsDialogue: []
 --- !u!1 &728041429
 GameObject:
   m_ObjectHideFlags: 0
@@ -3000,7 +2791,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 102334, guid: 9f907d6996365d14f98f919ae28e1e7f, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 434788, guid: 9f907d6996365d14f98f919ae28e1e7f, type: 3}
       propertyPath: m_LocalPosition.x
@@ -3108,7 +2899,10 @@ MonoBehaviour:
   anim: {fileID: 1693945951}
   wanderRadius: 5
   idleTime: 3
+  minMoveDistance: 2.5
+  stuckTimeout: 3
   talkDuration: 5
+  talkCooldown: 30
 --- !u!4 &1693945953 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 434788, guid: 9f907d6996365d14f98f919ae28e1e7f, type: 3}
@@ -3658,6 +3452,22 @@ PrefabInstance:
       propertyPath: 'waypoints.Array.data[4]'
       value: 
       objectReference: {fileID: 1693945953}
+    - target: {fileID: 9049855109077713359, guid: 202d169a028b98b40a693c6e1497c7b4, type: 3}
+      propertyPath: m_Size.x
+      value: 2.105774
+      objectReference: {fileID: 0}
+    - target: {fileID: 9049855109077713359, guid: 202d169a028b98b40a693c6e1497c7b4, type: 3}
+      propertyPath: m_Size.z
+      value: 0.3720703
+      objectReference: {fileID: 0}
+    - target: {fileID: 9049855109077713359, guid: 202d169a028b98b40a693c6e1497c7b4, type: 3}
+      propertyPath: m_Center.x
+      value: 0.04196167
+      objectReference: {fileID: 0}
+    - target: {fileID: 9049855109077713359, guid: 202d169a028b98b40a693c6e1497c7b4, type: 3}
+      propertyPath: m_Center.z
+      value: -0.09197998
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -4755,6 +4565,26 @@ PrefabInstance:
     - target: {fileID: 1183597420459118233, guid: 0ce47c412a1eac24f8acab239dde8b8b, type: 3}
       propertyPath: m_IsActive
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3921236577750788009, guid: 0ce47c412a1eac24f8acab239dde8b8b, type: 3}
+      propertyPath: m_Size.z
+      value: 0.47595215
+      objectReference: {fileID: 0}
+    - target: {fileID: 3921236577750788009, guid: 0ce47c412a1eac24f8acab239dde8b8b, type: 3}
+      propertyPath: m_Center.z
+      value: 0.07745361
+      objectReference: {fileID: 0}
+    - target: {fileID: 6926586939261057629, guid: 0ce47c412a1eac24f8acab239dde8b8b, type: 3}
+      propertyPath: m_Speed
+      value: 1.3
+      objectReference: {fileID: 0}
+    - target: {fileID: 6926586939261057629, guid: 0ce47c412a1eac24f8acab239dde8b8b, type: 3}
+      propertyPath: m_AngularSpeed
+      value: 360
+      objectReference: {fileID: 0}
+    - target: {fileID: 6926586939261057629, guid: 0ce47c412a1eac24f8acab239dde8b8b, type: 3}
+      propertyPath: m_StoppingDistance
+      value: 0.1
       objectReference: {fileID: 0}
     - target: {fileID: 8588072566723524353, guid: 0ce47c412a1eac24f8acab239dde8b8b, type: 3}
       propertyPath: m_LocalPosition.x
