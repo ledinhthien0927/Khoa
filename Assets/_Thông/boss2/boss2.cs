@@ -19,6 +19,12 @@ public class Boss2 : MonoBehaviour, IDamageable
     public Slider HealthBarSlider;
     public GameObject HealthBarObj;
 
+    [Header("VFX & Trail Settings")]
+    public TrailRenderer WeaponTrail; 
+    public ParticleSystem MoveDustVFX;
+    public GameObject DeathDustVFX; 
+    public float FadeOutDuration = 3.0f;
+
     [Header("Hit Reaction")]
     public float HitReactionCooldown = 3.0f; 
     private float _hitReactionTimer = 0f;    
@@ -65,8 +71,9 @@ public class Boss2 : MonoBehaviour, IDamageable
     public float SmashAngle = 60f;     
     public float SmashDamage = 35f;
     public float SmashKnockback = 12.0f; 
+    public float SmashShakeDuration = 0.3f; 
+    public float SmashShakeMagnitude = 0.8f; 
 
-    // --- SKILL 4: FIRE ORBS (BIDA) ---
     [Header("SKILL 4: FIRE ORBS (BIDA)")]
     public bool EnableFireOrbs = true;
     public GameObject FireOrbPrefab; 
@@ -75,10 +82,7 @@ public class Boss2 : MonoBehaviour, IDamageable
     public float FireOrbCastTime = 1.0f; 
     public float FireOrbDuration = 10.0f;
     public float FireOrbSpeed = 8.0f;
-    
-    [Tooltip("Bán kính vùng di chuyển (rộng hơn)")]
-    public float OrbBoundaryRadius = 10.0f; // [MỚI] Tăng lên 10 cho rộng
-    
+    public float OrbBoundaryRadius = 10.0f; 
     public float OrbDamage = 15f;
 
     [Header("Other Settings")]
@@ -108,6 +112,19 @@ public class Boss2 : MonoBehaviour, IDamageable
     private float _strafeChangeTimer;
     private GameObject _activeBuffInstance; 
 
+    // ==========================================
+    // CÁC HÀM GỌI TỪ ANIMATION EVENT
+    // ==========================================
+    public void EnableTrail() { if (WeaponTrail != null) WeaponTrail.emitting = true; }
+    public void DisableTrail() { if (WeaponTrail != null) WeaponTrail.emitting = false; }
+    public void TriggerSmashShake()
+    {
+        if (BossCameraShake.Instance != null)
+        {
+            BossCameraShake.Instance.Shake(SmashShakeDuration, SmashShakeMagnitude);
+        }
+    }
+
     void Start()
     {
         _agent = GetComponent<NavMeshAgent>();
@@ -125,6 +142,7 @@ public class Boss2 : MonoBehaviour, IDamageable
 
         if (SpinIndicatorObj != null) SpinIndicatorObj.SetActive(false);
         if (FireRingVFXObj != null) FireRingVFXObj.SetActive(false);
+        if (WeaponTrail != null) WeaponTrail.emitting = false;
     }
 
     void Update()
@@ -146,6 +164,7 @@ public class Boss2 : MonoBehaviour, IDamageable
         if (_fireOrbTimer > 0) _fireOrbTimer -= Time.deltaTime; 
 
         HandleAnimation();
+        HandleDustVFX(); 
 
         switch (CurrentState)
         {
@@ -163,6 +182,16 @@ public class Boss2 : MonoBehaviour, IDamageable
             case State.Hit: FaceTarget(); break;
             case State.Retreating: LogicRetreating(); break;
         }
+    }
+
+    void HandleDustVFX()
+    {
+        if (MoveDustVFX == null) return;
+        bool isMoving = _agent != null && _agent.velocity.sqrMagnitude > 0.1f;
+        bool canPlay = isMoving && CurrentState != State.Dead && CurrentState != State.PhaseChange && CurrentState != State.Idle;
+
+        if (canPlay) { if (!MoveDustVFX.isPlaying) MoveDustVFX.Play(); }
+        else { if (MoveDustVFX.isPlaying) MoveDustVFX.Stop(); }
     }
 
     IEnumerator PhaseChangeRoutine()
@@ -186,7 +215,7 @@ public class Boss2 : MonoBehaviour, IDamageable
         yield return new WaitForSeconds(Phase2AnimDuration);
         RunSpeed *= 1.3f; SpinMoveSpeed *= 1.3f; SpinCooldown *= 0.6f; FireRingCooldown *= 0.6f; SmashCooldown *= 0.6f; FireOrbCooldown *= 0.6f;
         Renderer[] rends = GetComponentsInChildren<Renderer>();
-        foreach (Renderer r in rends) { if (r != null && r.material != null) r.material.color = Color.red; }
+        foreach (Renderer r in rends) { if (r != null && r.material != null) { if (r.material.HasProperty("_BaseColor")) r.material.SetColor("_BaseColor", Color.red); r.material.color = Color.red; } }
         if (_agent != null && _agent.isOnNavMesh) _agent.isStopped = false;
         CurrentState = State.Strafing; _timer = 0.5f; 
     }
@@ -198,7 +227,6 @@ public class Boss2 : MonoBehaviour, IDamageable
     void LogicApproaching() 
     { 
         float dist = Vector3.Distance(transform.position, _player.position); 
-        // Logic ưu tiên Skill
         if (EnableFireOrbs && _fireOrbTimer <= 0 && dist <= OrbBoundaryRadius - 1.0f) { StartCoroutine(FireOrbRoutine()); return; }
         if (EnableFireRing && _fireRingTimer <= 0 && dist <= FireRingRadius + 1.0f) { StartCoroutine(FireRingRoutine()); return; } 
         if (EnableSmash && _smashTimer <= 0 && dist <= SmashRange && dist > AttackRange) { StartCoroutine(GroundSmashRoutine()); return; } 
@@ -212,40 +240,24 @@ public class Boss2 : MonoBehaviour, IDamageable
 
     IEnumerator FireOrbRoutine()
     {
-        CurrentState = State.SummonOrbs;
-        _fireOrbTimer = FireOrbCooldown;
-        _agent.isStopped = true;
-        _agent.velocity = Vector3.zero;
-
-        FaceTarget();
-        _animator.SetTrigger("SummonTrigger"); 
-
+        CurrentState = State.SummonOrbs; _fireOrbTimer = FireOrbCooldown; _agent.isStopped = true; _agent.velocity = Vector3.zero;
+        FaceTarget(); _animator.SetTrigger("SummonTrigger"); 
         yield return new WaitForSeconds(FireOrbCastTime * 0.5f);
-
         if (FireOrbPrefab != null)
         {
             float angleStep = 360f / OrbCount;
-            // Spawn theo vòng tròn xung quanh boss để chúng tách nhau ra ngay từ đầu
             for (int i = 0; i < OrbCount; i++)
             {
                 float angle = i * angleStep;
-                Vector3 offset = Quaternion.Euler(0, angle, 0) * Vector3.forward * 2.0f; // Cách boss 2m
-                Vector3 spawnPos = transform.position + offset;
-                spawnPos.y = transform.position.y + 1.5f; 
-
+                Vector3 offset = Quaternion.Euler(0, angle, 0) * Vector3.forward * 2.0f; 
+                Vector3 spawnPos = transform.position + offset; spawnPos.y = transform.position.y + 1.5f; 
                 GameObject orb = Instantiate(FireOrbPrefab, spawnPos, Quaternion.identity);
                 BossFireOrb orbScript = orb.GetComponent<BossFireOrb>();
-                if (orbScript != null)
-                {
-                    orbScript.Setup(transform, FireOrbSpeed, OrbBoundaryRadius, OrbDamage, FireOrbDuration);
-                }
+                if (orbScript != null) orbScript.Setup(transform, FireOrbSpeed, OrbBoundaryRadius, OrbDamage, FireOrbDuration);
             }
         }
-
         yield return new WaitForSeconds(FireOrbCastTime * 0.5f);
-        _agent.isStopped = false;
-        CurrentState = State.Strafing;
-        _timer = 1.0f;
+        _agent.isStopped = false; CurrentState = State.Strafing; _timer = 1.0f;
     }
 
     IEnumerator GroundSmashRoutine() { CurrentState = State.GroundSmash; _smashTimer = SmashCooldown; _agent.isStopped = true; _agent.velocity = Vector3.zero; if (_player != null) { Vector3 t = _player.position; t.y = transform.position.y; transform.LookAt(t); } _animator.SetTrigger("SmashTrigger"); yield return new WaitForSeconds(SmashCastTime); if (SmashVFXPrefab != null) { Quaternion r = transform.rotation * Quaternion.Euler(SmashRotationOffset); GameObject v = Instantiate(SmashVFXPrefab, transform.position, r); Destroy(v, 2.0f); } CheckSmashHit(); yield return new WaitForSeconds(1.0f); _agent.isStopped = false; CurrentState = State.Strafing; _timer = 1.0f; }
@@ -257,7 +269,97 @@ public class Boss2 : MonoBehaviour, IDamageable
     IEnumerator HitReactionRoutine() { if (CurrentState == State.PhaseChange) yield break; CurrentState = State.Hit; _agent.isStopped = true; _agent.velocity = Vector3.zero; _animator.SetTrigger("Hit"); yield return new WaitForSeconds(0.5f); _agent.isStopped = false; CurrentState = State.Strafing; _timer = 1f; }
     public HitResult TakeDamage(DamageInfo info) { if (CurrentState == State.Dead) return HitResult.Ignored; CurrentHealth -= info.amount; UpdateHealthUI(); if (CurrentHealth <= 0) { Die(); return HitResult.Critical; } if (CurrentState == State.Spinning || CurrentState == State.FireRing || CurrentState == State.GroundSmash || CurrentState == State.PhaseChange || CurrentState == State.SummonOrbs) return HitResult.Hit; if (_hitReactionTimer > 0) return HitResult.Hit; StopAllCoroutines(); StartCoroutine(HitReactionRoutine()); _hitReactionTimer = HitReactionCooldown; return HitResult.Hit; }
     void DealDamageToPlayer(float dmg, float force, DamageType type, float stunDuration) { if (_playerCombat != null && Vector3.Distance(transform.position, _player.position) <= 20f) { Vector3 pushDir = (_player.position - transform.position).normalized; pushDir.y = 0; _playerCombat.TakeDamage(new DamageInfo { amount = dmg, attacker = gameObject, hitPoint = _player.position, hitDirection = pushDir, knockbackForce = force, type = type, duration = stunDuration }); } }
-    void Die() { CurrentState = State.Dead; _agent.isStopped = true; StopAllCoroutines(); _animator.SetTrigger("Die"); if (SpinIndicatorObj != null) SpinIndicatorObj.SetActive(false); if (FireRingVFXObj != null) FireRingVFXObj.SetActive(false); if (_activeBuffInstance != null) Destroy(_activeBuffInstance); Destroy(gameObject, 5f); this.enabled = false; }
+    
+    void Die() 
+    { 
+        CurrentState = State.Dead; 
+        if (_agent != null && _agent.isOnNavMesh) _agent.isStopped = true; 
+        StopAllCoroutines(); 
+        _animator.SetTrigger("Die"); 
+        
+        if (SpinIndicatorObj != null) SpinIndicatorObj.SetActive(false); 
+        if (FireRingVFXObj != null) FireRingVFXObj.SetActive(false); 
+        if (_activeBuffInstance != null) Destroy(_activeBuffInstance); 
+        
+        // Tắt va chạm và máu
+        if (TryGetComponent(out Collider col)) col.enabled = false; 
+        if (HealthBarObj != null) HealthBarObj.SetActive(false);
+
+        // Gọi Banner
+        if (BossDefeatBanner.Instance != null)
+        {
+            BossDefeatBanner.Instance.ShowBanner(); 
+        }
+
+        // Sinh bụi
+        if (DeathDustVFX != null)
+        {
+            GameObject dust = Instantiate(DeathDustVFX, transform.position, Quaternion.identity);
+            Destroy(dust, 5.0f);
+        }
+
+        // Mờ xác
+        StartCoroutine(FadeOutCorpseRoutine());
+        this.enabled = false; 
+    }
+
+    IEnumerator FadeOutCorpseRoutine()
+    {
+        yield return new WaitForSeconds(2.0f);
+
+        Renderer[] allRenderers = GetComponentsInChildren<Renderer>();
+        System.Collections.Generic.List<Renderer> validRenderers = new System.Collections.Generic.List<Renderer>();
+        
+        foreach (Renderer r in allRenderers)
+        {
+            if (r is ParticleSystemRenderer || r is TrailRenderer) continue; 
+            validRenderers.Add(r);
+        }
+
+        foreach (Renderer r in validRenderers)
+        {
+            if (r == null || r.materials == null) continue;
+            foreach (Material m in r.materials)
+            {
+                if (m.HasProperty("_Surface"))
+                {
+                    m.SetFloat("_Surface", 1.0f); 
+                    m.SetOverrideTag("RenderType", "Transparent");
+                    m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                    m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                    m.SetInt("_ZWrite", 0); 
+                    m.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                    m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                }
+            }
+        }
+
+        float elapsed = 0f;
+        while (elapsed < FadeOutDuration)
+        {
+            elapsed += Time.deltaTime;
+            float alpha = Mathf.Lerp(1f, 0f, elapsed / FadeOutDuration);
+
+            foreach (Renderer r in validRenderers)
+            {
+                if (r == null || r.materials == null) continue;
+                foreach (Material m in r.materials)
+                {
+                    if (m.HasColor("_BaseColor")) 
+                    {
+                        Color c = m.GetColor("_BaseColor"); c.a = alpha; m.SetColor("_BaseColor", c);
+                    }
+                    else if (m.HasColor("_Color")) 
+                    {
+                        Color c = m.GetColor("_Color"); c.a = alpha; m.SetColor("_Color", c);
+                    }
+                }
+            }
+            yield return null; 
+        }
+        Destroy(gameObject);
+    }
+
     void UpdateHealthUI() { if (HealthBarSlider != null) HealthBarSlider.value = CurrentHealth; }
     bool CheckForPlayer() { if (_player != null && Vector3.Distance(transform.position, _player.position) <= 15f) { CurrentState = State.Chasing; return true; } return false; }
     void HandleAnimation() { Vector3 v = transform.InverseTransformDirection(_agent.velocity); _animator.SetFloat("InputX", v.z, 0.1f, Time.deltaTime); _animator.SetFloat("InputY", -v.x, 0.1f, Time.deltaTime); }

@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 353b3fd0dc7a4ca4f8895382cff085b7
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures: []
+  nonModifiableTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 242574
+  packageName: Trails VFX - URP
+  packageVersion: 1.0.20251
+  assetPath: Assets/Vefects/Trails VFX URP/_ Extra/Shaders/SH_Vefects_Extra_Billboard_01.shader
+  uploadId: 770211
