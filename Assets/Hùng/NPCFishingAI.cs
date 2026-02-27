@@ -5,6 +5,10 @@ public class NPCFishingAI : MonoBehaviour
 {
     public Animator animator;
     public Transform bobber;
+    public GameObject fishPrefab;
+    public Transform hookPoint;
+    public Transform basketPoint;
+
 
     public float minWaitTime = 15f;
     public float maxWaitTime = 30f;
@@ -39,13 +43,39 @@ public class NPCFishingAI : MonoBehaviour
             else
             {
                 animator.SetTrigger("PullFish");
+                SpawnFish();
                 Debug.Log("Bắt được cá!");
             }
 
             yield return new WaitForSeconds(3f);
         }
     }
+    void SpawnFish()
+    {
+        GameObject fish = Instantiate(fishPrefab, hookPoint.position, Quaternion.identity);
+        fish.transform.SetParent(hookPoint);
 
+        StartCoroutine(MoveFishToBasket(fish));
+    }
+
+    IEnumerator MoveFishToBasket(GameObject fish)
+    {
+        yield return new WaitForSeconds(2f);
+
+        fish.transform.SetParent(null);
+
+        float t = 0;
+        Vector3 startPos = fish.transform.position;
+
+        while (t < 1f)
+        {
+            fish.transform.position = Vector3.Lerp(startPos, basketPoint.position, t);
+            t += Time.deltaTime;
+            yield return null;
+        }
+
+        fish.transform.position = basketPoint.position;
+    }
     IEnumerator BobberDip()
     {
         Vector3 downPos = bobberStartPos + Vector3.down * 0.3f;
