@@ -1,17 +1,15 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+// Dòng này giúp Unity tự động thêm Collider nếu bạn quên
+[RequireComponent(typeof(Collider))] 
 public class SwordWeapon : MonoBehaviour
 {
     [Header("Config")]
     public float damage = 20f;
     public float knockback = 5f;
 
-    [Header("Attached VFX - Kéo 3 cái VFX con vào đây")]
-    // [THAY ĐỔI] Đây là list các object đang gắn trên người, không phải Prefab
-    public List<ParticleSystem> slashVfxObjects; 
-
-    [Header("Hit VFX - Hiệu ứng nổ khi trúng (Vẫn dùng Prefab)")]
+    [Header("Hit VFX - Hiệu ứng nổ khi trúng")]
     public GameObject hitVfxPrefab; 
 
     private Collider _col;
@@ -20,49 +18,32 @@ public class SwordWeapon : MonoBehaviour
     void Awake()
     {
         _col = GetComponent<Collider>();
-        _col.enabled = false; 
-
-        // Tắt hết các VFX lúc đầu game cho chắc ăn
-        if (slashVfxObjects != null)
+        
+        // Kiểm tra an toàn
+        if (_col != null)
         {
-            foreach (var vfx in slashVfxObjects)
-            {
-                if (vfx != null) vfx.gameObject.SetActive(false);
-            }
+            _col.isTrigger = true; // Đảm bảo nó là dạng Trigger để không đẩy lùi nhân vật
+            _col.enabled = false; 
+        }
+        else
+        {
+            Debug.LogError("⚠️ Cây kiếm chưa được gắn BoxCollider!");
         }
     }
 
     // Hàm gọi khi chém (Nhận vào step 1, 2, 3)
     public void StartAttack(int comboStep)
     {
-        _col.enabled = true;
+        if (_col != null) _col.enabled = true;
         _hitList.Clear();
-
-        // 1. Tính toán index (Combo 1 là index 0)
-        int index = comboStep - 1;
-
-        // 2. Kích hoạt VFX có sẵn trên người
-        if (slashVfxObjects != null && index >= 0 && index < slashVfxObjects.Count)
-        {
-            ParticleSystem vfx = slashVfxObjects[index];
-            
-            if (vfx != null)
-            {
-                // Bật GameObject lên
-                vfx.gameObject.SetActive(true);
-                
-                // Reset và Chạy lại từ đầu (Quan trọng để nó chém cái mới)
-                vfx.Stop(); 
-                vfx.Play();
-            }
-        }
+        
+        // Đã xóa phần VFX lặp ở đây vì PlayerController đã đảm nhận
     }
 
     public void StopAttack()
     {
-        _col.enabled = false;
-        // Không cần tắt VFX ở đây, cứ để nó chạy hết vòng đời (Lifetime) rồi tự tắt
-        // Hoặc nếu muốn tắt ngay lập tức thì gọi vfx.Stop()
+        // Thêm kiểm tra an toàn: Nếu có _col thì mới tắt, tránh lỗi NullReferenceException
+        if (_col != null) _col.enabled = false;
     }
 
     void OnTriggerEnter(Collider other)
@@ -71,7 +52,7 @@ public class SwordWeapon : MonoBehaviour
         {
             _hitList.Add(other.gameObject);
 
-            // Hiệu ứng nổ trúng đích (Vẫn cần Instantiate vì nó nằm ở vị trí va chạm)
+            // Hiệu ứng nổ trúng đích
             if (hitVfxPrefab != null)
             {
                 Vector3 hitPos = other.ClosestPoint(transform.position);

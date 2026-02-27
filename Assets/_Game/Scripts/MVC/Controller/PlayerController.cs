@@ -36,38 +36,37 @@ public class PlayerController : MonoBehaviour, IDamageable
     // =========================================================
     //                KỊCH BẢN KHỞI ĐẦU (INTRO)
     // =========================================================
-    // IEnumerator Start()
-    // {
-    //     // Kiểm tra Load Game: Nếu đã có nhiệm vụ -> Bỏ qua Intro
-    //     // if (QuestManager.Instance != null && QuestManager.Instance.princeState != PrinceQuestState.None)
-    //     // {
-    //     //     _canControl = true;
-    //     //     if (view) view.ToggleCombatUI(true);
-    //     //     if (view) view.SwitchWeaponVisuals(model.currentWeapon);
-    //     //     yield break; 
-    //     // }
-
-    //     // Nếu New Game
-    //     model.hasSword = false;
-    //     model.hasBow = false;
-    //     model.currentWeapon = WeaponType.Sword; 
-
-    //     if (view) view.UpdateWeaponVisuals(false, false);
-
-    //     _canControl = false;
-    //     model.currentVelocity = Vector3.zero;
-    //     if (view) view.ToggleCombatUI(false); 
-
-    //     if (view) view.TriggerWakeUp();
-
-    //     yield return new WaitForSeconds(0.2f);
-
-    //     _canControl = true;
-    //     if (view) view.ToggleCombatUI(true); 
-    // }
-    void Start()
+    IEnumerator Start()
     {
-        // Để trống hoàn toàn. Mọi việc đã có GameIntroManager và GameSaveManager lo!
+        // 1. Dùng mẹo đợi 1 frame để đảm bảo GameSaveManager đã LoadGame() xong
+        yield return null; 
+
+        // 2. Kiểm tra: Nếu nhân vật đã có vũ khí (do SaveGame cấp lại), bỏ qua Intro
+        if (model.hasSword || model.hasBow)
+        {
+            _canControl = true;
+            if (view) view.ToggleCombatUI(true);
+            
+            // Ép model vũ khí hiện ra tay
+            if (view) view.SwitchWeaponVisuals(model.currentWeapon);
+            yield break; // Thoát hàm lập tức, không chạy Intro "tỉnh dậy" nữa
+        }
+
+        // 3. Nếu không có vũ khí (New Game thật sự), mới chạy Intro
+        if (view) view.UpdateWeaponVisuals(false, false);
+
+        _canControl = false;
+        model.currentVelocity = Vector3.zero;
+        if (view) view.ToggleCombatUI(false); 
+
+        // Chạy animation thức dậy
+        if (view) view.TriggerWakeUp();
+
+        // Đợi animation chạy xong (bạn có thể điều chỉnh thời gian này nếu cần)
+        yield return new WaitForSeconds(0.2f);
+
+        _canControl = true;
+        if (view) view.ToggleCombatUI(true); 
     }
 
     void Awake()

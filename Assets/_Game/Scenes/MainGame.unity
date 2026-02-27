@@ -73905,10 +73905,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SwordWeapon
   damage: 20
   knockback: 5
-  slashVfxObjects:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
   hitVfxPrefab: {fileID: 0}
 --- !u!1001 &591592997
 PrefabInstance:
