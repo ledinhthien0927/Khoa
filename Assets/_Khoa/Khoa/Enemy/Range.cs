@@ -1,158 +1,180 @@
 using UnityEngine;
+using System.Collections; // Thêm thư viện này để dùng IEnumerator (Coroutine)
 
-[RequireComponent(typeof(LineRenderer))] // Tự động thêm component vẽ tia laser
+[RequireComponent(typeof(LineRenderer))] 
 public class RangedMonster : MonsterController
 {
     [Header("Ranged Settings")]
     public GameObject bulletPrefab; 
     public Transform firePoint;     
-
-    [Header("Aim Settings (Ngắm bắn)")]
-    [Tooltip("Thời gian ngắm trước khi bắn (giây)")]
-    public float aimDuration = 0.5f; 
-    public bool useLaserSight = true; // Có bật tia laser không?
-
-    // Biến nội bộ quản lý trạng thái
+    public float aimDuration = 0.5f; // Sniper thì chỉnh cái này cao lên (vd: 2.5)
+    
+    [Header("Animation Settings")]
+    [Tooltip("Tên trigger tấn công. Quái thường điền 'attack', Sniper điền 'Fire'")]
+    public string attackAnimTrigger = "attack"; 
+    
+    [Tooltip("Thời gian đứng yên sau khi bắn để diễn Animation giật súng (Ví dụ: 0.5s)")]
+    public float fireAnimationTime = 0.5f; 
+    
     private bool isAiming = false;
-    private float currentAimTime = 0f;
+    private bool isFiring = false; // Biến khóa AI trong lúc đang diễn hoạt hình bắn
+    private float aimTimer = 0f;
     private LineRenderer laserLine;
 
     protected override void Start()
     {
         base.Start();
         
-        // Setup Laser đơn giản bằng code
+        // Setup Laser ngắm bắn
         laserLine = GetComponent<LineRenderer>();
-        laserLine.positionCount = 2; // Điểm đầu và cuối
-        laserLine.startWidth = 0.02f; // Tia nhỏ
-        laserLine.endWidth = 0.02f;
-        laserLine.material = new Material(Shader.Find("Sprites/Default")); // Material mặc định
+        laserLine.positionCount = 2; 
+        laserLine.startWidth = 0.05f; laserLine.endWidth = 0.05f;
+        // Tạo material đỏ cho laser nếu chưa có
+        if (laserLine.material == null)
+             laserLine.material = new Material(Shader.Find("Sprites/Default")); 
+        
         laserLine.startColor = Color.red;
-        laserLine.endColor = new Color(1, 0, 0, 0); // Đỏ mờ dần ở đuôi
-        laserLine.enabled = false; // Mặc định tắt
+        laserLine.endColor = new Color(1, 0, 0, 0);
+        laserLine.enabled = false; 
     }
 
     public override void OnCombatBehavior(Transform player)
     {
-        // --- 1. ƯU TIÊN CAO NHẤT: ĐANG NGẮM THÌ CHỈ XOAY VÀ CHỜ ---
+        // Nếu bị đánh hoặc chết thì hủy ngắm ngay
+        if (isHit || isDead) { StopAiming(); return; }
+
+        // [QUAN TRỌNG] Nếu đang bóp cò/giật súng -> Khóa AI, không cho chạy hay ngắm tiếp
+        if (isFiring) return;
+
+        float distance = Vector3.Distance(transform.position, player.position);
+
+        // --- 1. ƯU TIÊN XỬ LÝ NGẮM BẮN ---
+        // Nếu đang ngắm dở -> Phải đứng im ngắm cho xong (bất kể xa gần)
         if (isAiming)
         {
-            HandleAimingState(player);
-            return; // Dừng hàm tại đây, không chạy code di chuyển bên dưới
+            HandleAiming(player);
+            return;
         }
 
-        // --- 2. LOGIC DI CHUYỂN BÌNH THƯỜNG ---
-        float distance = Vector3.Distance(transform.position, player.position);
-        float safeDistance = data.attackRange * 0.5f;
-
-        // Xa quá -> Lại gần
+        // --- 2. LOGIC DI CHUYỂN ---
+        // Xa quá -> Chạy lại gần
         if (distance > data.attackRange)
         {
-            MoveToPosition(player.position, false);
+            MoveToPosition(player.position, true); // true = Bỏ qua stopping distance để tự xử lý
         }
-        // Gần quá -> Lùi lại (Kiting)
-        else if (distance < safeDistance)
+        // Gần quá -> Lùi lại (Thả diều)
+        else if (distance < data.attackRange * 0.4f)
         {
-            Vector3 dirAway = (transform.position - player.position).normalized;
-            MoveToPosition(transform.position + dirAway * 5f, true);
+            Vector3 dir = (transform.position - player.position).normalized;
+            MoveToPosition(transform.position + dir * 3f, true);
         }
-        // Trong tầm bắn
+        // Vừa tầm -> Kiểm tra tầm nhìn
         else
         {
             if (MonsterManager.Instance.CanSeePlayer(this))
             {
+                // Thấy Player -> Đứng lại & Bắn
                 StopMoving();
                 RotateTowards(player.position);
-
-                // Kiểm tra Cooldown
-                if (CanAttack())
-                {
-                    StartAiming(); // Bắt đầu quy trình ngắm
-                }
+                
+                if (CanAttack()) StartAiming();
             }
             else
             {
-                // Bị tường che -> Di chuyển tìm góc
-                MoveToPosition(player.position, false);
+                // Bị tường che -> Di chuyển tìm góc bắn
+                MoveToPosition(player.position, true);
             }
         }
     }
 
-    // --- CÁC HÀM XỬ LÝ AIMING ---
+    // Hàm xử lý trong lúc đang ngắm (được gọi liên tục mỗi khung hình)
+    void HandleAiming(Transform player)
+    {
+        // Ép đứng im tuyệt đối khi ngắm
+        StopMoving();
+        RotateTowards(player.position);
+        
+        // Vẽ tia Laser
+        if (firePoint != null) {
+            laserLine.SetPosition(0, firePoint.position);
+            laserLine.SetPosition(1, player.position + Vector3.up);
+        }
+
+        // Nếu Player chạy khuất tầm nhìn -> Hủy ngắm
+        if (!MonsterManager.Instance.CanSeePlayer(this)) {
+            StopAiming();
+            return;
+        }
+
+        // Đếm giờ ngắm
+        aimTimer += Time.deltaTime;
+        
+        // Đủ giờ -> BẮN (Gọi Coroutine thay vì gọi hàm thường)
+        if (aimTimer >= aimDuration && !isFiring) 
+        {
+            StartCoroutine(FireRoutine(player.position + Vector3.up));
+        }
+    }
 
     void StartAiming()
     {
         isAiming = true;
-        currentAimTime = 0f;
-
-        // Chạy animation giơ súng
-        if (anim != null) anim.SetTrigger("attack");
-
-        // Bật Laser
-        if (useLaserSight) laserLine.enabled = true;
-
-        Debug.Log($"<color=orange>{gameObject.name} ĐANG NGẮM...</color>");
-    }
-
-    void HandleAimingState(Transform player)
-    {
-        // 1. Đứng yên và luôn xoay mặt về phía Player (Tracking)
-        StopMoving();
-        RotateTowards(player.position);
-
-        // 2. Vẽ tia Laser cập nhật liên tục
-        if (useLaserSight)
-        {
-            laserLine.SetPosition(0, firePoint.position);
-            laserLine.SetPosition(1, player.position + Vector3.up * 1.0f); // Nhắm vào ngực
-        }
-
-        // 3. Kiểm tra: Nếu Player chạy khuất tường -> Hủy bắn
-        if (!MonsterManager.Instance.CanSeePlayer(this))
-        {
-            CancelShot();
-            return;
-        }
-
-        // 4. Đếm thời gian
-        currentAimTime += Time.deltaTime;
-        if (currentAimTime >= aimDuration)
-        {
-            FireBullet();
-        }
-    }
-
-    void FireBullet()
-    {
-        if (bulletPrefab != null && firePoint != null)
-        {
-            // Bắn đạn theo hướng xoay của firePoint (lúc này đã chuẩn hướng Player)
-            Instantiate(bulletPrefab, firePoint.position, firePoint.rotation);
-            Debug.Log($"<color=cyan>[Ranged] {gameObject.name} BẮN ĐẠN!</color>");
-        }
-        else
-        {
-            Debug.LogError($"[Lỗi] {gameObject.name} thiếu Bullet Prefab hoặc Fire Point!");
-        }
-
-        // Kết thúc ngắm -> Reset timer Cooldown
-        StopAiming();
+        aimTimer = 0f;
+        laserLine.enabled = true;
         
-        // Lưu ý: CanAttack() trong MonsterController dùng Time.time để check, 
-        // nên việc gọi FireBullet xong ta để timer tự trôi là ổn, hoặc nếu cần reset thủ công:
-        // ResetAttackTimer(); 
-    }
-
-    void CancelShot()
-    {
-        Debug.Log("Mất dấu mục tiêu! Hủy bắn.");
-        StopAiming();
+        if (anim != null) anim.SetBool("isAiming", true);
     }
 
     void StopAiming()
     {
         isAiming = false;
         if (laserLine != null) laserLine.enabled = false;
-        currentAimTime = 0f;
+        
+        if (anim != null) anim.SetBool("isAiming", false);
+        
+        // Mở lại khả năng di chuyển cho NavMesh
+        if (agent != null && agent.enabled && agent.isOnNavMesh) agent.isStopped = false;
+    }
+
+    // [CẬP NHẬT] Chuyển thành Coroutine để đợi Animation chạy xong
+    IEnumerator FireRoutine(Vector3 targetPos)
+    {
+        isFiring = true; // Khóa AI
+
+        // Tắt ngắm và Kích hoạt Animation Bắn (Lấy tên Trigger từ Inspector)
+        if (anim != null)
+        {
+            anim.SetBool("isAiming", false); 
+            anim.SetTrigger(attackAnimTrigger);         
+        }
+
+        // Sinh ra viên đạn
+        if (bulletPrefab != null && firePoint != null)
+        {
+            Vector3 dir = (targetPos - firePoint.position).normalized;
+            GameObject bullet = Instantiate(bulletPrefab, firePoint.position, Quaternion.LookRotation(dir));
+            
+            // Xử lý màu Trail cho đẹp (nếu có)
+            TrailRenderer trail = bullet.GetComponent<TrailRenderer>();
+            if (trail != null) {
+                 trail.startColor = laserLine.startColor;
+                 trail.endColor = new Color(laserLine.startColor.r, laserLine.startColor.g, laserLine.startColor.b, 0f);
+            }
+        }
+        
+        // Tắt tia Laser
+        StopAiming();
+
+        // Chờ một nhịp cho quái diễn xong hành động giật súng / quăng đạn
+        yield return new WaitForSeconds(fireAnimationTime);
+
+        isFiring = false; // Mở khóa AI để nó tiếp tục chạy hoặc bắn phát tiếp theo
+    }
+    
+    // Khi bị đánh trúng -> Hủy ngắm ngay để hiện animation bị thương (Hurt)
+    public override HitResult TakeDamage(DamageInfo info)
+    {
+        StopAiming(); 
+        return base.TakeDamage(info);
     }
 }

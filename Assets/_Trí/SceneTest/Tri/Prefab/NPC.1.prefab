@@ -620,15 +620,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DialogueUI
   panel: {fileID: 6493909898807863837}
-  npcNameText: {fileID: 1823307950876246106}
-  dialogueText: {fileID: 1874252577789618896}
-  nextButton: {fileID: 5994909721438317769}
-  skipButton: {fileID: 9047788382100205327}
-  typingSpeed: 0.035
-  typingSound: {fileID: 4555420126157457882}
-  text: {fileID: 1823307950876246106}
-  normalColor: {r: 1, g: 1, b: 1, a: 1}
-  pressedColor: {r: 1, g: 0, b: 0, a: 1}
+  nameText: {fileID: 0}
+  contentText: {fileID: 0}
+  skipBtn: {fileID: 0}
+  acceptBtn: {fileID: 0}
+  spaceHint: {fileID: 0}
+  speed: 0.03
 --- !u!82 &4555420126157457882
 AudioSource:
   m_ObjectHideFlags: 0
@@ -1157,9 +1154,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aa6c4ca3e7f1b3d4bab4edeb22d658e1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DialogueCamera
-  zoomFOV: 90
+  mainCam: {fileID: 0}
+  dialogueCam: {fileID: 0}
   moveSpeed: 6
-  rotateSpeed: 8
+  focusDuration: 0.7
+  normalFOV: 60
+  closeFOV: 35
+  offset: {x: 0, y: 1.6, z: 2}
 --- !u!1 &9036596658236872153
 GameObject:
   m_ObjectHideFlags: 0
@@ -1615,17 +1616,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 2241698301448737553, guid: ee4528e5d428b224e928c3e4b57bdd78, type: 3}
   m_PrefabInstance: {fileID: 5134386425319305678}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &8602369620305565192 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 3467983745012885446, guid: ee4528e5d428b224e928c3e4b57bdd78, type: 3}
-  m_PrefabInstance: {fileID: 5134386425319305678}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8928493646177734546}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f19c4041ee66c0249b65d8ea5dbdacc3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NPCController
 --- !u!1 &8928493646177734546 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 4371131472879238748, guid: ee4528e5d428b224e928c3e4b57bdd78, type: 3}
@@ -1664,7 +1654,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: be24cf0f5c8741948be62f56aedb9ecc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCInteractionPrompt
-  talkPrompt: {fileID: 0}
-  npcDialogue: {fileID: 8602369620305565192}
-  blinkSpeed: 4
-  blinkScale: 0.05
+  npc: {fileID: 0}
+  hint: {fileID: 0}
