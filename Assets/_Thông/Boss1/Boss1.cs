@@ -162,26 +162,48 @@ public class Boss1 : MonoBehaviour, IDamageable
     void HandleDustVFX()
     {
         if (MoveDustVFX == null) return;
+        
+        // Xác định xem có đang di chuyển không
         bool isMoving = _agent != null && _agent.velocity.sqrMagnitude > 0.1f;
+        
+        // Điều kiện được phép phát bụi (Lưu ý: Nếu copy cho Boss 2 thì thay State.Spawning thành State.PhaseChange)
         bool canPlay = isMoving && CurrentState != State.Dead && CurrentState != State.Spawning && CurrentState != State.Idle;
-        if (canPlay) { if (!MoveDustVFX.isPlaying) MoveDustVFX.Play(); } else { if (MoveDustVFX.isPlaying) MoveDustVFX.Stop(); }
+        
+        if (canPlay) 
+        { 
+            // 1. Bật hiệu ứng
+            if (!MoveDustVFX.isPlaying) MoveDustVFX.Play(); 
+            
+            // 2. Tính toán hướng di chuyển thực tế (bất kể Boss đang quay mặt đi đâu)
+            Vector3 moveDir = _agent.velocity.normalized;
+            moveDir.y = 0; // Bỏ qua trục Y để bụi không bị chĩa xuống đất hay chĩa lên trời
+            
+            if (moveDir != Vector3.zero)
+            {
+                // 3. Xoay cục Particle System chĩa ngược lại (-moveDir) so với hướng đang đi
+                MoveDustVFX.transform.rotation = Quaternion.LookRotation(-moveDir);
+            }
+        } 
+        else 
+        { 
+            if (MoveDustVFX.isPlaying) MoveDustVFX.Stop(); 
+        }
     }
 
-    void ActivatePhase2()
+void ActivatePhase2()
     {
         IsEnraged = true;
         RunSpeed *= 1.5f; DashInSpeed *= 1.3f;
         SkillCooldown /= 2.0f; HellfireCooldown /= 2.0f; SummonCooldown /= 2.0f;
         _skillTimer = 0; _hellfireTimer = 0; _summonTimer = 0;
+        
+        // Chỉ làm to Boss lên 1.3 lần
         transform.localScale = transform.localScale * 1.3f;
-        Renderer[] rends = GetComponentsInChildren<Renderer>();
-        foreach (Renderer r in rends) 
-        { 
-            if (r.material.HasProperty("_BaseColor")) r.material.SetColor("_BaseColor", Color.red); 
-            r.material.color = Color.red; 
-        }
+        
+        // (Đã xóa đoạn code ép đổi màu đỏ ở đây)
+        
         if (SummonVFX != null) Instantiate(SummonVFX, transform.position, Quaternion.identity);
-    }
+    }   
 
     void LogicIdle() { if (CheckForPlayer()) return; }
     
