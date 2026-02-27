@@ -2,67 +2,77 @@
 
 public class EnergyClashBar : MonoBehaviour
 {
-    [Header("UI")]
-    public RectTransform darkFill;
+    public RectTransform centerPoint;
     public RectTransform lightFill;
+    public RectTransform darkFill;
 
-    [Header("Settings")]
-    public float maxValue = 100f;
 
-    // Giá trị đối kháng:
-    // -100 = Dark thắng
-    // 0    = Cân bằng
-    // +100 = Light thắng
-    [Header("Runtime")]
-    public float balance = 0f;
+    [Header("Wave Effect")]
+    public float waveHeight = 4f;
+    public float waveSpeed = 8f;
 
-    float halfWidth;
 
-    void Start()
+    public float GetValue()
     {
-        halfWidth = ((RectTransform)transform).rect.width / 2f;
+        return value;
     }
 
-    void Update()
+
+    public float barWidth = 800f;
+
+    float value = 0f; // -1 → dark, +1 → light
+
+    public void SetValue(float lightPercent, float darkPercent)
     {
+        float target = lightPercent - darkPercent;
+        target = Mathf.Clamp(target, -1f, 1f);
+
+        value = Mathf.Lerp(value, target, Time.deltaTime * 6f);
+
         UpdateVisual();
-    }
-
-    public void AddDark(float value)
-    {
-        balance -= value;
-        balance = Mathf.Clamp(balance, -maxValue, maxValue);
-    }
-
-    public void AddLight(float value)
-    {
-        balance += value;
-        balance = Mathf.Clamp(balance, -maxValue, maxValue);
     }
 
     void UpdateVisual()
     {
-        if (balance < 0)
-        {
-            float percent = Mathf.Abs(balance) / maxValue;
-            darkFill.sizeDelta = new Vector2(halfWidth * percent, darkFill.sizeDelta.y);
-            lightFill.sizeDelta = new Vector2(0, lightFill.sizeDelta.y);
-        }
-        else
-        {
-            float percent = balance / maxValue;
-            lightFill.sizeDelta = new Vector2(halfWidth * percent, lightFill.sizeDelta.y);
-            darkFill.sizeDelta = new Vector2(0, darkFill.sizeDelta.y);
-        }
+        float half = barWidth * 0.5f;
+
+        // vị trí centerpoint
+        float centerX = value * half;
+        centerPoint.anchoredPosition =
+            new Vector2(centerX, centerPoint.anchoredPosition.y);
+
+        // chiều dài ánh sáng (từ trái → center)
+        float lightWidth = Mathf.Clamp(centerX + half, 0, barWidth);
+        lightFill.sizeDelta =
+            new Vector2(lightWidth, lightFill.sizeDelta.y);
+
+        // chiều dài bóng tối (từ phải → center)
+        float darkWidth = Mathf.Clamp(half - centerX, 0, barWidth);
+        darkFill.sizeDelta =
+            new Vector2(darkWidth, darkFill.sizeDelta.y);
+
+
+        float glow = Mathf.Abs(value);
+        centerPoint.localScale =
+        Vector3.one * (1 + glow * 0.25f);
+
+        float wave = Mathf.Sin(Time.time * waveSpeed) * waveHeight;
+
+        // Light lượn lên
+        lightFill.sizeDelta = new Vector2(
+            lightFill.sizeDelta.x,
+            80 + wave
+        );
+
+        // Dark lượn xuống (đối nghịch cho đẹp)
+        darkFill.sizeDelta = new Vector2(
+            darkFill.sizeDelta.x,
+            80 - wave
+        );
+
+
     }
 
-    public bool IsDarkWin()
-    {
-        return balance <= -maxValue;
-    }
-
-    public bool IsLightWin()
-    {
-        return balance >= maxValue;
-    }
+    public bool IsLightWin() => value >= 1f;
+    public bool IsDarkWin() => value <= -1f;
 }
