@@ -48,10 +48,8 @@ public class SmithingManager : MonoBehaviour
     public ParticleSystem completionVFX; 
     public AudioSource countAudio; 
 
-    // --- [SỬA ĐỔI MỚI] MÀU NÓNG ---
-    public Color hotColor = new Color(1f, 0.35f, 0f); // Màu đỏ cam nung
+    public Color hotColor = new Color(1f, 0.35f, 0f); 
     public Color failBlockColor = Color.black; 
-    // ------------------------------
 
     [Header("--- POOLING ---")]
     public GameObject weakPointPrefab;   
@@ -96,8 +94,7 @@ public class SmithingManager : MonoBehaviour
         if (swordObject != null) swordObject.SetActive(false);
         if (hammerObject != null) hammerObject.SetActive(false);
     }
-
-    public void StartSmithingPhase()
+public void StartSmithingPhase()
     {
         if (QuestUIManager.Instance != null)
             QuestUIManager.Instance.SetQuestUIVisible(false);
@@ -117,7 +114,6 @@ public class SmithingManager : MonoBehaviour
         if (swordObject != null) swordObject.SetActive(false);
         if (hammerObject != null) hammerObject.SetActive(false);
 
-        // Bật vũ khí tương ứng
         if (HeatingManager.CurrentWeaponType == WeaponType.Sword)
         {
             if (swordObject != null) swordObject.SetActive(true);
@@ -139,14 +135,14 @@ public class SmithingManager : MonoBehaviour
             rawIronBlock.localScale = initialBlockScale; 
         }
 
-        // --- [SỬA ĐỔI MỚI] SET MÀU NÓNG CHO BLOCK VÀ VŨ KHÍ ---
+        // ĐỒNG BỘ MÀU CHUẨN XÁC
         if (blockRenderer != null) 
         {
-            blockRenderer.material.color = hotColor; 
+            if (blockRenderer.material.HasProperty("_Color")) blockRenderer.material.SetColor("_Color", hotColor);
+            if (blockRenderer.material.HasProperty("_BaseColor")) blockRenderer.material.SetColor("_BaseColor", hotColor);
         }
-        SetWeaponColor(swordObject, hotColor);
-        SetWeaponColor(hammerObject, hotColor);
-        // ------------------------------------------------------
+        SetItemColor(swordObject, hotColor);
+        SetItemColor(hammerObject, hotColor);
 
         if (tutorialPanel != null)
         {
@@ -158,16 +154,16 @@ public class SmithingManager : MonoBehaviour
         }
     }
 
-    // --- [SỬA ĐỔI MỚI] HÀM ĐỔI MÀU NHANH ---
-    void SetWeaponColor(GameObject weaponObj, Color color)
+    // Ép màu chuẩn xác cho mọi loại Material của Model
+    void SetItemColor(GameObject obj, Color targetColor)
     {
-        if (weaponObj == null) return;
-        Renderer[] renderers = weaponObj.GetComponentsInChildren<Renderer>(true);
-        foreach(var r in renderers) {
-            r.material.color = color;
+        if (obj == null) return;
+        Renderer[] renderers = obj.GetComponentsInChildren<Renderer>(true);
+        foreach (var r in renderers) {
+            if (r.material.HasProperty("_Color")) r.material.SetColor("_Color", targetColor);
+            if (r.material.HasProperty("_BaseColor")) r.material.SetColor("_BaseColor", targetColor);
         }
     }
-    // ---------------------------------------
 
     void OpenTutorial() 
     { 
@@ -187,7 +183,7 @@ public class SmithingManager : MonoBehaviour
     
     IEnumerator CountdownRoutine()
     {
-        if (countdownText != null) 
+if (countdownText != null) 
         {
             countdownText.gameObject.SetActive(true);
             
@@ -290,8 +286,7 @@ public class SmithingManager : MonoBehaviour
             Invoke("SpawnWeakPoint", 0.3f); 
         }
     }
-
-    public GameObject GetPooledObject() 
+public GameObject GetPooledObject() 
     { 
         foreach (var obj in pooledObjects) 
         {
