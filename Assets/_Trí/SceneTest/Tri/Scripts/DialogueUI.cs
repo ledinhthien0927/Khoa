@@ -32,10 +32,9 @@ public class DialogueUI : MonoBehaviour
     System.Action onFinish;
     System.Action onAccept;
 
-    // ===== SỬA Ở ĐÂY =====
     NPCController currentNPC;
 
-    public bool IsShowing => panel.activeSelf;
+    public bool IsShowing => panel != null && panel.activeSelf;
 
     // ================= INIT =================
 
@@ -49,18 +48,18 @@ public class DialogueUI : MonoBehaviour
 
         Instance = this;
 
-        panel.SetActive(false);
+        panel?.SetActive(false);
 
-        skipBtn.gameObject.SetActive(false);
-        acceptBtn.gameObject.SetActive(false);
-        spaceHint.gameObject.SetActive(false);
+        skipBtn?.gameObject.SetActive(false);
+        acceptBtn?.gameObject.SetActive(false);
+        spaceHint?.gameObject.SetActive(false);
     }
 
     // ================= INPUT =================
 
     void Update()
     {
-        if (!panel.activeSelf) return;
+        if (!IsShowing) return;
         if (lockInput) return;
 
         if (Input.GetKeyDown(KeyCode.Space))
@@ -97,11 +96,13 @@ public class DialogueUI : MonoBehaviour
 
     void ShowLine()
     {
+        if (index < 0 || index >= lines.Length) return;
+
         DialogueLine line = lines[index];
 
         nameText.text = line.speaker;
 
-        // Camera focus
+        // Camera
         if (line.focusTarget != null &&
             DialogueCamera.Instance != null)
         {
@@ -109,13 +110,13 @@ public class DialogueUI : MonoBehaviour
         }
 
         // Animation
-        if (line.actor != null)
+        if (line.actor != null &&
+            !string.IsNullOrEmpty(line.animationTrigger))
         {
             line.actor.Play(line.animationTrigger);
             line.actor.SetTalking(true);
         }
 
-        // Typewriter
         if (typingCo != null)
             StopCoroutine(typingCo);
 
@@ -136,16 +137,16 @@ public class DialogueUI : MonoBehaviour
 
         typing = false;
 
-        DialogueLine line = lines[index];
-
-        if (line.actor != null)
-            line.actor.SetTalking(false);
+        if (lines[index].actor != null)
+            lines[index].actor.SetTalking(false);
     }
 
     // ================= NEXT =================
 
     public void Next()
     {
+        if (lines == null) return;
+
         // Skip typing
         if (typing)
         {
@@ -154,15 +155,13 @@ public class DialogueUI : MonoBehaviour
             contentText.text = lines[index].text;
             typing = false;
 
-            DialogueLine line = lines[index];
-
-            if (line.actor != null)
-                line.actor.SetTalking(false);
+            if (lines[index].actor != null)
+                lines[index].actor.SetTalking(false);
 
             return;
         }
 
-        // Last line
+        // Last
         if (index >= lines.Length - 1)
         {
             UpdateUI();
@@ -181,32 +180,25 @@ public class DialogueUI : MonoBehaviour
     {
         DialogueLine line = lines[index];
 
-        bool isLast = index == lines.Length - 1;
+        bool last = index == lines.Length - 1;
 
         lockInput = false;
 
-        skipBtn.gameObject.SetActive(false);
-        acceptBtn.gameObject.SetActive(false);
-        spaceHint.gameObject.SetActive(false);
+        skipBtn?.gameObject.SetActive(false);
+        acceptBtn?.gameObject.SetActive(false);
+        spaceHint?.gameObject.SetActive(false);
 
-        // Accept button
         if (line.showAccept)
         {
             lockInput = true;
-
-            acceptBtn.gameObject.SetActive(true);
+            acceptBtn?.gameObject.SetActive(true);
             return;
         }
 
-        // Last → Skip
-        if (isLast)
-        {
-            skipBtn.gameObject.SetActive(true);
-        }
+        if (last)
+            skipBtn?.gameObject.SetActive(true);
         else
-        {
-            spaceHint.gameObject.SetActive(true);
-        }
+            spaceHint?.gameObject.SetActive(true);
     }
 
     // ================= BUTTON =================
@@ -226,11 +218,11 @@ public class DialogueUI : MonoBehaviour
 
     void Close()
     {
-        panel.SetActive(false);
+        panel?.SetActive(false);
 
-        skipBtn.gameObject.SetActive(false);
-        acceptBtn.gameObject.SetActive(false);
-        spaceHint.gameObject.SetActive(false);
+        skipBtn?.gameObject.SetActive(false);
+        acceptBtn?.gameObject.SetActive(false);
+        spaceHint?.gameObject.SetActive(false);
 
         lockInput = false;
 
@@ -240,7 +232,6 @@ public class DialogueUI : MonoBehaviour
         if (DialogueCamera.Instance != null)
             DialogueCamera.Instance.ResetCam();
 
-        // Báo cho NPC kết thúc
         if (currentNPC != null)
             currentNPC.OnDialogueFinished();
 

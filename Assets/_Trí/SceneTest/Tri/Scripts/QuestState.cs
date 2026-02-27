@@ -21,3 +21,14 @@ public enum VillageQuestState
     Rewarded,
     Done
 }
+public enum FarmerQuestState
+        {
+            Idle,
+            Hoe,
+            Plant,
+            GoToWell,
+            Water,
+            GoToField,
+            Angry
+        }
+

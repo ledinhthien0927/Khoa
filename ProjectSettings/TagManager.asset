@@ -7,6 +7,9 @@ TagManager:
   - Enemy
   - Branch
   - Anvil
+  - NoticeBoard
+  - Villager
+  - Bench
   layers:
   - Default
   - TransparentFX
@@ -21,8 +24,8 @@ TagManager:
   - Player
   - Water
   - Shark
-  - 
-  - 
+  - Walkable
+  - Road
   - 
   - 
   - 
