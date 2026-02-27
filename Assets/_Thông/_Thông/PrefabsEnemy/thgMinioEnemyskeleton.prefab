@@ -2956,7 +2956,7 @@ GameObject:
   - component: {fileID: 479280367080577207}
   m_Layer: 0
   m_Name: thgMinioEnemyskeleton
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -3099,12 +3099,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b507b8d6effce2e47aa04ccecdef7c72, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SimpleEnemyAI
-  MaxHealth: 100
+  MaxHealth: 20
   CurrentHealth: 0
   RunSpeed: 3
   WalkSpeed: 1
-  HealthBarSlider: {fileID: 0}
-  HealthBarObj: {fileID: 0}
+  HealthBarSlider: {fileID: 598032448781443947}
+  HealthBarObj: {fileID: 7669536841201967995}
+  WeaponTrail: {fileID: 0}
   PlaySpawnAnim: 1
   SpawnDuration: 1.2
   IsSimpleMinion: 1
@@ -3113,7 +3114,7 @@ MonoBehaviour:
   IdleTime: 5
   DetectionRange: 10
   ChaseRange: 6
-  AttackRange: 2
+  AttackRange: 1.5
   DamageAmount: 15
   Attack1Duration: 2
   Attack1HitTime: 0.3
@@ -3158,6 +3159,11 @@ MonoBehaviour:
   HasToken: 0
   CurrentState: 0
   IsEnraged: 0
+  MoveDustVFX: {fileID: 0}
+  DeathDustVFX: {fileID: 0}
+  FadeOutDuration: 3
+  JumpShakeDuration: 0.3
+  JumpShakeMagnitude: 0.8
 --- !u!1 &147900
 GameObject:
   m_ObjectHideFlags: 0
