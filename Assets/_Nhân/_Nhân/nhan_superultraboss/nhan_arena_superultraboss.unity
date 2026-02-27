@@ -3034,8 +3034,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Nhan_BossStats
   bossName: "B\xE1 T\u01B0\u1EDBc Valerius"
-  Nhan_maxHealth: 1000
-  Nhan_currentHealth: 1000
+  Nhan_maxHealth: 400
+  Nhan_currentHealth: 400
   Nhan_phase2Threshold: 0.1
   Nhan_isPhase2: 0
   Nhan_phase2AuraVFX: {fileID: 0}
@@ -3061,26 +3061,19 @@ MonoBehaviour:
   stats: {fileID: 876635897}
   Nhan_moveSpeed: 5
   Nhan_sprintSpeed: 9
-  Nhan_zigZagAmplitude: 2
-  Nhan_zigZagFrequency: 3
   Nhan_attackRange: 2
   Nhan_shootRange: 8
-  Nhan_hpCostPerDash: 15
+  Nhan_ambushCooldown: 18
+  Nhan_dashSlashCooldown: 10
+  Nhan_tauntCooldown: 20
+  Nhan_shootCooldown: 6
   Nhan_phase2SpeedMult: 1.5
   Nhan_phase2DamageMult: 1.5
+  Nhan_dashSlashSpeed: 15
   Nhan_projectilePrefab: {fileID: 3055684517316691418, guid: 97c7abff57cdc9b4fb54b146d9344f89, type: 3}
   Nhan_firePoint: {fileID: 208777879}
-  Nhan_shootCooldown: 6
-  Nhan_tauntCooldown: 20
-  Nhan_buffDuration: 10
-  Nhan_dashSlashCooldown: 10
-  Nhan_dashSlashSpeed: 15
-  Nhan_dashCooldown: 10
-  Nhan_ambushCooldown: 18
-  Nhan_invisibleDuration: 1.5
   _lastShootTime: -10
   Nhan_lastAmbushTime: -20
-  Nhan_lastDashTime: -10
   _lastTauntTime: -20
   _lastDashSlashTime: -10
 --- !u!143 &876635900
@@ -6620,8 +6613,8 @@ MonoBehaviour:
     currentWeapon: 2
     currentArrows: 30
     maxArrows: 30
-    hasSword: 1
-    hasBow: 1
+    hasSword: 0
+    hasBow: 0
     woodCount: 0
     metalCount: 0
     comboResetTime: 1.2

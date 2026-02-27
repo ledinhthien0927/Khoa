@@ -37,14 +37,9 @@ public class SmithingManager : MonoBehaviour
     public Transform rawIronBlock;      
     private Vector3 initialBlockScale;    
 
-    // ==========================================================
-    // [MỚI] THAM CHIẾU ĐẾN OBJECT CÓ SẴN TRÊN ĐE
-    // Kéo thả Object Kiếm và Búa đã đặt sẵn trên Scene vào đây
-    // ==========================================================
     [Header("--- WEAPON OBJECTS ---")]
-    public GameObject swordObject;   // Object Kiếm
-    public GameObject hammerObject;  // Object Búa
-    // ==========================================================
+    public GameObject swordObject;   
+    public GameObject hammerObject;  
 
     [Header("--- VISUALS & FX ---")]
     public Renderer blockRenderer;        
@@ -53,8 +48,10 @@ public class SmithingManager : MonoBehaviour
     public ParticleSystem completionVFX; 
     public AudioSource countAudio; 
 
-    public Color normalBlockColor = new Color(0.3f, 0.3f, 0.3f); 
+    // --- [SỬA ĐỔI MỚI] MÀU NÓNG ---
+    public Color hotColor = new Color(1f, 0.35f, 0f); // Màu đỏ cam nung
     public Color failBlockColor = Color.black; 
+    // ------------------------------
 
     [Header("--- POOLING ---")]
     public GameObject weakPointPrefab;   
@@ -72,13 +69,11 @@ public class SmithingManager : MonoBehaviour
 
     void Start()
     {
-        // Lưu lại kích thước ban đầu của khối sắt
         if (rawIronBlock != null) 
         {
             initialBlockScale = rawIronBlock.localScale;
         }
 
-        // Tạo Pooling cho các điểm yếu (Weak Points)
         pooledObjects = new List<GameObject>();
         for (int i = 0; i < poolAmount; i++) 
         {
@@ -87,7 +82,6 @@ public class SmithingManager : MonoBehaviour
             pooledObjects.Add(obj);
         }
 
-        // Ẩn các UI không cần thiết ban đầu
         if (failPanel != null) failPanel.SetActive(false);
         if (scoreText != null) scoreText.text = ""; 
         if (countdownText != null) countdownText.gameObject.SetActive(false);
@@ -99,12 +93,10 @@ public class SmithingManager : MonoBehaviour
         if (smithingCanvas != null) smithingCanvas.SetActive(false);
         if (smithingCamera != null) smithingCamera.SetActive(false);
 
-        // [MỚI] Tắt cả 2 vũ khí đi khi game mới chạy để không bị lộ
         if (swordObject != null) swordObject.SetActive(false);
         if (hammerObject != null) hammerObject.SetActive(false);
     }
 
-    // Hàm bắt đầu giai đoạn Rèn (được gọi từ HeatingManager)
     public void StartSmithingPhase()
     {
         if (QuestUIManager.Instance != null)
@@ -112,27 +104,20 @@ public class SmithingManager : MonoBehaviour
             
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
-        // -------------------------------
+        
         if (playerObject != null) playerObject.SetActive(true);
 
-        // Bật/Tắt UI Canvas
         if (heatingCanvas != null) heatingCanvas.SetActive(false);
         if (smithingCanvas != null) smithingCanvas.SetActive(true);
         if (otherCanvasToHide != null) otherCanvasToHide.SetActive(false);
 
-        // Chuyển Camera
         if (heatingCamera != null) heatingCamera.SetActive(false);
         if (smithingCamera != null) smithingCamera.SetActive(true);
 
-        // ==========================================================
-        // [MỚI] LOGIC BẬT/TẮT VŨ KHÍ
-        // ==========================================================
-        
-        // 1. Tắt hết tất cả trước
         if (swordObject != null) swordObject.SetActive(false);
         if (hammerObject != null) hammerObject.SetActive(false);
 
-        // 2. Chỉ bật cái được chọn bên màn hình Nung (HeatingManager)
+        // Bật vũ khí tương ứng
         if (HeatingManager.CurrentWeaponType == WeaponType.Sword)
         {
             if (swordObject != null) swordObject.SetActive(true);
@@ -141,28 +126,28 @@ public class SmithingManager : MonoBehaviour
         {
             if (hammerObject != null) hammerObject.SetActive(true);
         }
-        // ==========================================================
 
-        // Reset thông số game
         isGameActive = false; 
         currentTime = totalTime;
         currentPerfectCount = 0;
         
         UpdateScoreUI();
 
-        // Reset khối sắt bao bọc bên ngoài
         if (rawIronBlock != null)
         {
             rawIronBlock.gameObject.SetActive(true);
             rawIronBlock.localScale = initialBlockScale; 
         }
 
+        // --- [SỬA ĐỔI MỚI] SET MÀU NÓNG CHO BLOCK VÀ VŨ KHÍ ---
         if (blockRenderer != null) 
         {
-            blockRenderer.material.color = normalBlockColor; 
+            blockRenderer.material.color = hotColor; 
         }
+        SetWeaponColor(swordObject, hotColor);
+        SetWeaponColor(hammerObject, hotColor);
+        // ------------------------------------------------------
 
-        // Kiểm tra Tutorial
         if (tutorialPanel != null)
         {
             OpenTutorial();
@@ -173,7 +158,17 @@ public class SmithingManager : MonoBehaviour
         }
     }
 
-    // --- CÁC HÀM XỬ LÝ TUTORIAL ---
+    // --- [SỬA ĐỔI MỚI] HÀM ĐỔI MÀU NHANH ---
+    void SetWeaponColor(GameObject weaponObj, Color color)
+    {
+        if (weaponObj == null) return;
+        Renderer[] renderers = weaponObj.GetComponentsInChildren<Renderer>(true);
+        foreach(var r in renderers) {
+            r.material.color = color;
+        }
+    }
+    // ---------------------------------------
+
     void OpenTutorial() 
     { 
         tutorialPanel.SetActive(true); 
@@ -190,7 +185,6 @@ public class SmithingManager : MonoBehaviour
         StartCoroutine(CountdownRoutine()); 
     }
     
-    // --- ĐẾM NGƯỢC ---
     IEnumerator CountdownRoutine()
     {
         if (countdownText != null) 
@@ -224,7 +218,6 @@ public class SmithingManager : MonoBehaviour
         SpawnWeakPoint(); 
     }
 
-    // --- VÒNG LẶP UPDATE ---
     void Update() 
     { 
         if (!isGameActive) return; 
@@ -236,7 +229,6 @@ public class SmithingManager : MonoBehaviour
         }
     }
 
-    // --- SPAWN ĐIỂM YẾU ---
     public void SpawnWeakPoint() 
     { 
         if (!isGameActive) return; 
@@ -255,7 +247,6 @@ public class SmithingManager : MonoBehaviour
         } 
     }
 
-    // Xử lý khi người chơi không kịp bấm
     public void HandleTimeout() 
     { 
         if (!isGameActive) return; 
@@ -263,10 +254,8 @@ public class SmithingManager : MonoBehaviour
         Invoke("SpawnWeakPoint", 0.5f); 
     }
 
-    // --- XỬ LÝ KHI NGƯỜI CHƠI ĐẬP TRÚNG ---
     public void ProcessHit(Vector3 hitPos, Vector3 hitNormal, int score) 
     { 
-        // Hiệu ứng tia lửa
         if (sparkEffect != null) 
         { 
             sparkEffect.transform.position = hitPos; 
@@ -274,12 +263,11 @@ public class SmithingManager : MonoBehaviour
             sparkEffect.Play(); 
         }
 
-        if (score >= 100) // Đập chuẩn (Perfect)
+        if (score >= 100) 
         { 
             currentPerfectCount++; 
             UpdateScoreUI(); 
             
-            // Làm nhỏ khối sắt bao bên ngoài
             if (rawIronBlock != null) 
             { 
                 float progress = (float)currentPerfectCount / requiredPerfects; 
@@ -296,9 +284,8 @@ public class SmithingManager : MonoBehaviour
                 Invoke("SpawnWeakPoint", 0.5f); 
             }
         } 
-        else // Đập chưa chuẩn
+        else 
         { 
-            Debug.Log("Chưa chuẩn! Cube giữ nguyên.");
             CancelInvoke("SpawnWeakPoint"); 
             Invoke("SpawnWeakPoint", 0.3f); 
         }
@@ -318,14 +305,12 @@ public class SmithingManager : MonoBehaviour
         if (scoreText != null) scoreText.text = $"{currentPerfectCount} / {requiredPerfects}"; 
     }
 
-    // --- KẾT THÚC GAME ---
     void GameOver(bool isWin) 
     { 
         isGameActive = false; 
         
         if (isWin) 
         { 
-            // Tắt hẳn khối sắt bao bên ngoài để lộ vũ khí
             if (rawIronBlock != null) rawIronBlock.gameObject.SetActive(false); 
             
             string rank = "COMMON"; 
@@ -354,12 +339,10 @@ public class SmithingManager : MonoBehaviour
             
             if (completionVFX != null) completionVFX.Play(); 
             
-            Debug.Log("WIN - Rank: " + rank);
             Invoke("GoToQuench", 2.0f); 
         } 
-        else // Thua
+        else 
         { 
-            Debug.Log("LOSE");
             if (blockRenderer != null) blockRenderer.material.color = failBlockColor; 
             if (failPanel != null) failPanel.SetActive(true); 
             
@@ -367,7 +350,6 @@ public class SmithingManager : MonoBehaviour
         } 
     }
     
-    // Chuyển cảnh
     void GoToQuench() 
     { 
         if (smithingCanvas != null) smithingCanvas.SetActive(false); 
