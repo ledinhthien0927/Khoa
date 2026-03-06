@@ -40,8 +40,9 @@ public class RangedMonster : MonsterController
 
     public override void OnCombatBehavior(Transform player)
     {
-        // Nếu bị đánh hoặc chết thì hủy ngắm ngay
-        if (isHit || isDead) { StopAiming(); return; }
+        // --- [ĐÃ CẬP NHẬT] Thêm isSearching vào đây ---
+        // Nếu bị đánh, chết, hoặc đang bối rối lùng sục thì hủy ngắm ngay
+        if (isHit || isDead || isSearching || isReturning) { StopAiming(); return; }
 
         // [QUAN TRỌNG] Nếu đang bóp cò/giật súng -> Khóa AI, không cho chạy hay ngắm tiếp
         if (isFiring) return;
@@ -175,6 +176,11 @@ public class RangedMonster : MonsterController
     public override HitResult TakeDamage(DamageInfo info)
     {
         StopAiming(); 
+        
+        // [ĐÃ THÊM] Bắt buộc mở khóa AI. Nếu Coroutine FireRoutine bị hàm base cắt ngang, 
+        // biến này vẫn được trả về false để quái không bị đơ vĩnh viễn.
+        isFiring = false; 
+        
         return base.TakeDamage(info);
     }
 }

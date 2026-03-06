@@ -23,13 +23,17 @@ public class AlarmMonster : MonsterController
             hasCalledAlarm = true;
             isLockMovement = false; // Mở khóa ngay để còn bị knockback
         }
+        
+        // Gọi base.TakeDamage để class cha xử lý trừ máu, văng máu, 
+        // và quyết định xem nên Báo động ngay hay rơi vào trạng thái Tìm kiếm (isSearching)
         return base.TakeDamage(info);
     }
 
     public override void OnCombatBehavior(Transform player)
     {
-        if (isHit || isDead) return;
-        if (isScreaming) return; // Đang hú thì kệ, Update cha đã khóa chân rồi
+        // --- [ĐÃ CẬP NHẬT] Thêm isSearching vào đây ---
+        // Nếu đang bị đau, đã chết, đang lùng sục tìm kiếm, hoặc đang đứng rặn hú -> Không làm gì thêm
+        if (isHit || isDead || isSearching || isScreaming || isReturning) return; 
 
         if (hasCalledAlarm)
         {
@@ -78,9 +82,11 @@ public class AlarmMonster : MonsterController
 
         if (anim != null) anim.SetTrigger("callAlarm");
         
-        // [ĐÃ SỬA] Lấy trực tiếp thông số từ MonsterData của bạn!
-        // Lưu ý: Nếu biến trong data của bạn viết hoa (VD: AlarmDelay), hãy sửa lại cho khớp tên nhé.
+        // Lấy trực tiếp thông số từ MonsterData
         yield return new WaitForSeconds(data.alarmDelay); 
+
+        // [ĐÃ BỔ SUNG] Nếu lỡ quái chết trong lúc đang đứng chờ rặn hú thì thoát luôn, không cho gọi hội
+        if (isDead) yield break;
 
         // Sau khi đợi xong thời gian delay mới bắt đầu gọi hội
         if (MonsterManager.Instance != null)

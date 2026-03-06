@@ -19,7 +19,7 @@ MonoBehaviour:
   speed: 3
   detectionRange: 15
   viewAngle: 120
-  detectionTime: 1.5
+  detectionTime: 0
   callRange: 0
   alarmDelay: 2
   wanderRadius: 20

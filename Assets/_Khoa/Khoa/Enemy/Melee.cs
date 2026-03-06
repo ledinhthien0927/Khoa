@@ -1,5 +1,5 @@
 using UnityEngine;
-using System.Collections; // Thêm thư viện này để dùng IEnumerator
+using System.Collections;
 using UnityEngine.AI;
 
 public class MeleeMonster : MonsterController
@@ -13,7 +13,7 @@ public class MeleeMonster : MonsterController
     public float attackHitDelay = 0.4f;
 
     private float myFlankAngle; 
-    private bool isAttacking = false; // Biến khóa để quái không spam đấm liên tục lúc đang vung tay
+    private bool isAttacking = false;
 
     protected override void Start()
     {
@@ -24,7 +24,8 @@ public class MeleeMonster : MonsterController
 
     public override void OnCombatBehavior(Transform player)
     {
-        if (isHit || isDead) return; 
+        // --- [ĐÃ CẬP NHẬT] Thêm isSearching vào đây ---
+        if (isHit || isDead || isSearching || isReturning) return; 
         
         // Nếu đang trong quá trình vung tay đấm thì không xử lý di chuyển hay đấm bồi nữa
         if (isAttacking) return;
@@ -39,7 +40,6 @@ public class MeleeMonster : MonsterController
             
             if (CanAttack())
             {
-                // Thay vì đấm luôn, ta gọi Coroutine để xử lý nhịp điệu đòn đánh
                 StartCoroutine(ExecuteMeleeAttack(player));
             }
         }
@@ -73,31 +73,24 @@ public class MeleeMonster : MonsterController
     {
         isAttacking = true;
 
-        // 1. Kích hoạt Animation vung vũ khí / đấm
         if (anim != null) anim.SetTrigger("attack");
 
-        // 2. Tạm dừng một khoảng thời gian ngắn để khớp với khoảnh khắc vũ khí chạm vào Player
         yield return new WaitForSeconds(attackHitDelay);
 
-        // 3. Kiểm tra an toàn: Nếu trong lúc vung tay mà quái bị chém chết hoặc choáng thì hủy sát thương
         if (!isDead && !isHit)
         {
-            // 4. Kiểm tra lại khoảng cách: Khoảnh khắc đấm xuống, Player còn ở đó không?
             float currentDist = Vector3.Distance(transform.position, player.position);
             
-            // Cho phép sai số một chút (cộng thêm 0.5m) để Player cảm thấy hitbox công bằng
             if (currentDist <= data.attackRange + 0.5f)
             {
-                // Trúng đòn! Gây sát thương cho Player
                 IDamageable damageable = player.GetComponent<IDamageable>();
                 if (damageable != null)
                 {
                     DamageInfo info = new DamageInfo()
                     {
-                        // Lưu ý: Đổi data.damage thành tên biến sát thương đúng trong MonsterData của bạn
                         amount = data.damage, 
                         hitDirection = (player.position - transform.position).normalized,
-                        knockbackForce = 0f // Đẩy nhẹ Player lùi lại
+                        knockbackForce = 0f 
                     };
                     damageable.TakeDamage(info);
                     Debug.Log($"<color=red>[Melee] {gameObject.name} đã đấm trúng Player, trừ {info.amount} máu!</color>");
@@ -109,9 +102,6 @@ public class MeleeMonster : MonsterController
             }
         }
 
-        // Tùy thuộc vào animation của bạn dài bao nhiêu, có thể chờ thêm 1 chút trước khi mở khóa
-        // yield return new WaitForSeconds(0.5f); 
-        
         isAttacking = false;
     }
 
@@ -124,5 +114,15 @@ public class MeleeMonster : MonsterController
         }
         Gizmos.color = Color.cyan;
         Gizmos.DrawWireSphere(transform.position, rushDistance);
+    }
+    // --- BỔ SUNG: NGẮT ĐÒN VÀ CHỐNG ĐƠ AI ---
+    public override HitResult TakeDamage(DamageInfo info)
+    {
+        // Mở khóa AI ngay lập tức. 
+        // Lỡ Coroutine ExecuteMeleeAttack bị ngắt giữa chừng thì quái vẫn không bị kẹt.
+        isAttacking = false; 
+
+        // Gọi logic trừ máu, văng máu, giật mình của lớp cha như bình thường
+        return base.TakeDamage(info);
     }
 }

@@ -11,7 +11,7 @@ NavMeshProjectSettings:
     cost: 1
   - name: Jump
     cost: 2
-  - name: 
+  - name: EnemyArea
     cost: 1
   - name: 
     cost: 1
@@ -165,5 +165,5 @@ NavMeshProjectSettings:
   - Humanoid
   - Ship
   - Shark
-  - Ennemy
+  - Enemy
   - Fish

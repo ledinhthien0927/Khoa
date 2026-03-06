@@ -19,10 +19,11 @@ MonoBehaviour:
   speed: 5
   detectionRange: 8
   viewAngle: 120
-  detectionTime: 1.5
+  detectionTime: 0
   callRange: 0
   alarmDelay: 2
   wanderRadius: 20
   wanderWaitTime: 2
   attackRange: 1.5
+  damage: 10
   attackCooldown: 2
