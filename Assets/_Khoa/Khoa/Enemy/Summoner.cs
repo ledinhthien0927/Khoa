@@ -11,6 +11,13 @@ public class SummonerMonster : MonsterController
     public float summonCastTime = 1.5f;  
     public float postSummonDelay = 0.5f; 
     
+    // --- [ĐÃ THÊM] KHAI BÁO VFX ---
+    [Header("VFX Settings")]
+    [Tooltip("Kéo Particle System gắn ở xương bàn tay vào đây")]
+    public GameObject castVFX; 
+    [Tooltip("Kéo Prefab hình vòng tròn ma thuật vào đây")]
+    public GameObject magicCirclePrefab; 
+
     [Header("Flee Settings")]
     public float safeDistance = 6f;      
 
@@ -19,38 +26,31 @@ public class SummonerMonster : MonsterController
     
     private List<MonsterController> activeSummons = new List<MonsterController>();
     
-    // [ĐÃ THÊM] Biến khóa não: Lưu trữ kẻ thù bất chấp lớp cha có xóa hay không
     private Transform lockedTarget; 
 
-    // --- SỬA LỖI TẬN GỐC: ÉP KHÔNG CHO QUAY VỀ ---
     protected override void Update()
     {
-        // 1. Lưu lại kẻ thù vào bộ nhớ riêng TRƯỚC KHI lớp cha xử lý
         if (targetPlayer != null) 
         {
             lockedTarget = targetPlayer;
         }
 
-        // 2. Cho lớp cha chạy (Lớp cha có thể sẽ ngớ ngẩn đòi quay về nhà ở bước này)
         base.Update();
 
         if (isDead) return;
 
-        // 3. KIỂM DUYỆT LẠI: Chống lệnh lớp cha
         if (lockedTarget != null)
         {
             float dist = Vector3.Distance(transform.position, lockedTarget.position);
 
-            // Nếu bạn vẫn ở trong bán kính 35m mà nó dám đòi bỏ về hồi máu hoặc lùng sục -> Ép đánh tiếp!
             if (dist < 35f && (isReturning || isSearching || targetPlayer == null))
             {
                 isReturning = false;
                 isSearching = false;
                 isAlerted = true;
-                targetPlayer = lockedTarget; // Nhét lại Player vào não nó
+                targetPlayer = lockedTarget; 
                 lastKnownPosition = lockedTarget.position;
             }
-            // Chỉ tha cho nó về nhà nếu bạn thực sự chạy xa hơn 35m
             else if (dist >= 35f)
             {
                 lockedTarget = null;
@@ -60,7 +60,6 @@ public class SummonerMonster : MonsterController
 
     public override void OnCombatBehavior(Transform player)
     {
-        // Nếu bị đánh, chết, hoặc đang bối rối lùng sục thì ngắt chiêu ngay
         if (isHit || isDead || isSearching || isReturning) { StopSummoning(); return; }
 
         if (isSummoning) return;
@@ -69,18 +68,15 @@ public class SummonerMonster : MonsterController
 
         float distance = Vector3.Distance(transform.position, player.position);
 
-        // --- 1. XA QUÁ -> CHẠY LẠI GẦN ---
         if (distance > data.attackRange)
         {
             MoveToPosition(player.position, true); 
         }
-        // --- 2. GẦN QUÁ -> LÙI LẠI (THẢ DIỀU) ---
         else if (distance < safeDistance)
         {
             Vector3 dir = (transform.position - player.position).normalized;
             MoveToPosition(transform.position + dir * 3f, true);
         }
-        // --- 3. VỪA TẦM AN TOÀN -> GỌI ĐỆ ---
         else
         {
             StopMoving();
@@ -100,6 +96,9 @@ public class SummonerMonster : MonsterController
 
         if (anim != null) anim.SetTrigger("summon"); 
 
+        // --- [ĐÃ THÊM] BẬT SÁNG BÀN TAY ---
+        if (castVFX != null) castVFX.SetActive(true);
+
         yield return new WaitForSeconds(summonCastTime);
 
         if (isDead || !isSummoning) yield break;
@@ -115,6 +114,15 @@ public class SummonerMonster : MonsterController
 
             if (UnityEngine.AI.NavMesh.SamplePosition(spawnPos, out UnityEngine.AI.NavMeshHit hit, 4f, UnityEngine.AI.NavMesh.AllAreas))
             {
+                // --- [ĐÃ THÊM] GỌI VÒNG TRÒN MA THUẬT ---
+                if (magicCirclePrefab != null)
+                {
+                    // Nâng lên một chút để không bị lún xuống mặt đất
+                    Vector3 circlePos = hit.position + Vector3.up * 0.05f; 
+                    GameObject circle = Instantiate(magicCirclePrefab, circlePos, Quaternion.Euler(90f, 0f, 0f));
+                    Destroy(circle, 2f); // Tự động xóa vòng tròn sau 2 giây
+                }
+
                 GameObject newSummonObj = Instantiate(prefabToSpawn, hit.position, Quaternion.identity);
                 MonsterController newMonster = newSummonObj.GetComponent<MonsterController>();
 
@@ -133,6 +141,8 @@ public class SummonerMonster : MonsterController
         yield return new WaitForSeconds(postSummonDelay);
 
         isSummoning = false; 
+        // --- [ĐÃ THÊM] TẮT SÁNG BÀN TAY ---
+        if (castVFX != null) castVFX.SetActive(false);
     }
 
     private void StopSummoning()
@@ -141,6 +151,9 @@ public class SummonerMonster : MonsterController
         {
             isSummoning = false;
             lastSummonTime = -999f; 
+            
+            // --- [ĐÃ THÊM] TẮT HIỆU ỨNG NẾU BỊ ĐÁNH NGẮT CHIÊU ---
+            if (castVFX != null) castVFX.SetActive(false);
         }
     }
 

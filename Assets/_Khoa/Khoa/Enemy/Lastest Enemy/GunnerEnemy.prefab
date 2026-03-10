@@ -5797,6 +5797,11 @@ MonoBehaviour:
   aimDuration: 0.1
   attackAnimTrigger: attack
   fireAnimationTime: 0.5
+  retreatDelay: 2
+  retreatDistance: 3
+  retreatThreshold: 0.4
+  muzzleFXPrefab: {fileID: 6364504211338693710, guid: 39cc4613bdf36b148bbc92919488bec0, type: 3}
+  muzzleFXLifetime: 1.5
 --- !u!120 &2512776691554493331
 LineRenderer:
   serializedVersion: 2
