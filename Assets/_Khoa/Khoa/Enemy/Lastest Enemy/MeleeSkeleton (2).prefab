@@ -3532,6 +3532,10 @@ MonoBehaviour:
   rushDistance: 4
   flankOffset: 2.5
   attackHitDelay: 0.4
+  hitPlayerFX: {fileID: 4844818206360059326, guid: 4eb43790037a1e449a1ed4c615fff274, type: 3}
+  weaponHitPoint: {fileID: 595836649157435040}
+  fallbackHitOffset: {x: 0, y: 1, z: 0}
+  hitFXLifetime: 1.5
 --- !u!1 &4363711086132339346
 GameObject:
   m_ObjectHideFlags: 0
@@ -4872,6 +4876,37 @@ Transform:
   - {fileID: 1044774707155011482}
   m_Father: {fileID: 2354487626025647900}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &6865810313434486859
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 595836649157435040}
+  m_Layer: 0
+  m_Name: Weapon Hit Point
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &595836649157435040
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6865810313434486859}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.05, y: 0.507, z: 0.002}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 808826458145151479}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &6992243390354984588
 GameObject:
   m_ObjectHideFlags: 0
@@ -4887,7 +4922,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &90540272026976628
 Transform:
   m_ObjectHideFlags: 0
@@ -6584,7 +6619,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 403896, guid: c807682e6de745747ad7c546fd2d3517, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 595836649157435040}
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 160864, guid: c807682e6de745747ad7c546fd2d3517, type: 3}
       insertIndex: -1
@@ -6603,7 +6641,7 @@ TrailRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 808826458144867375}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
