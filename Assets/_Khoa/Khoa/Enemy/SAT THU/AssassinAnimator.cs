@@ -8,8 +8,8 @@ public class AssassinAnimator : MonoBehaviour
     private readonly int dieHash = Animator.StringToHash("Die");
     private readonly int jumpHash = Animator.StringToHash("Jump");
     private readonly int isRunningHash = Animator.StringToHash("IsRunning");
-    private readonly int slashHash = Animator.StringToHash("Slash");
-    private readonly int hitHash = Animator.StringToHash("Hit");
+    private readonly int slashHash = Animator.StringToHash("attack");
+    private readonly int hitHash = Animator.StringToHash("Hurt");
 
     private void Awake()
     {

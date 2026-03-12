@@ -191,6 +191,7 @@ public class AssassinMonster : MonsterController
         if (customAnim != null)
         {
             customAnim.PlaySlash();
+            Debug.Log("Assassin attack animation triggered");
         }
 
         yield return new WaitForSeconds(0.9f);
@@ -213,8 +214,11 @@ public class AssassinMonster : MonsterController
             agent.ResetPath();
         }
 
-        if (customAnim != null) customAnim.PlayHit();
-
+        if (customAnim != null)
+        {
+            customAnim.PlayHit();
+            Debug.Log("Assassin hit animation triggered");
+        }
         return base.TakeDamage(info);
     }
 
