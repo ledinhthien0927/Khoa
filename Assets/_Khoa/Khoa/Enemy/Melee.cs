@@ -25,14 +25,25 @@ public class MeleeMonster : MonsterController
     [Tooltip("Tự hủy VFX sau bao lâu nếu prefab chưa có script tự hủy")]
     public float hitFXLifetime = 1.5f;
 
+    [Header("Weapon Trail")]
+    [Tooltip("Trail Renderer gắn trên kiếm")]
+    public TrailRenderer weaponTrail;
+
     private float myFlankAngle;
     private bool isAttacking = false;
 
     protected override void Start()
     {
         base.Start();
+
         float randomAngle = Random.Range(30f, 70f);
         myFlankAngle = randomAngle * (Random.value > 0.5f ? 1f : -1f);
+
+        if (weaponTrail != null)
+        {
+            weaponTrail.emitting = false;
+            weaponTrail.Clear();
+        }
     }
 
     public override void OnCombatBehavior(Transform player)
@@ -83,6 +94,12 @@ public class MeleeMonster : MonsterController
 
         if (anim != null) anim.SetTrigger("attack");
 
+        if (weaponTrail != null)
+        {
+            weaponTrail.Clear();
+            weaponTrail.emitting = true;
+        }
+
         yield return new WaitForSeconds(attackHitDelay);
 
         if (!isDead && !isHit && player != null)
@@ -112,6 +129,11 @@ public class MeleeMonster : MonsterController
             {
                 Debug.Log($"<color=yellow>[Melee] Player đã né được đòn của {gameObject.name}!</color>");
             }
+        }
+
+        if (weaponTrail != null)
+        {
+            weaponTrail.emitting = false;
         }
 
         isAttacking = false;
@@ -160,6 +182,12 @@ public class MeleeMonster : MonsterController
     public override HitResult TakeDamage(DamageInfo info)
     {
         isAttacking = false;
+
+        if (weaponTrail != null)
+        {
+            weaponTrail.emitting = false;
+        }
+
         return base.TakeDamage(info);
     }
 }

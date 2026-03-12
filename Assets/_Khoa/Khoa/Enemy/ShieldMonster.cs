@@ -1,18 +1,48 @@
 using UnityEngine;
-using System.Collections; 
+using System.Collections;
 
 public class ShieldMonster : MonsterController
 {
     [Header("Shield Settings")]
-    public float blockDuration = 2f;       
-    public float blockAngle = 70f;         
-    
+    public float blockDuration = 2f;
+    public float blockAngle = 120f;
+
     [Tooltip("Thời gian chờ để chạy xong hoạt ảnh hạ khiên trước khi được phép đi tiếp")]
-    public float shieldLowerDelay = 0.5f; 
+    public float shieldLowerDelay = 0.5f;
+
+    [Header("Hit VFX")]
+    [Tooltip("Hiệu ứng xuất hiện khi kiếm trúng player, dùng cùng prefab như MeleeMonster nếu muốn y chang")]
+    public GameObject hitPlayerFX;
+
+    [Tooltip("Điểm gần mũi kiếm / lưỡi kiếm để spawn hiệu ứng")]
+    public Transform weaponHitPoint;
+
+    [Tooltip("Nếu prefab chưa có script tự hủy thì tự hủy sau từng này giây")]
+    public float hitFXLifetime = 1.5f;
+
+    [Tooltip("Thời gian từ lúc trigger animation attack tới lúc đòn thật sự chạm mục tiêu")]
+    public float attackHitDelay = 0.35f;
+
+    [Header("Weapon Trail")]
+    [Tooltip("Trail Renderer gắn trên kiếm")]
+    public TrailRenderer weaponTrail;
 
     private bool isBlocking = false;
-    private bool isLoweringShield = false; 
+    private bool isLoweringShield = false;
     private float blockTimer = 0f;
+
+    private bool isAttacking = false;
+
+    protected override void Start()
+    {
+        base.Start();
+
+        if (weaponTrail != null)
+        {
+            weaponTrail.emitting = false;
+            weaponTrail.Clear();
+        }
+    }
 
     public override HitResult TakeDamage(DamageInfo info)
     {
@@ -24,30 +54,29 @@ public class ShieldMonster : MonsterController
         // 1. ĐANG THỦ HOẶC ĐANG CẤT KHIÊN MÀ BỊ ĐÁNH TỪ TRƯỚC MẶT -> Đỡ đòn thành công
         if ((isBlocking || isLoweringShield) && isFrontalHit)
         {
-            blockTimer = blockDuration; 
+            blockTimer = blockDuration;
             isBlocking = true;
-            isLoweringShield = false; // Hủy ngay hành động cất khiên để tiếp tục thủ
-            
-            if (anim != null) 
+            isLoweringShield = false;
+
+            if (anim != null)
             {
                 anim.SetBool("isBlocking", true);
-                anim.SetTrigger("BlockHit"); 
+                anim.SetTrigger("BlockHit");
             }
-            
+
             Rigidbody rb = GetComponent<Rigidbody>();
             if (rb != null && !rb.isKinematic)
             {
                 rb.AddForce(info.hitDirection * (info.knockbackForce * 0.5f), ForceMode.Impulse);
             }
 
-            return HitResult.Ignored; 
+            return HitResult.Ignored;
         }
 
-        // 2. KHÔNG THỦ HOẶC BỊ ĐÁNH LÉN TỪ SAU LƯNG -> Nhận sát thương thực sự (gọi hàm lớp cha)
+        // 2. KHÔNG THỦ HOẶC BỊ ĐÁNH LÉN TỪ SAU LƯNG -> Nhận sát thương thực sự
         HitResult result = base.TakeDamage(info);
 
-        // [SỬA LỖI KẸT CHÂN]: Khi đã bị chém trúng người (mất máu/giật mình)
-        // Bắt buộc phải reset trạng thái khiên về 0 để tránh xung đột Animation
+        // Reset trạng thái khiên để tránh xung đột animation
         if (isBlocking || isLoweringShield)
         {
             isBlocking = false;
@@ -55,13 +84,19 @@ public class ShieldMonster : MonsterController
             if (anim != null) anim.SetBool("isBlocking", false);
         }
 
-        // 3. CHỈ BẬT KHIÊN NẾU: Đánh từ đằng trước + Còn sống + ĐÃ NHÌN THẤY PLAYER (isAlerted) + KHÔNG LÙNG SỤC (!isSearching)
-        if (isFrontalHit && currentHealth > 0 && isAlerted && !isSearching)
+        if (isAttacking && weaponTrail != null)
+        {
+            weaponTrail.emitting = false;
+        }
+
+        // 3. BỊ ĐÁNH TỪ ĐẰNG TRƯỚC + CÒN SỐNG + KHÔNG SEARCHING -> BẬT KHIÊN
+        // Bỏ phụ thuộc isAlerted để block ổn định hơn
+        if (isFrontalHit && currentHealth > 0 && !isSearching)
         {
             isBlocking = true;
             isLoweringShield = false;
             blockTimer = blockDuration;
-            
+
             if (anim != null) anim.SetBool("isBlocking", true);
         }
 
@@ -70,18 +105,19 @@ public class ShieldMonster : MonsterController
 
     protected override void Update()
     {
-        base.Update(); 
+        base.Update();
 
         if (isDead) return;
 
-        // Chỉ đếm ngược thời gian thủ nếu KHÔNG TRONG LÚC đang lúi húi cất khiên
+        // Chỉ đếm ngược thời gian thủ nếu KHÔNG TRONG LÚC đang hạ khiên
         if (isBlocking && !isLoweringShield)
         {
             blockTimer -= Time.deltaTime;
-            
+
             if (blockTimer <= 0f)
             {
-                // Thay vì thả ra ngay lập tức, ta chạy quá trình hạ khiên có độ trễ
+                // Đặt cờ trước để tránh StartCoroutine bị gọi lặp mỗi frame
+                isLoweringShield = true;
                 StartCoroutine(LowerShieldRoutine());
             }
         }
@@ -89,18 +125,13 @@ public class ShieldMonster : MonsterController
 
     private IEnumerator LowerShieldRoutine()
     {
-        isLoweringShield = true; // Đánh dấu là đang bắt đầu hạ khiên
-        
-        // 1. Tắt biến trong Animator để nhân vật bắt đầu diễn hoạt cảnh bỏ khiên xuống
         if (anim != null) anim.SetBool("isBlocking", false);
-        
-        // 2. Bắt nó đứng im chờ một lúc (khớp với thời gian animation hạ khiên thực tế)
+
         yield return new WaitForSeconds(shieldLowerDelay);
 
-        // 3. (An toàn) Nếu trong lúc đang chờ mà bị Player chém tiếp thì cờ này đã bị tắt ở TakeDamage, ta hủy lệnh đi tiếp
+        // Nếu trong lúc đang hạ khiên mà bị đánh tiếp, TakeDamage sẽ set lại state
         if (!isLoweringShield) yield break;
 
-        // 4. Nếu an toàn cất xong, mới thực sự mở khóa di chuyển
         isBlocking = false;
         isLoweringShield = false;
         Debug.Log($"<color=cyan>[SHIELD DOWN]</color> {gameObject.name} đã hạ khiên XONG và bắt đầu di chuyển.");
@@ -108,13 +139,17 @@ public class ShieldMonster : MonsterController
 
     public override void OnCombatBehavior(Transform player)
     {
+        if (player == null) return;
+
         // Bị khóa chân nếu ĐANG THỦ hoặc ĐANG TRONG LÚC CẤT KHIÊN
         if (isBlocking || isLoweringShield)
         {
-            StopMoving();                   
-            RotateTowards(player.position); 
-            return; 
+            StopMoving();
+            RotateTowards(player.position);
+            return;
         }
+
+        if (isAttacking) return;
 
         float dist = Vector3.Distance(transform.position, player.position);
 
@@ -125,12 +160,96 @@ public class ShieldMonster : MonsterController
 
             if (CanAttack())
             {
-                if (anim != null) anim.SetTrigger("attack");
+                StartCoroutine(ExecuteShieldAttack(player));
             }
         }
         else
         {
             MoveToPosition(player.position, false);
+        }
+    }
+
+    private IEnumerator ExecuteShieldAttack(Transform player)
+    {
+        isAttacking = true;
+
+        if (anim != null) anim.SetTrigger("attack");
+
+        if (weaponTrail != null)
+        {
+            weaponTrail.Clear();
+            weaponTrail.emitting = true;
+        }
+
+        yield return new WaitForSeconds(attackHitDelay);
+
+        if (!isDead && player != null)
+        {
+            float currentDist = Vector3.Distance(transform.position, player.position);
+
+            if (data != null && currentDist <= data.attackRange + 0.5f)
+            {
+                IDamageable damageable = player.GetComponent<IDamageable>();
+                if (damageable != null)
+                {
+                    DamageInfo info = new DamageInfo()
+                    {
+                        amount = data.damage,
+                        hitDirection = (player.position - transform.position).normalized,
+                        knockbackForce = 0f
+                    };
+
+                    damageable.TakeDamage(info);
+
+                    SpawnHitPlayerFX(player, info.hitDirection);
+                }
+            }
+        }
+
+        if (weaponTrail != null)
+        {
+            weaponTrail.emitting = false;
+        }
+
+        isAttacking = false;
+    }
+
+    private void SpawnHitPlayerFX(Transform player, Vector3 hitDirection)
+    {
+        if (hitPlayerFX == null || player == null) return;
+
+        Vector3 spawnPos;
+        Quaternion spawnRot;
+
+        Vector3 safeDir = hitDirection.sqrMagnitude > 0.0001f ? hitDirection : transform.forward;
+
+        if (weaponHitPoint != null)
+        {
+            spawnPos = weaponHitPoint.position;
+            spawnRot = Quaternion.LookRotation(safeDir);
+        }
+        else
+        {
+            spawnPos = player.position + Vector3.up * 1.2f;
+            spawnRot = Quaternion.LookRotation(safeDir);
+        }
+
+        GameObject fx = Instantiate(hitPlayerFX, spawnPos, spawnRot);
+        Destroy(fx, hitFXLifetime);
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        if (data != null)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(transform.position, data.attackRange);
+        }
+
+        if (weaponHitPoint != null)
+        {
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(weaponHitPoint.position, 0.08f);
         }
     }
 }
