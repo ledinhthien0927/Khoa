@@ -1,36 +1,5 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &1290710186536890322
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 705987085325742216}
-  m_Layer: 0
-  m_Name: ThrowPoint
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &705987085325742216
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1290710186536890322}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 2260285182848325175}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &8750842608278470579
 GameObject:
   m_ObjectHideFlags: 0
@@ -43,6 +12,8 @@ GameObject:
   - component: {fileID: 7934254965401073996}
   - component: {fileID: 1934644294900347420}
   - component: {fileID: 3855474977691260235}
+  - component: {fileID: 130967715214922169}
+  - component: {fileID: 3293061813266281369}
   m_Layer: 6
   m_Name: FireMageMonster
   m_TagString: Enemy
@@ -63,8 +34,8 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 2260285182848325175}
   - {fileID: 7297125228165958809}
+  - {fileID: 1917982807974991958}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!195 &7934254965401073996
@@ -121,11 +92,11 @@ Animator:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8750842608278470579}
   m_Enabled: 1
-  m_Avatar: {fileID: 0}
+  m_Avatar: {fileID: 9000000, guid: 14a39aed0ec82d34e95ab44b76340d9f, type: 3}
   m_Controller: {fileID: 9100000, guid: 9d22dacbf32ba3a468711ec005b79bc8, type: 2}
-  m_CullingMode: 0
+  m_CullingMode: 1
   m_UpdateMode: 0
-  m_ApplyRootMotion: 0
+  m_ApplyRootMotion: 1
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
   m_AnimatePhysics: 0
@@ -134,7 +105,60 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!1001 &1789226581156016604
+--- !u!114 &130967715214922169
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8750842608278470579}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bac3e53e052ad3041b5078505c22dab0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FireMageAnimator
+--- !u!114 &3293061813266281369
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8750842608278470579}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 50321361c19c8f14eaaadd3eb9f18bd5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FireMageMonster
+  data: {fileID: 0}
+  currentHealth: 0
+  regenAmount: 5
+  regenInterval: 2
+  isAlerted: 0
+  isTracking: 0
+  isDead: 0
+  isInvulnerable: 0
+  isSearching: 0
+  isReturning: 0
+  healthSlider: {fileID: 0}
+  hitStunDuration: 0.5
+  bloodPrefab: {fileID: 0}
+  searchDuration: 5
+  searchRadius: 6
+  searchVisionMultiplier: 1.5
+  currentDetectionTime: 0
+  searchWaitTime: 0
+  startPosition: {x: 0, y: 0, z: 0}
+  currentWanderWaitTime: 0
+  isHit: 0
+  isLockMovement: 0
+  attackCooldown: 4
+  castTime: 0.8
+  attackRange: 8
+  throwPoint: {fileID: 0}
+  firePotionPrefab: {fileID: 0}
+  faceAngleThreshold: 10
+  castVFX: {fileID: 0}
+--- !u!1001 &2095495778135621565
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -142,62 +166,59 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2884346293897495215}
     m_Modifications:
-    - target: {fileID: -8679921383154817045, guid: 0ddf81e534b6c074a97b1a6a63e5b6a5, type: 3}
+    - target: {fileID: -8679921383154817045, guid: 14a39aed0ec82d34e95ab44b76340d9f, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 0ddf81e534b6c074a97b1a6a63e5b6a5, type: 3}
+    - target: {fileID: -8679921383154817045, guid: 14a39aed0ec82d34e95ab44b76340d9f, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 0ddf81e534b6c074a97b1a6a63e5b6a5, type: 3}
+    - target: {fileID: -8679921383154817045, guid: 14a39aed0ec82d34e95ab44b76340d9f, type: 3}
       propertyPath: m_LocalPosition.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 0ddf81e534b6c074a97b1a6a63e5b6a5, type: 3}
+    - target: {fileID: -8679921383154817045, guid: 14a39aed0ec82d34e95ab44b76340d9f, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.7071068
+      value: 1
       objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 0ddf81e534b6c074a97b1a6a63e5b6a5, type: 3}
+    - target: {fileID: -8679921383154817045, guid: 14a39aed0ec82d34e95ab44b76340d9f, type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0.7071068
+      value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 0ddf81e534b6c074a97b1a6a63e5b6a5, type: 3}
+    - target: {fileID: -8679921383154817045, guid: 14a39aed0ec82d34e95ab44b76340d9f, type: 3}
       propertyPath: m_LocalRotation.y
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 0ddf81e534b6c074a97b1a6a63e5b6a5, type: 3}
+    - target: {fileID: -8679921383154817045, guid: 14a39aed0ec82d34e95ab44b76340d9f, type: 3}
       propertyPath: m_LocalRotation.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 0ddf81e534b6c074a97b1a6a63e5b6a5, type: 3}
+    - target: {fileID: -8679921383154817045, guid: 14a39aed0ec82d34e95ab44b76340d9f, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
-      value: -90
+      value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 0ddf81e534b6c074a97b1a6a63e5b6a5, type: 3}
+    - target: {fileID: -8679921383154817045, guid: 14a39aed0ec82d34e95ab44b76340d9f, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 0ddf81e534b6c074a97b1a6a63e5b6a5, type: 3}
+    - target: {fileID: -8679921383154817045, guid: 14a39aed0ec82d34e95ab44b76340d9f, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 919132149155446097, guid: 0ddf81e534b6c074a97b1a6a63e5b6a5, type: 3}
+    - target: {fileID: 919132149155446097, guid: 14a39aed0ec82d34e95ab44b76340d9f, type: 3}
       propertyPath: m_Name
-      value: Lua
+      value: anim_idle_lua
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects:
-    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 0ddf81e534b6c074a97b1a6a63e5b6a5, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 705987085325742216}
+    m_AddedGameObjects: []
     m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: 0ddf81e534b6c074a97b1a6a63e5b6a5, type: 3}
---- !u!4 &2260285182848325175 stripped
+  m_SourcePrefab: {fileID: 100100000, guid: 14a39aed0ec82d34e95ab44b76340d9f, type: 3}
+--- !u!4 &1917982807974991958 stripped
 Transform:
-  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 0ddf81e534b6c074a97b1a6a63e5b6a5, type: 3}
-  m_PrefabInstance: {fileID: 1789226581156016604}
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 14a39aed0ec82d34e95ab44b76340d9f, type: 3}
+  m_PrefabInstance: {fileID: 2095495778135621565}
   m_PrefabAsset: {fileID: 0}
 --- !u!1001 &8844049405740210361
 PrefabInstance:
