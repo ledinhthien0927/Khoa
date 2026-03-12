@@ -1319,7 +1319,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8166356590085481300}
   - component: {fileID: 7256601663600599007}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: Slider
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2509,7 +2509,7 @@ GameObject:
   - component: {fileID: 6686943772765460669}
   - component: {fileID: 3386353086636915740}
   - component: {fileID: 6115865813891551097}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: Fill
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2587,7 +2587,7 @@ GameObject:
   - component: {fileID: 2491699272505763108}
   - component: {fileID: 6196997332824521064}
   - component: {fileID: 3981843661147925468}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: HealthCanvas 1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3663,7 +3663,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2248260018953999267}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: Fill Area
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5871,7 +5871,7 @@ GameObject:
   - component: {fileID: 1479639756489335311}
   - component: {fileID: 2422969505025481344}
   - component: {fileID: 1901787783610054226}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: Background
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -6993,7 +6993,7 @@ GameObject:
   - component: {fileID: 5817100338074548212}
   - component: {fileID: 3856126956473668487}
   - component: {fileID: 5385612740187441076}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Shield
   m_TagString: Untagged
   m_Icon: {fileID: 0}
