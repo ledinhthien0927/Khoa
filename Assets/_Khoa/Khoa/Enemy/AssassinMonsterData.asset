@@ -18,7 +18,7 @@ MonoBehaviour:
   maxHealth: 100
   speed: 5
   detectionRange: 100
-  viewAngle: 360
+  viewAngle: 120
   detectionTime: 0
   callRange: 0
   alarmDelay: 2

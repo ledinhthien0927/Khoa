@@ -12,7 +12,8 @@ GameObject:
   - component: {fileID: 4910531235144034630}
   - component: {fileID: 3409089782120707733}
   - component: {fileID: 6326136844036784663}
-  - component: {fileID: 4027314061295078191}
+  - component: {fileID: -2888731906134537237}
+  - component: {fileID: 1509243840718715476}
   m_Layer: 6
   m_Name: AssassinEnemy
   m_TagString: Enemy
@@ -47,7 +48,7 @@ Animator:
   m_GameObject: {fileID: 4089252950781640657}
   m_Enabled: 1
   m_Avatar: {fileID: 9000000, guid: 409520c9226982345a49c9803624f208, type: 3}
-  m_Controller: {fileID: 9100000, guid: b38dacf490caaf3489d0ab07c067bd97, type: 2}
+  m_Controller: {fileID: 9100000, guid: 0c713372904be084490dfb0c34e7a364, type: 2}
   m_CullingMode: 1
   m_UpdateMode: 0
   m_ApplyRootMotion: 1
@@ -104,7 +105,7 @@ CapsuleCollider:
   m_Height: 1.8
   m_Direction: 1
   m_Center: {x: 0, y: 0.9, z: 0}
---- !u!114 &4027314061295078191
+--- !u!114 &-2888731906134537237
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -137,7 +138,7 @@ MonoBehaviour:
   startPosition: {x: 0, y: 0, z: 0}
   currentWanderWaitTime: 0
   isHit: 0
-  isLockMovement: 0
+  isLockMovement: 1
   flankDistance: 2.2
   flankOffsetAngle: 35
   flankRepathInterval: 0.25
@@ -146,6 +147,18 @@ MonoBehaviour:
   backstabAngleThreshold: 55
   attackCooldown: 2
   normalAttackRange: 2.2
+--- !u!114 &1509243840718715476
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4089252950781640657}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd6ea3d873b7fc6419785b26d2b3baff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AssassinAnimator
 --- !u!1001 &4770145468620573647
 PrefabInstance:
   m_ObjectHideFlags: 0

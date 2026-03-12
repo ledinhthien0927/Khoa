@@ -1,5 +1,6 @@
-using UnityEngine;
 using System.Collections;
+using UnityEngine;
+using UnityEngine.UIElements;
 
 public class IceMageMonster : MonsterController
 {
@@ -21,11 +22,17 @@ public class IceMageMonster : MonsterController
     [Header("Facing Settings")]
     public float faceAngleThreshold = 10f;
 
-    
+
     private bool isCasting = false;
     private Transform lockedTarget;
 
+    private IceMageAnimator customAnim;
 
+    protected override void Start()
+    {
+        base.Start();
+        customAnim = GetComponent<IceMageAnimator>();
+    }
 
     protected override void Update()
     {
@@ -37,6 +44,12 @@ public class IceMageMonster : MonsterController
         base.Update();
 
         if (isDead) return;
+
+        if (customAnim != null && agent != null)
+        {
+            bool isMoving = agent.velocity.sqrMagnitude > 0.1f;
+            customAnim.SetWalking(isMoving);
+        }
 
         if (lockedTarget != null)
         {
@@ -103,9 +116,9 @@ public class IceMageMonster : MonsterController
         StopMoving();
         RotateTowards(player.position);
 
-        if (anim != null)
+        if (customAnim != null)
         {
-            anim.SetTrigger("attack");
+            customAnim.PlayThrowPotion();
         }
 
         if (castVFX != null)
@@ -130,7 +143,7 @@ public class IceMageMonster : MonsterController
         }
         else
         {
-            Debug.LogWarning("icePotionPrefab chýa g?n script IcePotionProjectile.");
+            Debug.LogWarning("icePotionPrefab chÆ°a g?n script IcePotionProjectile.");
             Destroy(potionObj);
         }
 
@@ -160,6 +173,8 @@ public class IceMageMonster : MonsterController
         {
             agent.ResetPath();
         }
+
+        if (customAnim != null) customAnim.PlayHit();
 
         return base.TakeDamage(info);
     }

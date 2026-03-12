@@ -1,12 +1,5 @@
 fileFormatVersion: 2
 guid: c3b6dd7519323cc4bb41c71f8be5bfa0
-AssetOrigin:
-  serializedVersion: 1
-  productId: 270114
-  packageName: Stylized Water Effect Pack
-  packageVersion: 1.0
-  assetPath: Assets/NamuFX/_SharedAssets/Shader/MasterShader/SH_Master_improved.shadergraph
-  uploadId: 640167
 ScriptedImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -14,4 +7,11 @@ ScriptedImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-  script: {instanceID: 0}
+  script: {fileID: 11500000, guid: 625f186215c104763be7675aa2d941aa, type: 3}
+AssetOrigin:
+  serializedVersion: 1
+  productId: 270114
+  packageName: Stylized Water Effect Pack
+  packageVersion: 1.0
+  assetPath: Assets/NamuFX/_SharedAssets/Shader/MasterShader/SH_Master_improved.shadergraph
+  uploadId: 640167

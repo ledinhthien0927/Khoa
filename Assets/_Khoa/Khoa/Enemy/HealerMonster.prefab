@@ -44,6 +44,7 @@ GameObject:
   - component: {fileID: 7934254965401073996}
   - component: {fileID: 1934644294900347420}
   - component: {fileID: 7688432929441628674}
+  - component: {fileID: -8702022108892887361}
   m_Layer: 6
   m_Name: HealerMonster
   m_TagString: Enemy
@@ -169,7 +170,7 @@ Animator:
   m_GameObject: {fileID: 8750842608278470579}
   m_Enabled: 1
   m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 9100000, guid: ddb81d42c0967764894eb2ef0de900e3, type: 2}
+  m_Controller: {fileID: 9100000, guid: a9b756524ca165e4195d89ef1459ea72, type: 2}
   m_CullingMode: 0
   m_UpdateMode: 0
   m_ApplyRootMotion: 0
@@ -181,6 +182,18 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &-8702022108892887361
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8750842608278470579}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f3f3d9e8dbcbc94e8cacd96709330de, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HealerAnimator
 --- !u!1001 &1789226581156016604
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -3,7 +3,13 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 3
-  tags: []
+  tags:
+  - Enemy
+  - Branch
+  - Anvil
+  - NoticeBoard
+  - Villager
+  - Bench
   layers:
   - Default
   - TransparentFX
@@ -11,15 +17,15 @@ TagManager:
   - 
   - Water
   - UI
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  - Enemy
+  - Interactable
+  - Ground
+  - Arrow
+  - Player
+  - Water
+  - Shark
+  - Walkable
+  - Road
   - 
   - 
   - 

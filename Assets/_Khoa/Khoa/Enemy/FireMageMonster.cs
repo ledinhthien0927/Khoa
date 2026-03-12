@@ -1,5 +1,6 @@
-using UnityEngine;
 using System.Collections;
+using UnityEngine;
+using UnityEngine.UIElements;
 
 public class FireMageMonster : MonsterController
 {
@@ -18,9 +19,17 @@ public class FireMageMonster : MonsterController
     [Header("VFX")]
     public GameObject castVFX;
 
-    
+
     private bool isCasting = false;
     private Transform lockedTarget;
+
+    private FireMageAnimator customAnim;
+
+    protected override void Start()
+    {
+        base.Start();
+        customAnim = GetComponent<FireMageAnimator>();
+    }
 
     protected override void Update()
     {
@@ -32,6 +41,12 @@ public class FireMageMonster : MonsterController
         base.Update();
 
         if (isDead) return;
+
+        if (customAnim != null && agent != null)
+        {
+            bool isMoving = agent.velocity.sqrMagnitude > 0.1f;
+            customAnim.SetWalking(isMoving);
+        }
 
         if (lockedTarget != null)
         {
@@ -96,9 +111,9 @@ public class FireMageMonster : MonsterController
         StopMoving();
         RotateTowards(player.position);
 
-        if (anim != null)
+        if (customAnim != null)
         {
-            anim.SetTrigger("attack");
+            customAnim.PlayThrowPotion();
         }
 
         if (castVFX != null)
@@ -123,7 +138,7 @@ public class FireMageMonster : MonsterController
         }
         else
         {
-            Debug.LogWarning("firePotionPrefab chýa g?n script FirePotionProjectile.");
+            Debug.LogWarning("firePotionPrefab chÆ°a g?n script FirePotionProjectile.");
             Destroy(potionObj);
         }
 
@@ -164,6 +179,8 @@ public class FireMageMonster : MonsterController
         {
             agent.ResetPath();
         }
+
+        if (customAnim != null) customAnim.PlayHit();
 
         return base.TakeDamage(info);
     }

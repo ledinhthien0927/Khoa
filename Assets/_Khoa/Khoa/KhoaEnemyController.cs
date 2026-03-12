@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEngine.AI;
-using UnityEngine.UI; 
+using UnityEngine.UI;
 using System.Collections;
 
 public abstract class MonsterController : MonoBehaviour, IDamageable
@@ -9,32 +9,32 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
 
     [Header("Runtime Stats")]
     public float currentHealth;
-    
+
     // [ĐÃ SỬA] Các biến tùy chỉnh Hồi máu theo nhịp
     [Header("Health Regeneration")]
     public float regenAmount = 5f;     // Lượng máu hồi mỗi lần
     public float regenInterval = 2f;   // Thời gian chờ giữa mỗi lần hồi (giây)
     private float regenTimer = 0f;     // Bộ đếm thời gian ẩn
-    
+
     // Các biến trạng thái AI
     public bool isAlerted = false;
     public bool isTracking = false;
-    public bool isDead = false;          
-    public bool isInvulnerable = false;  
-    public bool isSearching = false; 
-    public bool isReturning = false; 
+    public bool isDead = false;
+    public bool isInvulnerable = false;
+    public bool isSearching = false;
+    public bool isReturning = false;
 
     protected Transform targetPlayer;
 
     [Header("UI & Effects")]
-    public Slider healthSlider;          
+    public Slider healthSlider;
     public float hitStunDuration = 0.5f;
-    public GameObject bloodPrefab; 
+    public GameObject bloodPrefab;
 
     [Header("Search Behavior (Stealth)")]
-    public float searchDuration = 5f; 
-    public float searchRadius = 6f;   
-    public float searchVisionMultiplier = 1.5f; 
+    public float searchDuration = 5f;
+    public float searchRadius = 6f;
+    public float searchVisionMultiplier = 1.5f;
 
     [Header("Base Logic")]
     public float currentDetectionTime = 0f;
@@ -46,21 +46,21 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
     protected NavMeshAgent agent;
     protected Animator anim;
     protected float lastAttackTime = -999f;
-    
-    public bool isHit = false; 
-    public bool isLockMovement = false; 
+
+    public bool isHit = false;
+    public bool isLockMovement = false;
 
     protected virtual void Start()
     {
         agent = GetComponent<NavMeshAgent>();
-        anim = GetComponentInChildren<Animator>(); 
+        anim = GetComponentInChildren<Animator>();
 
         if (data != null) currentHealth = data.maxHealth;
-        
-        if (agent != null) 
+
+        if (agent != null)
         {
             agent.speed = (data != null) ? data.speed : 3.5f;
-            agent.stoppingDistance = 0f; 
+            agent.stoppingDistance = 0f;
         }
 
         if (healthSlider != null)
@@ -68,7 +68,7 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
             healthSlider.maxValue = (data != null) ? data.maxHealth : currentHealth;
             healthSlider.value = currentHealth;
         }
-        
+
         startPosition = transform.position;
 
         GameObject p = GameObject.FindGameObjectWithTag("Player");
@@ -81,7 +81,7 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
     {
         if (isDead) return;
 
-        if (agent != null && anim != null) 
+        if (agent != null && anim != null)
         {
             anim.SetFloat("speed", agent.velocity.magnitude);
         }
@@ -89,7 +89,7 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
         if (isLockMovement || isHit)
         {
             if (agent != null && agent.enabled) agent.isStopped = true;
-            return; 
+            return;
         }
 
         // --- [CẬP NHẬT NAVMESH LEASH] ---
@@ -101,7 +101,7 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
                 {
                     if (agent.remainingDistance <= agent.stoppingDistance + 0.5f)
                     {
-                        StopAllCoroutines(); 
+                        StopAllCoroutines();
                         StartCoroutine(ReturnToTerritory());
                     }
                 }
@@ -113,37 +113,37 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
         if (!isAlerted && !isSearching && !isTracking)
         {
             float maxHP = (data != null) ? data.maxHealth : 100f;
-            
+
             if (currentHealth < maxHP)
             {
                 // Bắt đầu đếm thời gian
                 regenTimer += Time.deltaTime;
-                
+
                 // Khi thời gian đếm đủ mức Interval (VD: 2 giây)
                 if (regenTimer >= regenInterval)
                 {
                     currentHealth += regenAmount; // Cộng lượng máu quy định (VD: 5 máu)
-                    
+
                     // Khóa lại ở mức Max HP, không cho hồi lố
-                    if (currentHealth > maxHP) 
+                    if (currentHealth > maxHP)
                     {
                         currentHealth = maxHP;
                     }
-                    
+
                     // Cập nhật thanh máu trên đầu
-                    if (healthSlider != null) 
+                    if (healthSlider != null)
                     {
                         healthSlider.value = currentHealth;
                     }
-                    
+
                     // Reset bộ đếm về 0 để đếm lại cho nhịp tiếp theo
-                    regenTimer = 0f; 
+                    regenTimer = 0f;
                 }
             }
             else
             {
                 // Nếu máu đã đầy thì reset bộ đếm để không bị lưu nhịp thừa
-                regenTimer = 0f; 
+                regenTimer = 0f;
             }
         }
         else
@@ -158,9 +158,9 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
         isReturning = true;
         isAlerted = false;
         isSearching = false;
-        isTracking = false; 
-        
-        lastKnownPosition = null; 
+        isTracking = false;
+
+        lastKnownPosition = null;
         currentDetectionTime = 0f;
 
         if (agent != null) agent.speed = (data != null ? data.speed : 3.5f) * 1.5f;
@@ -170,14 +170,14 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
         while (Vector3.Distance(transform.position, startPosition) > 1.5f)
         {
             if (isDead) yield break;
-            
+
             MoveToPosition(startPosition, true);
-            yield return new WaitForSeconds(0.5f); 
+            yield return new WaitForSeconds(0.5f);
         }
 
         StopMoving();
-        isReturning = false; 
-        
+        isReturning = false;
+
         if (agent != null) agent.speed = data != null ? data.speed : 3.5f;
     }
 
@@ -194,23 +194,23 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
 
     public void StopMoving()
     {
-        if (agent != null && agent.enabled && agent.isOnNavMesh) 
-        { 
+        if (agent != null && agent.enabled && agent.isOnNavMesh)
+        {
             agent.isStopped = true;
-            agent.velocity = Vector3.zero; 
-            if(agent.hasPath) agent.ResetPath();
+            agent.velocity = Vector3.zero;
+            if (agent.hasPath) agent.ResetPath();
         }
     }
 
     public void RotateTowards(Vector3 target)
     {
-        if (isDead || isHit) return; 
+        if (isDead || isHit) return;
         Vector3 direction = (target - transform.position).normalized;
         direction.y = 0;
         if (direction != Vector3.zero)
         {
             Quaternion lookRot = Quaternion.LookRotation(direction);
-            transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, Time.deltaTime * 10f); 
+            transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, Time.deltaTime * 10f);
         }
     }
 
@@ -226,26 +226,26 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
     public bool CheckSight()
     {
         if (targetPlayer == null) return false;
-        
+
         Vector3 start = transform.position + Vector3.up * 1.5f;
         Vector3 end = targetPlayer.position + Vector3.up * 1.3f;
         Vector3 dir = end - start;
         float dist = Vector3.Distance(start, end);
 
-        float viewDistance = (data != null) ? data.detectionRange : 15f; 
-        
-        if (dist > viewDistance) return false; 
+        float viewDistance = (data != null) ? data.detectionRange : 15f;
+
+        if (dist > viewDistance) return false;
 
         if (Physics.Raycast(start, dir.normalized, out RaycastHit hit, viewDistance))
         {
-            if (hit.transform == targetPlayer || hit.transform.CompareTag("Player")) return true; 
+            if (hit.transform == targetPlayer || hit.transform.CompareTag("Player")) return true;
         }
         return false;
     }
 
     public virtual HitResult TakeDamage(DamageInfo info)
     {
-        if (isDead || isReturning) return HitResult.Ignored; 
+        if (isDead || isReturning) return HitResult.Ignored;
         if (isInvulnerable && info.type != DamageType.UltimateR) return HitResult.Ignored;
 
         currentHealth -= info.amount;
@@ -263,15 +263,15 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
             return HitResult.Hit;
         }
 
-        StopAllCoroutines(); 
+        StopAllCoroutines();
         StartCoroutine(ApplyHitReaction(info));
 
-        if (CheckSight()) 
+        if (CheckSight())
         {
-            isAlerted = true; 
+            isAlerted = true;
             isSearching = false;
         }
-        else 
+        else
         {
             StartCoroutine(SearchRoutine());
         }
@@ -281,10 +281,10 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
 
     protected IEnumerator ApplyHitReaction(DamageInfo info)
     {
-        isHit = true; 
+        isHit = true;
         isLockMovement = true;
-        
-        if (agent != null && agent.enabled) 
+
+        if (agent != null && agent.enabled)
         {
             agent.velocity = Vector3.zero;
             agent.isStopped = true;
@@ -292,28 +292,28 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
 
         if (anim != null)
         {
-            anim.ResetTrigger("attack"); 
+            anim.ResetTrigger("attack");
             anim.SetTrigger("Hurt");
         }
-        
+
         if (info.knockbackForce > 0)
         {
-             Rigidbody rb = GetComponent<Rigidbody>();
-             if(agent != null) agent.enabled = false; 
-             
-             if (rb != null && !rb.isKinematic) 
-             {
-                rb.AddForce(info.hitDirection * info.knockbackForce, ForceMode.Impulse);
-             }
+            Rigidbody rb = GetComponent<Rigidbody>();
+            if (agent != null) agent.enabled = false;
 
-             yield return new WaitForSeconds(0.2f); 
-             if(agent != null) agent.enabled = true; 
+            if (rb != null && !rb.isKinematic)
+            {
+                rb.AddForce(info.hitDirection * info.knockbackForce, ForceMode.Impulse);
+            }
+
+            yield return new WaitForSeconds(0.2f);
+            if (agent != null) agent.enabled = true;
         }
 
         yield return new WaitForSeconds(hitStunDuration);
-        
-        isHit = false; 
-        isLockMovement = false; 
+
+        isHit = false;
+        isLockMovement = false;
         if (agent != null && agent.enabled && agent.isOnNavMesh) agent.isStopped = false;
     }
 
@@ -321,11 +321,11 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
     {
         isSearching = true;
 
-        yield return new WaitForSeconds(hitStunDuration + 0.2f); 
+        yield return new WaitForSeconds(hitStunDuration + 0.2f);
 
         float timer = 0f;
         float baseVision = (data != null) ? data.detectionRange : 15f;
-        float boostedVision = baseVision * searchVisionMultiplier; 
+        float boostedVision = baseVision * searchVisionMultiplier;
 
         while (timer < searchDuration)
         {
@@ -334,7 +334,7 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
             if (targetPlayer != null)
             {
                 float distToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
-                
+
                 if (distToPlayer <= boostedVision)
                 {
                     Vector3 start = transform.position + Vector3.up * 1.5f;
@@ -347,7 +347,7 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
                         {
                             isAlerted = true;
                             isSearching = false;
-                            yield break; 
+                            yield break;
                         }
                     }
                 }
@@ -365,7 +365,7 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
                 }
             }
 
-            timer += 0.5f; 
+            timer += 0.5f;
             yield return new WaitForSeconds(0.5f);
         }
 
@@ -382,12 +382,12 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
 
         Collider col = GetComponent<Collider>();
         if (col != null) col.enabled = false;
-        
+
         if (anim != null) anim.SetTrigger("Die");
         if (healthSlider != null) healthSlider.gameObject.SetActive(false);
-        
+
         if (agent != null) agent.enabled = false;
-        
+
         if (MonsterManager.Instance != null) MonsterManager.Instance.UnregisterMonster(this);
         Destroy(gameObject, 3f);
     }
@@ -420,23 +420,23 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
 
             float wRadius = (data != null) ? data.wanderRadius : 10f;
             Vector3 randomDir = Random.insideUnitSphere * wRadius;
-            randomDir += startPosition; 
+            randomDir += startPosition;
 
             if (NavMesh.SamplePosition(randomDir, out NavMeshHit hit, wRadius, NavMesh.AllAreas))
             {
-                MoveToPosition(hit.position, true); 
-                currentWanderWaitTime = (data != null) ? data.wanderWaitTime : 3f; 
+                MoveToPosition(hit.position, true);
+                currentWanderWaitTime = (data != null) ? data.wanderWaitTime : 3f;
             }
         }
     }
-    
+
     protected virtual void OnDrawGizmosSelected()
     {
         Vector3 drawPos = Application.isPlaying ? startPosition : transform.position;
 
         if (data != null)
         {
-            Gizmos.color = new Color(0, 1, 0, 0.3f); 
+            Gizmos.color = new Color(0, 1, 0, 0.3f);
             Gizmos.DrawWireSphere(drawPos, data.wanderRadius);
         }
     }

@@ -1,12 +1,5 @@
 fileFormatVersion: 2
 guid: f5f107c0b6ed0c34a96e99dec11ecdf5
-AssetOrigin:
-  serializedVersion: 1
-  productId: 270114
-  packageName: Stylized Water Effect Pack
-  packageVersion: 1.0
-  assetPath: Assets/NamuFX/StylizedWaterEffects/Shaders/SH_Trail.shadergraph
-  uploadId: 640167
 ScriptedImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -14,4 +7,11 @@ ScriptedImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-  script: {instanceID: 0}
+  script: {fileID: 11500000, guid: 625f186215c104763be7675aa2d941aa, type: 3}
+AssetOrigin:
+  serializedVersion: 1
+  productId: 270114
+  packageName: Stylized Water Effect Pack
+  packageVersion: 1.0
+  assetPath: Assets/NamuFX/StylizedWaterEffects/Shaders/SH_Trail.shadergraph
+  uploadId: 640167

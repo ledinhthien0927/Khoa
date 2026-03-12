@@ -42,6 +42,7 @@ GameObject:
   - component: {fileID: 2884346293897495215}
   - component: {fileID: 7934254965401073996}
   - component: {fileID: 1934644294900347420}
+  - component: {fileID: 3855474977691260235}
   m_Layer: 6
   m_Name: FireMageMonster
   m_TagString: Enemy
@@ -111,6 +112,28 @@ CapsuleCollider:
   m_Height: 1.8
   m_Direction: 1
   m_Center: {x: 0, y: 0.9, z: 0}
+--- !u!95 &3855474977691260235
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8750842608278470579}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 9d22dacbf32ba3a468711ec005b79bc8, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
 --- !u!1001 &1789226581156016604
 PrefabInstance:
   m_ObjectHideFlags: 0

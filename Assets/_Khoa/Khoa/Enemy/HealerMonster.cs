@@ -1,5 +1,6 @@
-using UnityEngine;
 using System.Collections;
+using UnityEngine;
+using UnityEngine.UIElements;
 
 public class HealerMonster : MonsterController
 {
@@ -28,6 +29,14 @@ public class HealerMonster : MonsterController
     private MonsterController currentHealTarget;
     private Transform lockedTarget;
 
+    private HealerAnimator customAnim;
+
+    protected override void Start()
+    {
+        base.Start();
+        customAnim = GetComponent<HealerAnimator>();
+    }
+
     protected override void Update()
     {
         if (targetPlayer != null)
@@ -38,6 +47,12 @@ public class HealerMonster : MonsterController
         base.Update();
 
         if (isDead) return;
+
+        if (customAnim != null && agent != null)
+        {
+            bool isMoving = agent.velocity.sqrMagnitude > 0.1f;
+            customAnim.SetWalking(isMoving);
+        }
 
         if (lockedTarget != null)
         {
@@ -77,7 +92,7 @@ public class HealerMonster : MonsterController
             float healRange = Mathf.Max(data != null ? data.attackRange : 0f, 6f);
             float distToAlly = Vector3.Distance(transform.position, currentHealTarget.transform.position);
 
-            // Ngoài t?m heal -> ch?y l?i g?n
+            // NgoÃ i t?m heal -> ch?y l?i g?n
             if (distToAlly > healRange)
             {
                 MoveToPosition(currentHealTarget.transform.position, true);
@@ -85,7 +100,7 @@ public class HealerMonster : MonsterController
             }
             else
             {
-                // Vào t?m heal -> ð?ng l?i và ném thu?c
+                // VÃ o t?m heal -> Ä‘?ng l?i vÃ  nÃ©m thu?c
                 StopMoving();
                 RotateTowards(currentHealTarget.transform.position);
 
@@ -98,7 +113,7 @@ public class HealerMonster : MonsterController
             return;
         }
 
-        // Không có ai c?n heal th? ð?ng yên/quay v? player
+        // KhÃ´ng cÃ³ ai c?n heal th? Ä‘?ng yÃªn/quay v? player
         StopMoving();
         RotateTowards(player.position);
     }
@@ -145,9 +160,9 @@ public class HealerMonster : MonsterController
         StopMoving();
         RotateTowards(healTargetAtCast.transform.position);
 
-        if (anim != null)
+        if (customAnim != null)
         {
-            anim.SetTrigger("heal");
+            customAnim.PlayThrowPotion();
         }
 
         if (castVFX != null)
@@ -172,7 +187,7 @@ public class HealerMonster : MonsterController
         }
         else
         {
-            Debug.LogWarning("healPotionPrefab chýa g?n script HealingPotionProjectile.");
+            Debug.LogWarning("healPotionPrefab chÆ°a g?n script HealingPotionProjectile.");
             Destroy(potionObj);
         }
 
@@ -202,6 +217,8 @@ public class HealerMonster : MonsterController
         {
             agent.ResetPath();
         }
+
+        if (customAnim != null) customAnim.PlayHit();
 
         return base.TakeDamage(info);
     }

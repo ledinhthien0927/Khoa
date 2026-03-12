@@ -1,5 +1,6 @@
-using UnityEngine;
 using System.Collections;
+using UnityEngine;
+using UnityEngine.UIElements;
 
 public class AssassinMonster : MonsterController
 {
@@ -18,9 +19,17 @@ public class AssassinMonster : MonsterController
     private float lastFlankRepathTime = -999f;
 
     private bool isFlanking = false;
-    private bool hasDoneOpeningFlank = false;   // ch? flank 1 l?n lúc m?i phát hi?n player
+    private bool hasDoneOpeningFlank = false;   // ch? flank 1 l?n lÃºc m?i phÃ¡t hi?n player
     private Vector3 currentFlankPoint;
     private Transform lockedTarget;
+
+    private AssassinAnimator customAnim;
+
+    protected override void Start()
+    {
+        base.Start();
+        customAnim = GetComponent<AssassinAnimator>();
+    }
 
     protected override void Update()
     {
@@ -32,6 +41,12 @@ public class AssassinMonster : MonsterController
         base.Update();
 
         if (isDead) return;
+
+        if (customAnim != null && agent != null)
+        {
+            bool isMoving = agent.velocity.sqrMagnitude > 0.1f;
+            customAnim.SetRunning(isMoving);
+        }
 
         if (lockedTarget != null)
         {
@@ -48,7 +63,7 @@ public class AssassinMonster : MonsterController
             else if (dist >= 35f)
             {
                 lockedTarget = null;
-                hasDoneOpeningFlank = false; // m?t target th? reset ð? l?n sau phát hi?n l?i s? flank l?n ð?u
+                hasDoneOpeningFlank = false; // m?t target th? reset Ä‘? l?n sau phÃ¡t hi?n l?i s? flank l?n Ä‘?u
                 StopFlank();
             }
         }
@@ -66,7 +81,7 @@ public class AssassinMonster : MonsterController
 
         float distToPlayer = Vector3.Distance(transform.position, player.position);
 
-        // CHÝA flank m? combat l?n ð?u -> ýu tiên v?ng ra sau lýng
+        // CHÆ¯A flank m? combat l?n Ä‘?u -> Æ°u tiÃªn v?ng ra sau lÆ°ng
         if (!hasDoneOpeningFlank)
         {
             if (CanBackstab(player))
@@ -84,12 +99,12 @@ public class AssassinMonster : MonsterController
                 return;
             }
 
-            // chýa ra sau lýng ðý?c th? ti?p t?c flank
+            // chÆ°a ra sau lÆ°ng Ä‘Æ°?c th? ti?p t?c flank
             HandleFlankMovement(player);
             return;
         }
 
-        // Ð? flank xong 1 l?n -> t? nay ch? ðánh tr?c di?n
+        // Ä? flank xong 1 l?n -> t? nay ch? Ä‘Ã¡nh tr?c di?n
         StopFlank();
 
         if (distToPlayer <= normalAttackRange)
@@ -173,9 +188,9 @@ public class AssassinMonster : MonsterController
         lastAttackTime = Time.time;
         StopMoving();
 
-        if (anim != null)
+        if (customAnim != null)
         {
-            anim.SetTrigger(triggerName);
+            customAnim.PlaySlash();
         }
 
         yield return new WaitForSeconds(0.9f);
@@ -190,13 +205,15 @@ public class AssassinMonster : MonsterController
     {
         StopFlank();
 
-        // b? ðánh th? coi nhý ð? vào combat r?i, không flank n?a
+        // b? Ä‘Ã¡nh th? coi nhÆ° Ä‘? vÃ o combat r?i, khÃ´ng flank n?a
         hasDoneOpeningFlank = true;
 
         if (agent != null && agent.enabled && agent.isOnNavMesh)
         {
             agent.ResetPath();
         }
+
+        if (customAnim != null) customAnim.PlayHit();
 
         return base.TakeDamage(info);
     }
