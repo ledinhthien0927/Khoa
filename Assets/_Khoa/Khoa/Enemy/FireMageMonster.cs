@@ -129,6 +129,10 @@ public class FireMageMonster : MonsterController
             yield break;
         }
 
+        // --- SOUND: Bắn đạn lửa ---
+        if (EnemySoundManager.Instance != null)
+            EnemySoundManager.Instance.PlayRangedShoot(throwPoint.position);
+
         GameObject potionObj = Instantiate(firePotionPrefab, throwPoint.position, Quaternion.identity);
         FirePotionProjectile projectile = potionObj.GetComponent<FirePotionProjectile>();
 

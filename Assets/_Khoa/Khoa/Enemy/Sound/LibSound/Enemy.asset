@@ -14,7 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemySoundLibrary
   meleeAttackClips:
   - {fileID: 8300000, guid: 323e15cfe809e114ab92c9f4b25e8bc2, type: 3}
-  - {fileID: 8300000, guid: df7087e4d8a8bb546bc08ce68632903f, type: 3}
   rangedShootClips:
   - {fileID: 8300000, guid: 4310474905e266640852f43bd609a1a4, type: 3}
   - {fileID: 8300000, guid: 06ada5590eba8d6489b36c6f3c54ff78, type: 3}
@@ -23,7 +22,8 @@ MonoBehaviour:
   alarmScreamClips: []
   shieldBlockClips:
   - {fileID: 8300000, guid: b7b5a6156961bac44a67504d42ce6fcf, type: 3}
-  hurtClips: []
+  hurtClips:
+  - {fileID: 8300000, guid: 8b23b175a78d6b5458322e3a6c9905d0, type: 3}
   dieClips: []
   alertClips: []
   footstepClips: []

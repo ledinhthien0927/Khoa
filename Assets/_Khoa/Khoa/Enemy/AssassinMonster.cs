@@ -188,6 +188,10 @@ public class AssassinMonster : MonsterController
         lastAttackTime = Time.time;
         StopMoving();
 
+        // --- SOUND: Tấn công cận chiến ---
+        if (EnemySoundManager.Instance != null)
+            EnemySoundManager.Instance.PlayMeleeAttack(transform.position);
+
         if (customAnim != null)
         {
             customAnim.PlaySlash();

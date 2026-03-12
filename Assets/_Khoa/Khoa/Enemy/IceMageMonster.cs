@@ -134,6 +134,10 @@ public class IceMageMonster : MonsterController
             yield break;
         }
 
+        // --- SOUND: Bắn đạn đá ---
+        if (EnemySoundManager.Instance != null)
+            EnemySoundManager.Instance.PlayRangedShoot(throwPoint.position);
+
         GameObject potionObj = Instantiate(icePotionPrefab, throwPoint.position, Quaternion.identity);
         IcePotionProjectile projectile = potionObj.GetComponent<IcePotionProjectile>();
 

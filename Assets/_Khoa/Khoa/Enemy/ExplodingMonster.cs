@@ -94,6 +94,10 @@ public class ExplodingMonster : MonsterController
 
         if (CheckSight() || isAlerted)
         {
+            // --- SOUND: Hú báo động lần đầu ---
+            if (!isAlerted && EnemySoundManager.Instance != null)
+                EnemySoundManager.Instance.PlayAlarmScream(transform.position);
+
             if (!isAlerted) isAlerted = true; 
 
             // --- [ĐÃ THÊM]: CHIẾN THUẬT GỌNG KÌM NGẪU NHIÊN ---
@@ -138,6 +142,10 @@ public class ExplodingMonster : MonsterController
             if (anim != null) anim.SetTrigger("attack"); 
             yield return new WaitForSeconds(explosionDelay);
         }
+
+        // --- SOUND: Nổ ---
+        if (EnemySoundManager.Instance != null)
+            EnemySoundManager.Instance.PlayExplosion(transform.position);
 
         // --- SÁT THƯƠNG VỤ NỔ ---
         Collider[] colliders = Physics.OverlapSphere(transform.position, explosionRadius);

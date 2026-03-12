@@ -58,6 +58,10 @@ public class ShieldMonster : MonsterController
             isBlocking = true;
             isLoweringShield = false;
 
+            // --- SOUND: Đỡ khiên thành công ---
+            if (EnemySoundManager.Instance != null)
+                EnemySoundManager.Instance.PlayShieldBlock(transform.position);
+
             if (anim != null)
             {
                 anim.SetBool("isBlocking", true);
@@ -172,6 +176,10 @@ public class ShieldMonster : MonsterController
     private IEnumerator ExecuteShieldAttack(Transform player)
     {
         isAttacking = true;
+
+        // --- SOUND: Tấn công cận chiến ---
+        if (EnemySoundManager.Instance != null)
+            EnemySoundManager.Instance.PlayMeleeAttack(transform.position);
 
         if (anim != null) anim.SetTrigger("attack");
 

@@ -178,6 +178,10 @@ public class HealerMonster : MonsterController
             yield break;
         }
 
+        // --- SOUND: Ném bình hồi máu ---
+        if (EnemySoundManager.Instance != null)
+            EnemySoundManager.Instance.PlayRangedShoot(throwPoint.position);
+
         GameObject potionObj = Instantiate(healPotionPrefab, throwPoint.position, Quaternion.identity);
         HealingPotionProjectile projectile = potionObj.GetComponent<HealingPotionProjectile>();
 

@@ -251,6 +251,10 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
         currentHealth -= info.amount;
         if (healthSlider != null) healthSlider.value = currentHealth;
 
+        // --- SOUND: Bị đánh ---
+        if (EnemySoundManager.Instance != null)
+            EnemySoundManager.Instance.PlayHurt(transform.position);
+
         if (bloodPrefab != null)
         {
             GameObject blood = Instantiate(bloodPrefab, transform.position + Vector3.up, Quaternion.LookRotation(info.hitDirection));
@@ -268,6 +272,10 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
 
         if (CheckSight())
         {
+            // --- SOUND: Phát hiện player ---
+            if (!isAlerted && EnemySoundManager.Instance != null)
+                EnemySoundManager.Instance.PlayAlert(transform.position);
+
             isAlerted = true;
             isSearching = false;
         }
@@ -379,6 +387,10 @@ public abstract class MonsterController : MonoBehaviour, IDamageable
         isDead = true;
         isLockMovement = true;
         StopMoving();
+
+        // --- SOUND: Chết ---
+        if (EnemySoundManager.Instance != null)
+            EnemySoundManager.Instance.PlayDie(transform.position);
 
         Collider col = GetComponent<Collider>();
         if (col != null) col.enabled = false;
