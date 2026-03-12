@@ -1,0 +1,16 @@
+﻿<Solution>
+  <Project Path="Unity.ShaderGraph.Editor.csproj" />
+  <Project Path="Unity.RenderPipelines.Core.Runtime.csproj" />
+  <Project Path="WaveHarmonic.Crest.csproj" />
+  <Project Path="Unity.RenderPipelines.Core.Editor.csproj" />
+  <Project Path="Unity.RenderPipelines.Universal.Editor.csproj" />
+  <Project Path="Unity.RenderPipelines.Universal.Runtime.csproj" />
+  <Project Path="Assembly-CSharp.csproj" />
+  <Project Path="WaveHarmonic.Crest.Samples.csproj" />
+  <Project Path="WaveHarmonic.Crest.Shared.Editor.csproj" />
+  <Project Path="WaveHarmonic.Crest.Shared.csproj" />
+  <Project Path="WaveHarmonic.Crest.Editor.csproj" />
+  <Project Path="WaveHarmonic.Crest.Scripting.csproj" />
+  <Project Path="WaveHarmonic.Crest.Editor.Dependents.csproj" />
+  <Project Path="Assembly-CSharp-Editor.csproj" />
+</Solution>
