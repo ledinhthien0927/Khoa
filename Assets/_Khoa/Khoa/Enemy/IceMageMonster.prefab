@@ -1,5 +1,36 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &8588806756344807004
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 425920047267036546}
+  m_Layer: 0
+  m_Name: Throw
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &425920047267036546
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8588806756344807004}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1770542334047161656}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &8750842608278470579
 GameObject:
   m_ObjectHideFlags: 0
@@ -129,7 +160,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5fa8e6b5d85baa245bad7944b6bc7bed, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::IceMageMonster
-  data: {fileID: 0}
+  data: {fileID: 11400000, guid: 23f457d4fd3ca45459127ab17f96d60f, type: 2}
   currentHealth: 0
   regenAmount: 5
   regenInterval: 2
@@ -139,9 +170,9 @@ MonoBehaviour:
   isInvulnerable: 0
   isSearching: 0
   isReturning: 0
-  healthSlider: {fileID: 0}
+  healthSlider: {fileID: 8179625477623212930}
   hitStunDuration: 0.5
-  bloodPrefab: {fileID: 0}
+  bloodPrefab: {fileID: 7208382984874360369, guid: d569f66bbfe145b41a14b3ba4fa397be, type: 3}
   searchDuration: 5
   searchRadius: 6
   searchVisionMultiplier: 1.5
@@ -154,8 +185,8 @@ MonoBehaviour:
   attackCooldown: 4
   castTime: 0.8
   attackRange: 8
-  throwPoint: {fileID: 0}
-  icePotionPrefab: {fileID: 0}
+  throwPoint: {fileID: 425920047267036546}
+  icePotionPrefab: {fileID: 6641291012678652734, guid: fbaa11218d211f142a3d9d5628fbe7f2, type: 3}
   freezeDuration: 3
   castVFX: {fileID: 0}
   faceAngleThreshold: 10
@@ -1193,15 +1224,7 @@ PrefabInstance:
       objectReference: {fileID: 9100000, guid: 34965403a61f9ee49b7592ca1d30cdf8, type: 2}
     - target: {fileID: 5866666021909216657, guid: fbcd4ab6932e7d04fa95bd7e89f9cd97, type: 3}
       propertyPath: m_WarningMessage
-      value: "\nBinding warning: Some generic clip(s) animate transforms that are
-        already bound by a Humanoid avatar. These transforms can only be changed
-        by Humanoid clips.\n\tTransform 'mixamorig:RightFoot'\n\tTransform 'mixamorig:LeftLeg'\n\tTransform
-        'mixamorig:LeftHand'\n\tTransform 'mixamorig:LeftHandThumb1'\n\tTransform
-        'mixamorig:RightHandPinky3'\n\tTransform 'mixamorig:RightHandPinky1'\n\tTransform
-        'mixamorig:RightUpLeg'\n\tTransform 'mixamorig:RightHandMiddle2'\n\tTransform
-        'mixamorig:RightForeArm'\n\tTransform 'mixamorig:RightHandIndex3'\n\tand
-        more ...\n\tFrom animation clip 'Armature|Armature|mixamo.com|Layer0'\n\tFrom
-        animation clip 'Armature|Armature|Armature|Armature|mixamo.com|Layer0'"
+      value: 
       objectReference: {fileID: 0}
     - target: {fileID: 6060806385407736488, guid: fbcd4ab6932e7d04fa95bd7e89f9cd97, type: 3}
       propertyPath: m_LocalPosition.x
@@ -1561,9 +1584,17 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 2412161367050800168, guid: fbcd4ab6932e7d04fa95bd7e89f9cd97, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 425920047267036546}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: fbcd4ab6932e7d04fa95bd7e89f9cd97, type: 3}
+--- !u!4 &1770542334047161656 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 2412161367050800168, guid: fbcd4ab6932e7d04fa95bd7e89f9cd97, type: 3}
+  m_PrefabInstance: {fileID: 4173584669462741264}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &4494931462397273851 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: fbcd4ab6932e7d04fa95bd7e89f9cd97, type: 3}
@@ -1743,3 +1774,14 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 2303864610232063008, guid: a76bb4aa4632aab44b60578fcba51e8b, type: 3}
   m_PrefabInstance: {fileID: 8844049405740210361}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &8179625477623212930 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 810575482873525051, guid: a76bb4aa4632aab44b60578fcba51e8b, type: 3}
+  m_PrefabInstance: {fileID: 8844049405740210361}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67db9e8f0e2ae9c40bc1e2b64352a6b4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Slider

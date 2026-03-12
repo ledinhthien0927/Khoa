@@ -1,5 +1,36 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &8324935782929996126
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1125191821769497086}
+  m_Layer: 0
+  m_Name: Throw
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1125191821769497086
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8324935782929996126}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4354142691360076693}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &8750842608278470579
 GameObject:
   m_ObjectHideFlags: 0
@@ -129,7 +160,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 50321361c19c8f14eaaadd3eb9f18bd5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FireMageMonster
-  data: {fileID: 0}
+  data: {fileID: 11400000, guid: 23f457d4fd3ca45459127ab17f96d60f, type: 2}
   currentHealth: 0
   regenAmount: 5
   regenInterval: 2
@@ -139,9 +170,9 @@ MonoBehaviour:
   isInvulnerable: 0
   isSearching: 0
   isReturning: 0
-  healthSlider: {fileID: 0}
+  healthSlider: {fileID: 8179625477623212930}
   hitStunDuration: 0.5
-  bloodPrefab: {fileID: 0}
+  bloodPrefab: {fileID: 7208382984874360369, guid: d569f66bbfe145b41a14b3ba4fa397be, type: 3}
   searchDuration: 5
   searchRadius: 6
   searchVisionMultiplier: 1.5
@@ -154,8 +185,8 @@ MonoBehaviour:
   attackCooldown: 4
   castTime: 0.8
   attackRange: 8
-  throwPoint: {fileID: 0}
-  firePotionPrefab: {fileID: 0}
+  throwPoint: {fileID: 1125191821769497086}
+  firePotionPrefab: {fileID: 6641291012678652734, guid: a8b8362c7ee64ad4ca3925313c5daa38, type: 3}
   faceAngleThreshold: 10
   castVFX: {fileID: 0}
 --- !u!1001 &2095495778135621565
@@ -212,12 +243,20 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 2412161367050800168, guid: 14a39aed0ec82d34e95ab44b76340d9f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1125191821769497086}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 14a39aed0ec82d34e95ab44b76340d9f, type: 3}
 --- !u!4 &1917982807974991958 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 14a39aed0ec82d34e95ab44b76340d9f, type: 3}
+  m_PrefabInstance: {fileID: 2095495778135621565}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &4354142691360076693 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 2412161367050800168, guid: 14a39aed0ec82d34e95ab44b76340d9f, type: 3}
   m_PrefabInstance: {fileID: 2095495778135621565}
   m_PrefabAsset: {fileID: 0}
 --- !u!1001 &8844049405740210361
@@ -394,3 +433,14 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 2303864610232063008, guid: a76bb4aa4632aab44b60578fcba51e8b, type: 3}
   m_PrefabInstance: {fileID: 8844049405740210361}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &8179625477623212930 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 810575482873525051, guid: a76bb4aa4632aab44b60578fcba51e8b, type: 3}
+  m_PrefabInstance: {fileID: 8844049405740210361}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67db9e8f0e2ae9c40bc1e2b64352a6b4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Slider

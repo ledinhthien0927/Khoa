@@ -54,7 +54,7 @@ MonoBehaviour:
   playerLayer:
     serializedVersion: 2
     m_Bits: 1024
-  hitVFX: {fileID: 371815807017903658, guid: 829fda38e4fb3164883738dab5229989, type: 3}
+  hitVFX: {fileID: 3744133877081091469, guid: a2a060732547fe64581bb0cb3c2bdf1d, type: 3}
 --- !u!1001 &1341348427277087364
 PrefabInstance:
   m_ObjectHideFlags: 0
