@@ -9,6 +9,7 @@ public class HealerAnimator : MonoBehaviour
     private readonly int isWalkingHash = Animator.StringToHash("IsWalking");
     private readonly int throwPotionHash = Animator.StringToHash("ThrowPotion");
     private readonly int hitHash = Animator.StringToHash("Hit");
+    private readonly int healHash = Animator.StringToHash("Heal");
 
     private void Awake()
     {
@@ -48,5 +49,11 @@ public class HealerAnimator : MonoBehaviour
     public void PlayHit()
     {
         if (animator != null) animator.SetTrigger(hitHash);
+    }
+
+    /// Play the heal animation.
+    public void PlayHeal()
+    {
+        if (animator != null) animator.SetTrigger(healHash);
     }
 }

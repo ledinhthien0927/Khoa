@@ -162,7 +162,7 @@ public class HealerMonster : MonsterController
 
         if (customAnim != null)
         {
-            customAnim.PlayThrowPotion();
+            customAnim.PlayHeal();
         }
 
         if (castVFX != null)
