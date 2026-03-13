@@ -19,11 +19,15 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 06ada5590eba8d6489b36c6f3c54ff78, type: 3}
   explosionClips:
   - {fileID: 8300000, guid: a652877b012108e41871f867ada9f176, type: 3}
-  alarmScreamClips: []
+  alarmScreamClips:
+  - {fileID: 0}
   shieldBlockClips:
   - {fileID: 8300000, guid: b7b5a6156961bac44a67504d42ce6fcf, type: 3}
   hurtClips:
   - {fileID: 8300000, guid: 8b23b175a78d6b5458322e3a6c9905d0, type: 3}
-  dieClips: []
-  alertClips: []
-  footstepClips: []
+  dieClips:
+  - {fileID: 0}
+  alertClips:
+  - {fileID: 0}
+  footstepClips:
+  - {fileID: 0}
