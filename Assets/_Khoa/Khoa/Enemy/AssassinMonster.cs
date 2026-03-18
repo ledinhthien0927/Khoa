@@ -1,42 +1,54 @@
 using System.Collections;
 using UnityEngine;
-using UnityEngine.UIElements;
 
 public class AssassinMonster : MonsterController
 {
-    [Header("Assassin Settings")]
-    public float flankDistance = 2.2f;
-    public float flankOffsetAngle = 35f;
-    public float flankRepathInterval = 0.25f;
-    public float flankStopDistance = 0.9f;
-    public float backstabRange = 1.8f;
-    public float backstabAngleThreshold = 55f;
-    public float attackCooldown = 2f;
+    [Header("Ambush Settings")]
+    public float ambushTriggerDistance = 7f;
+    public float warningDuration = 0.5f;
+    public float ambushAttackRange = 1.8f;
+    public float ambushDashSpeed = 12f;
+    public float ambushRetreatDistance = 3.5f;
+    public float ambushRetreatSpeed = 10f;
+    public float ambushRetreatStopDistance = 0.25f;
 
     [Header("Attack Settings")]
     public float normalAttackRange = 2.2f;
+    public float attackCooldown = 2f;
 
-    private float lastFlankRepathTime = -999f;
+    [Header("Audio")]
+    public AudioSource audioSource;
+    public AudioClip ambushWarningClip;
+    public AudioClip ambushAttackClip;
 
-    private bool isFlanking = false;
-    private bool hasDoneOpeningFlank = false;   // ch? flank 1 l?n lúc m?i phát hi?n player
-    private Vector3 currentFlankPoint;
     private Transform lockedTarget;
-
     private AssassinAnimator customAnim;
+
+    private bool hasStartedAmbush = false;
+    private bool hasFinishedAmbush = false;
+    private bool isWarning = false;
+    private bool isAmbushDashing = false;
+    private bool isRetreating = false;
+    private bool hasAppliedAmbushDamage = false;
+    private bool isDoingNormalAttack = false;
+
+    private Vector3 retreatTarget;
+    private Coroutine ambushRoutine;
+    private Coroutine normalAttackRoutine;
 
     protected override void Start()
     {
         base.Start();
         customAnim = GetComponent<AssassinAnimator>();
+
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
     }
 
     protected override void Update()
     {
         if (targetPlayer != null)
-        {
             lockedTarget = targetPlayer;
-        }
 
         base.Update();
 
@@ -63,8 +75,7 @@ public class AssassinMonster : MonsterController
             else if (dist >= 35f)
             {
                 lockedTarget = null;
-                hasDoneOpeningFlank = false; // m?t target th? reset đ? l?n sau phát hi?n l?i s? flank l?n đ?u
-                StopFlank();
+                ResetAssassinState();
             }
         }
     }
@@ -75,37 +86,94 @@ public class AssassinMonster : MonsterController
 
         if (isDead || isHit || isSearching || isReturning)
         {
-            StopFlank();
+            StopSpecialState();
             return;
         }
 
         float distToPlayer = Vector3.Distance(transform.position, player.position);
 
-        // CHƯA flank m? combat l?n đ?u -> ưu tiên v?ng ra sau lưng
-        if (!hasDoneOpeningFlank)
+        if (!hasFinishedAmbush)
         {
-            if (CanBackstab(player))
-            {
-                StopFlank();
-                StopMoving();
-                RotateTowards(player.position);
-
-                if (Time.time >= lastAttackTime + attackCooldown)
-                {
-                    hasDoneOpeningFlank = true;
-                    StartCoroutine(DoAttack("attack"));
-                }
-
-                return;
-            }
-
-            // chưa ra sau lưng đư?c th? ti?p t?c flank
-            HandleFlankMovement(player);
+            HandleAmbushPhase(player, distToPlayer);
             return;
         }
 
-        // Đ? flank xong 1 l?n -> t? nay ch? đánh tr?c di?n
-        StopFlank();
+        HandleNormalCombat(player, distToPlayer);
+    }
+
+    private void HandleAmbushPhase(Transform player, float distToPlayer)
+    {
+        // Chưa bắt đầu phục kích: đứng chờ player lại gần
+        if (!hasStartedAmbush)
+        {
+            StopMoving();
+            RotateTowards(player.position);
+
+            if (distToPlayer <= ambushTriggerDistance)
+            {
+                if (ambushRoutine != null)
+                    StopCoroutine(ambushRoutine);
+
+                ambushRoutine = StartCoroutine(AmbushSequence(player));
+            }
+
+            return;
+        }
+
+        // Đang phát tín hiệu
+        if (isWarning)
+        {
+            StopMoving();
+            RotateTowards(player.position);
+            return;
+        }
+
+        // Đang lao nhanh tới chém 1 phát
+        if (isAmbushDashing)
+        {
+            RotateTowards(player.position);
+
+            if (agent != null && agent.enabled && agent.isOnNavMesh)
+            {
+                agent.speed = ambushDashSpeed;
+                agent.SetDestination(player.position);
+            }
+
+            if (!hasAppliedAmbushDamage && distToPlayer <= ambushAttackRange)
+            {
+                PerformAmbushHit(player);
+                StartRetreat(player);
+            }
+
+            return;
+        }
+
+        // Chạy ra sau cú chém đầu để player không đánh trả ngay
+        if (isRetreating)
+        {
+            if (agent != null && agent.enabled && agent.isOnNavMesh)
+            {
+                agent.speed = ambushRetreatSpeed;
+                agent.SetDestination(retreatTarget);
+            }
+
+            RotateTowards(retreatTarget);
+
+            float distToRetreat = Vector3.Distance(transform.position, retreatTarget);
+            if (distToRetreat <= ambushRetreatStopDistance)
+            {
+                FinishAmbush();
+            }
+
+            return;
+        }
+
+        StopMoving();
+    }
+
+    private void HandleNormalCombat(Transform player, float distToPlayer)
+    {
+        if (isDoingNormalAttack) return;
 
         if (distToPlayer <= normalAttackRange)
         {
@@ -114,7 +182,10 @@ public class AssassinMonster : MonsterController
 
             if (Time.time >= lastAttackTime + attackCooldown)
             {
-                StartCoroutine(DoAttack("attack"));
+                if (normalAttackRoutine != null)
+                    StopCoroutine(normalAttackRoutine);
+
+                normalAttackRoutine = StartCoroutine(DoNormalAttack());
             }
         }
         else
@@ -124,121 +195,186 @@ public class AssassinMonster : MonsterController
         }
     }
 
-    private void HandleFlankMovement(Transform player)
+    private IEnumerator AmbushSequence(Transform player)
     {
-        if (Time.time >= lastFlankRepathTime + flankRepathInterval || !isFlanking)
-        {
-            currentFlankPoint = CalculateFlankPoint(player);
-            lastFlankRepathTime = Time.time;
-            isFlanking = true;
-        }
+        hasStartedAmbush = true;
+        isWarning = true;
+        isAmbushDashing = false;
+        isRetreating = false;
+        hasAppliedAmbushDamage = false;
 
-        float distToFlankPoint = Vector3.Distance(transform.position, currentFlankPoint);
-
-        if (distToFlankPoint > flankStopDistance)
-        {
-            MoveToPosition(currentFlankPoint, true);
-            RotateTowards(currentFlankPoint);
-        }
-        else
-        {
-            MoveToPosition(player.position, true);
-            RotateTowards(player.position);
-        }
-    }
-
-    private Vector3 CalculateFlankPoint(Transform player)
-    {
-        Vector3 backDir = -player.forward;
-        backDir.y = 0f;
-        backDir.Normalize();
-
-        Vector3 right = Quaternion.Euler(0f, flankOffsetAngle, 0f) * backDir;
-        Vector3 left = Quaternion.Euler(0f, -flankOffsetAngle, 0f) * backDir;
-
-        Vector3 rightPoint = player.position + right * flankDistance;
-        Vector3 leftPoint = player.position + left * flankDistance;
-
-        float rightDist = Vector3.Distance(transform.position, rightPoint);
-        float leftDist = Vector3.Distance(transform.position, leftPoint);
-
-        Vector3 chosen = rightDist < leftDist ? rightPoint : leftPoint;
-        chosen.y = transform.position.y;
-
-        return chosen;
-    }
-
-    private bool CanBackstab(Transform player)
-    {
-        float dist = Vector3.Distance(transform.position, player.position);
-        if (dist > backstabRange) return false;
-
-        Vector3 toAssassin = transform.position - player.position;
-        toAssassin.y = 0f;
-
-        if (toAssassin.sqrMagnitude < 0.001f) return false;
-
-        float angle = Vector3.Angle(player.forward, toAssassin.normalized);
-
-        return angle >= (180f - backstabAngleThreshold);
-    }
-
-    private IEnumerator DoAttack(string triggerName)
-    {
-        lastAttackTime = Time.time;
         StopMoving();
+        RotateTowards(player.position);
 
-        // --- SOUND: Tấn công cận chiến ---
-        if (EnemySoundManager.Instance != null)
-            EnemySoundManager.Instance.PlayMeleeAttack(transform.position);
+        PlayClip(ambushWarningClip);
+
+        yield return new WaitForSeconds(warningDuration);
+
+        if (isDead || player == null)
+        {
+            ambushRoutine = null;
+            yield break;
+        }
+
+        isWarning = false;
+        isAmbushDashing = true;
 
         if (customAnim != null)
         {
             customAnim.PlaySlash();
-            Debug.Log("Assassin attack animation triggered");
+            Debug.Log("Assassin ambush attack animation triggered");
+        }
+
+        PlayClip(ambushAttackClip);
+
+        ambushRoutine = null;
+    }
+
+    private void PerformAmbushHit(Transform player)
+    {
+        hasAppliedAmbushDamage = true;
+        lastAttackTime = Time.time;
+
+        IDamageable damageable = player.GetComponent<IDamageable>();
+        if (damageable != null && data != null)
+        {
+            DamageInfo info = new DamageInfo()
+            {
+                amount = data.damage,
+                hitDirection = (player.position - transform.position).normalized,
+                knockbackForce = 0f
+            };
+
+            damageable.TakeDamage(info);
+        }
+    }
+
+    private void StartRetreat(Transform player)
+    {
+        isAmbushDashing = false;
+        isRetreating = true;
+
+        Vector3 awayDir = (transform.position - player.position).normalized;
+        awayDir.y = 0f;
+
+        if (awayDir.sqrMagnitude < 0.001f)
+            awayDir = -transform.forward;
+
+        retreatTarget = transform.position + awayDir * ambushRetreatDistance;
+        retreatTarget.y = transform.position.y;
+    }
+
+    private void FinishAmbush()
+    {
+        isWarning = false;
+        isAmbushDashing = false;
+        isRetreating = false;
+        hasFinishedAmbush = true;
+
+        if (agent != null && agent.enabled && agent.isOnNavMesh)
+            agent.ResetPath();
+    }
+
+    private IEnumerator DoNormalAttack()
+    {
+        isDoingNormalAttack = true;
+        lastAttackTime = Time.time;
+
+        StopMoving();
+        PlayClip(ambushAttackClip);
+
+        if (customAnim != null)
+        {
+            customAnim.PlaySlash();
+            Debug.Log("Assassin normal attack animation triggered");
         }
 
         yield return new WaitForSeconds(0.9f);
+
+        isDoingNormalAttack = false;
+        normalAttackRoutine = null;
     }
 
-    private void StopFlank()
+    private void PlayClip(AudioClip clip)
     {
-        isFlanking = false;
+        if (audioSource == null || clip == null) return;
+        audioSource.PlayOneShot(clip);
+    }
+
+    private void StopSpecialState()
+    {
+        if (agent != null && agent.enabled && agent.isOnNavMesh)
+            agent.ResetPath();
+
+        isWarning = false;
+        isAmbushDashing = false;
+        isRetreating = false;
+    }
+
+    private void ResetAssassinState()
+    {
+        StopSpecialState();
+
+        hasStartedAmbush = false;
+        hasFinishedAmbush = false;
+        hasAppliedAmbushDamage = false;
+        isDoingNormalAttack = false;
+
+        if (ambushRoutine != null)
+        {
+            StopCoroutine(ambushRoutine);
+            ambushRoutine = null;
+        }
+
+        if (normalAttackRoutine != null)
+        {
+            StopCoroutine(normalAttackRoutine);
+            normalAttackRoutine = null;
+        }
     }
 
     public override HitResult TakeDamage(DamageInfo info)
     {
-        StopFlank();
+        // Bị đánh trúng thì bỏ hẳn pha phục kích, vào combat thường luôn
+        hasFinishedAmbush = true;
+        isWarning = false;
+        isAmbushDashing = false;
+        isRetreating = false;
 
-        // b? đánh th? coi như đ? vào combat r?i, không flank n?a
-        hasDoneOpeningFlank = true;
+        if (ambushRoutine != null)
+        {
+            StopCoroutine(ambushRoutine);
+            ambushRoutine = null;
+        }
 
         if (agent != null && agent.enabled && agent.isOnNavMesh)
-        {
             agent.ResetPath();
-        }
 
         if (customAnim != null)
         {
             customAnim.PlayHit();
             Debug.Log("Assassin hit animation triggered");
         }
+
         return base.TakeDamage(info);
     }
 
     private void OnDrawGizmosSelected()
     {
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(transform.position, ambushTriggerDistance);
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, ambushAttackRange);
+
         Gizmos.color = Color.magenta;
         Gizmos.DrawWireSphere(transform.position, normalAttackRange);
 
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, backstabRange);
-
-        if (isFlanking)
+        if (isRetreating)
         {
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawSphere(currentFlankPoint, 0.15f);
-            Gizmos.DrawLine(transform.position, currentFlankPoint);
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawSphere(retreatTarget, 0.15f);
+            Gizmos.DrawLine(transform.position, retreatTarget);
         }
     }
 }

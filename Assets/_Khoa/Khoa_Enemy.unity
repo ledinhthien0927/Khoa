@@ -249,11 +249,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6686943772765460669, guid: 406daa122c2131d46b5c92a55c267e0a, type: 3}
       propertyPath: m_AnchorMax.x
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6686943772765460669, guid: 406daa122c2131d46b5c92a55c267e0a, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7175743541410788072, guid: 406daa122c2131d46b5c92a55c267e0a, type: 3}
       propertyPath: m_Name
@@ -261,7 +261,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7175743541410788072, guid: 406daa122c2131d46b5c92a55c267e0a, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8103073555161610436, guid: 406daa122c2131d46b5c92a55c267e0a, type: 3}
       propertyPath: m_LocalPosition.z
@@ -496,7 +496,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1617373225041418091, guid: 31282a91f81385642b6cae69233ff787, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 38.335987
+      value: 47.03
       objectReference: {fileID: 0}
     - target: {fileID: 1617373225041418091, guid: 31282a91f81385642b6cae69233ff787, type: 3}
       propertyPath: m_LocalPosition.y
@@ -537,6 +537,10 @@ PrefabInstance:
     - target: {fileID: 4089252950781640657, guid: 31282a91f81385642b6cae69233ff787, type: 3}
       propertyPath: m_Name
       value: AssassinEnemy
+      objectReference: {fileID: 0}
+    - target: {fileID: 4089252950781640657, guid: 31282a91f81385642b6cae69233ff787, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 9078350363656687322, guid: 31282a91f81385642b6cae69233ff787, type: 3}
       propertyPath: m_AnchorMax.x
@@ -1221,11 +1225,11 @@ PrefabInstance:
       objectReference: {fileID: 11400000, guid: 23f457d4fd3ca45459127ab17f96d60f, type: 2}
     - target: {fileID: 5331053743413226720, guid: 7b217fd198475834785db4810c53759c, type: 3}
       propertyPath: m_AnchorMax.x
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5331053743413226720, guid: 7b217fd198475834785db4810c53759c, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7530327046155107457, guid: 7b217fd198475834785db4810c53759c, type: 3}
       propertyPath: m_WarningMessage
@@ -1234,6 +1238,10 @@ PrefabInstance:
     - target: {fileID: 8750842608278470579, guid: 7b217fd198475834785db4810c53759c, type: 3}
       propertyPath: m_Name
       value: IceMageMonster
+      objectReference: {fileID: 0}
+    - target: {fileID: 8750842608278470579, guid: 7b217fd198475834785db4810c53759c, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -3032,11 +3040,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5331053743413226720, guid: d535ccec514224c42b1728ec407a6334, type: 3}
       propertyPath: m_AnchorMax.x
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5331053743413226720, guid: d535ccec514224c42b1728ec407a6334, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7688432929441628674, guid: d535ccec514224c42b1728ec407a6334, type: 3}
       propertyPath: m_CullingMode
@@ -3045,6 +3053,10 @@ PrefabInstance:
     - target: {fileID: 8750842608278470579, guid: d535ccec514224c42b1728ec407a6334, type: 3}
       propertyPath: m_Name
       value: HealerMonster
+      objectReference: {fileID: 0}
+    - target: {fileID: 8750842608278470579, guid: d535ccec514224c42b1728ec407a6334, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -3382,15 +3394,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5331053743413226720, guid: 9639806dd04bd4d4a8dff141a14175d9, type: 3}
       propertyPath: m_AnchorMax.x
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5331053743413226720, guid: 9639806dd04bd4d4a8dff141a14175d9, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8750842608278470579, guid: 9639806dd04bd4d4a8dff141a14175d9, type: 3}
       propertyPath: m_Name
       value: FireMageMonster (1)
+      objectReference: {fileID: 0}
+    - target: {fileID: 8750842608278470579, guid: 9639806dd04bd4d4a8dff141a14175d9, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

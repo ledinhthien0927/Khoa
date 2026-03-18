@@ -33,6 +33,9 @@ public class ShieldMonster : MonsterController
 
     private bool isAttacking = false;
 
+    private Coroutine lowerShieldRoutine;
+    private Coroutine attackRoutine;
+
     protected override void Start()
     {
         base.Start();
@@ -44,6 +47,39 @@ public class ShieldMonster : MonsterController
         }
     }
 
+    private void ResetAttackState()
+    {
+        isAttacking = false;
+
+        if (weaponTrail != null)
+        {
+            weaponTrail.emitting = false;
+            weaponTrail.Clear();
+        }
+
+        if (attackRoutine != null)
+        {
+            StopCoroutine(attackRoutine);
+            attackRoutine = null;
+        }
+    }
+
+    private void ResetShieldState()
+    {
+        isBlocking = false;
+        isLoweringShield = false;
+        blockTimer = 0f;
+
+        if (anim != null)
+            anim.SetBool("isBlocking", false);
+
+        if (lowerShieldRoutine != null)
+        {
+            StopCoroutine(lowerShieldRoutine);
+            lowerShieldRoutine = null;
+        }
+    }
+
     public override HitResult TakeDamage(DamageInfo info)
     {
         if (isDead || isReturning) return HitResult.Ignored;
@@ -51,14 +87,19 @@ public class ShieldMonster : MonsterController
         float hitAngle = Vector3.Angle(transform.forward, -info.hitDirection);
         bool isFrontalHit = hitAngle <= blockAngle;
 
-        // 1. ĐANG THỦ HOẶC ĐANG CẤT KHIÊN MÀ BỊ ĐÁNH TỪ TRƯỚC MẶT -> Đỡ đòn thành công
+        // 1. ĐANG THỦ / ĐANG HẠ KHIÊN + bị đánh chính diện -> block thành công
         if ((isBlocking || isLoweringShield) && isFrontalHit)
         {
             blockTimer = blockDuration;
             isBlocking = true;
             isLoweringShield = false;
 
-            // --- SOUND: Đỡ khiên thành công ---
+            if (lowerShieldRoutine != null)
+            {
+                StopCoroutine(lowerShieldRoutine);
+                lowerShieldRoutine = null;
+            }
+
             if (EnemySoundManager.Instance != null)
                 EnemySoundManager.Instance.PlayShieldBlock(transform.position);
 
@@ -77,31 +118,21 @@ public class ShieldMonster : MonsterController
             return HitResult.Ignored;
         }
 
-        // 2. KHÔNG THỦ HOẶC BỊ ĐÁNH LÉN TỪ SAU LƯNG -> Nhận sát thương thực sự
+        // 2. Bị đánh thật -> trước tiên dọn sạch state dễ gây kẹt
+        ResetShieldState();
+        ResetAttackState();
+
         HitResult result = base.TakeDamage(info);
 
-        // Reset trạng thái khiên để tránh xung đột animation
-        if (isBlocking || isLoweringShield)
-        {
-            isBlocking = false;
-            isLoweringShield = false;
-            if (anim != null) anim.SetBool("isBlocking", false);
-        }
-
-        if (isAttacking && weaponTrail != null)
-        {
-            weaponTrail.emitting = false;
-        }
-
-        // 3. BỊ ĐÁNH TỪ ĐẰNG TRƯỚC + CÒN SỐNG + KHÔNG SEARCHING -> BẬT KHIÊN
-        // Bỏ phụ thuộc isAlerted để block ổn định hơn
-        if (isFrontalHit && currentHealth > 0 && !isSearching)
+        // 3. Nếu vẫn còn sống, bị đánh chính diện thì giơ khiên lên lại
+        if (isFrontalHit && currentHealth > 0 && !isSearching && !isDead)
         {
             isBlocking = true;
             isLoweringShield = false;
             blockTimer = blockDuration;
 
-            if (anim != null) anim.SetBool("isBlocking", true);
+            if (anim != null)
+                anim.SetBool("isBlocking", true);
         }
 
         return result;
@@ -111,41 +142,50 @@ public class ShieldMonster : MonsterController
     {
         base.Update();
 
-        if (isDead) return;
+        if (isDead)
+        {
+            ResetShieldState();
+            ResetAttackState();
+            return;
+        }
 
-        // Chỉ đếm ngược thời gian thủ nếu KHÔNG TRONG LÚC đang hạ khiên
         if (isBlocking && !isLoweringShield)
         {
             blockTimer -= Time.deltaTime;
 
             if (blockTimer <= 0f)
             {
-                // Đặt cờ trước để tránh StartCoroutine bị gọi lặp mỗi frame
                 isLoweringShield = true;
-                StartCoroutine(LowerShieldRoutine());
+
+                if (lowerShieldRoutine != null)
+                    StopCoroutine(lowerShieldRoutine);
+
+                lowerShieldRoutine = StartCoroutine(LowerShieldRoutine());
             }
         }
     }
 
     private IEnumerator LowerShieldRoutine()
     {
-        if (anim != null) anim.SetBool("isBlocking", false);
+        if (anim != null)
+            anim.SetBool("isBlocking", false);
 
         yield return new WaitForSeconds(shieldLowerDelay);
 
-        // Nếu trong lúc đang hạ khiên mà bị đánh tiếp, TakeDamage sẽ set lại state
-        if (!isLoweringShield) yield break;
+        if (!isLoweringShield)
+            yield break;
 
         isBlocking = false;
         isLoweringShield = false;
+        lowerShieldRoutine = null;
+
         Debug.Log($"<color=cyan>[SHIELD DOWN]</color> {gameObject.name} đã hạ khiên XONG và bắt đầu di chuyển.");
     }
 
     public override void OnCombatBehavior(Transform player)
     {
-        if (player == null) return;
+        if (player == null || isDead) return;
 
-        // Bị khóa chân nếu ĐANG THỦ hoặc ĐANG TRONG LÚC CẤT KHIÊN
         if (isBlocking || isLoweringShield)
         {
             StopMoving();
@@ -164,7 +204,10 @@ public class ShieldMonster : MonsterController
 
             if (CanAttack())
             {
-                StartCoroutine(ExecuteShieldAttack(player));
+                if (attackRoutine != null)
+                    StopCoroutine(attackRoutine);
+
+                attackRoutine = StartCoroutine(ExecuteShieldAttack(player));
             }
         }
         else
@@ -177,11 +220,11 @@ public class ShieldMonster : MonsterController
     {
         isAttacking = true;
 
-        // --- SOUND: Tấn công cận chiến ---
         if (EnemySoundManager.Instance != null)
             EnemySoundManager.Instance.PlayMeleeAttack(transform.position);
 
-        if (anim != null) anim.SetTrigger("attack");
+        if (anim != null)
+            anim.SetTrigger("attack");
 
         if (weaponTrail != null)
         {
@@ -208,7 +251,6 @@ public class ShieldMonster : MonsterController
                     };
 
                     damageable.TakeDamage(info);
-
                     SpawnHitPlayerFX(player, info.hitDirection);
                 }
             }
@@ -217,9 +259,11 @@ public class ShieldMonster : MonsterController
         if (weaponTrail != null)
         {
             weaponTrail.emitting = false;
+            weaponTrail.Clear();
         }
 
         isAttacking = false;
+        attackRoutine = null;
     }
 
     private void SpawnHitPlayerFX(Transform player, Vector3 hitDirection)
