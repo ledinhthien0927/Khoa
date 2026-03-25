@@ -8,7 +8,7 @@ public class AssassinMonster : MonsterController
     public float warningDuration = 0.5f;
     public float ambushAttackRange = 1.8f;
     public float ambushDashSpeed = 12f;
-    public float ambushRetreatDistance = 3.5f;
+    public float ambushRetreatDistance = 8f;
     public float ambushRetreatSpeed = 10f;
     public float ambushRetreatStopDistance = 0.25f;
 
@@ -25,12 +25,12 @@ public class AssassinMonster : MonsterController
     private AssassinAnimator customAnim;
 
     private bool hasStartedAmbush = false;
-    private bool hasFinishedAmbush = false;
     private bool isWarning = false;
     private bool isAmbushDashing = false;
     private bool isRetreating = false;
     private bool hasAppliedAmbushDamage = false;
     private bool isDoingNormalAttack = false;
+    private bool isWaitingToRetreat = false;
 
     private Vector3 retreatTarget;
     private Coroutine ambushRoutine;
@@ -84,43 +84,36 @@ public class AssassinMonster : MonsterController
     {
         if (player == null) return;
 
-        if (isDead || isHit || isSearching || isReturning)
+        if (isDead || isSearching || isReturning)
         {
             StopSpecialState();
             return;
         }
 
+        if (isHit) return; // Chỉ tạm dừng, không Reset special state!
+
         float distToPlayer = Vector3.Distance(transform.position, player.position);
 
-        if (!hasFinishedAmbush)
-        {
-            HandleAmbushPhase(player, distToPlayer);
-            return;
-        }
-
-        HandleNormalCombat(player, distToPlayer);
+        // Luôn sử dụng logic Hit-and-Run
+        HandleAmbushPhase(player, distToPlayer);
     }
 
     private void HandleAmbushPhase(Transform player, float distToPlayer)
     {
-        // Chưa bắt đầu phục kích: đứng chờ player lại gần
+        // Phát hiện player → lập tức bắt đầu dash-attack (không chờ player lại gần)
         if (!hasStartedAmbush)
         {
             StopMoving();
             RotateTowards(player.position);
 
-            if (distToPlayer <= ambushTriggerDistance)
-            {
-                if (ambushRoutine != null)
-                    StopCoroutine(ambushRoutine);
+            if (ambushRoutine != null)
+                StopCoroutine(ambushRoutine);
 
-                ambushRoutine = StartCoroutine(AmbushSequence(player));
-            }
-
+            ambushRoutine = StartCoroutine(AmbushSequence(player));
             return;
         }
 
-        // Đang phát tín hiệu
+        // Đang phát tín hiệu cảnh báo ngắn
         if (isWarning)
         {
             StopMoving();
@@ -142,17 +135,26 @@ public class AssassinMonster : MonsterController
             if (!hasAppliedAmbushDamage && distToPlayer <= ambushAttackRange)
             {
                 PerformAmbushHit(player);
-                StartRetreat(player);
+                StartCoroutine(WaitThenRetreat(player, 0.5f));
             }
 
             return;
         }
 
-        // Chạy ra sau cú chém đầu để player không đánh trả ngay
+        // Đang tạm dừng 0.5s sau cú chém
+        if (isWaitingToRetreat)
+        {
+            StopMoving();
+            RotateTowards(player.position);
+            return;
+        }
+
+        // Chạy nhanh ra xa sau cú chém đầu
         if (isRetreating)
         {
             if (agent != null && agent.enabled && agent.isOnNavMesh)
             {
+                agent.isStopped = false;
                 agent.speed = ambushRetreatSpeed;
                 agent.SetDestination(retreatTarget);
             }
@@ -160,8 +162,9 @@ public class AssassinMonster : MonsterController
             RotateTowards(retreatTarget);
 
             float distToRetreat = Vector3.Distance(transform.position, retreatTarget);
-            if (distToRetreat <= ambushRetreatStopDistance)
+            if (distToRetreat <= ambushRetreatStopDistance || (agent != null && !agent.pathPending && agent.remainingDistance <= agent.stoppingDistance + 0.3f))
             {
+                Debug.Log("Assassin retreat finished, ready for next loop");
                 FinishAmbush();
             }
 
@@ -169,30 +172,6 @@ public class AssassinMonster : MonsterController
         }
 
         StopMoving();
-    }
-
-    private void HandleNormalCombat(Transform player, float distToPlayer)
-    {
-        if (isDoingNormalAttack) return;
-
-        if (distToPlayer <= normalAttackRange)
-        {
-            StopMoving();
-            RotateTowards(player.position);
-
-            if (Time.time >= lastAttackTime + attackCooldown)
-            {
-                if (normalAttackRoutine != null)
-                    StopCoroutine(normalAttackRoutine);
-
-                normalAttackRoutine = StartCoroutine(DoNormalAttack());
-            }
-        }
-        else
-        {
-            MoveToPosition(player.position, true);
-            RotateTowards(player.position);
-        }
     }
 
     private IEnumerator AmbushSequence(Transform player)
@@ -219,14 +198,6 @@ public class AssassinMonster : MonsterController
         isWarning = false;
         isAmbushDashing = true;
 
-        if (customAnim != null)
-        {
-            customAnim.PlaySlash();
-            Debug.Log("Assassin ambush attack animation triggered");
-        }
-
-        PlayClip(ambushAttackClip);
-
         ambushRoutine = null;
     }
 
@@ -234,6 +205,14 @@ public class AssassinMonster : MonsterController
     {
         hasAppliedAmbushDamage = true;
         lastAttackTime = Time.time;
+
+        if (customAnim != null)
+        {
+            customAnim.PlaySlash();
+            Debug.Log("Assassin ambush attack animation triggered at range");
+        }
+
+        PlayClip(ambushAttackClip);
 
         IDamageable damageable = player.GetComponent<IDamageable>();
         if (damageable != null && data != null)
@@ -249,6 +228,20 @@ public class AssassinMonster : MonsterController
         }
     }
 
+    private IEnumerator WaitThenRetreat(Transform player, float delay)
+    {
+        isWaitingToRetreat = true;
+        isAmbushDashing = false;
+        
+        yield return new WaitForSeconds(delay);
+        
+        isWaitingToRetreat = false;
+        if (player != null && !isDead)
+        {
+            StartRetreat(player);
+        }
+    }
+
     private void StartRetreat(Transform player)
     {
         isAmbushDashing = false;
@@ -260,8 +253,28 @@ public class AssassinMonster : MonsterController
         if (awayDir.sqrMagnitude < 0.001f)
             awayDir = -transform.forward;
 
-        retreatTarget = transform.position + awayDir * ambushRetreatDistance;
-        retreatTarget.y = transform.position.y;
+        Vector3 rawTarget = transform.position + awayDir * ambushRetreatDistance;
+        rawTarget.y = transform.position.y;
+
+        // Đảm bảo điểm retreat nằm trên NavMesh
+        if (UnityEngine.AI.NavMesh.SamplePosition(rawTarget, out UnityEngine.AI.NavMeshHit navHit, ambushRetreatDistance, UnityEngine.AI.NavMesh.AllAreas))
+        {
+            retreatTarget = navHit.position;
+        }
+        else
+        {
+            retreatTarget = rawTarget;
+        }
+
+        Debug.Log($"Assassin retreating to {retreatTarget}, distance = {ambushRetreatDistance}");
+
+        // Bắt đầu di chuyển ngay lập tức
+        if (agent != null && agent.enabled && agent.isOnNavMesh)
+        {
+            agent.isStopped = false;
+            agent.speed = ambushRetreatSpeed;
+            agent.SetDestination(retreatTarget);
+        }
     }
 
     private void FinishAmbush()
@@ -269,30 +282,13 @@ public class AssassinMonster : MonsterController
         isWarning = false;
         isAmbushDashing = false;
         isRetreating = false;
-        hasFinishedAmbush = true;
+        
+        // Reset để chuẩn bị cho vòng lặp tiếp theo
+        hasStartedAmbush = false;
+        hasAppliedAmbushDamage = false;
 
         if (agent != null && agent.enabled && agent.isOnNavMesh)
             agent.ResetPath();
-    }
-
-    private IEnumerator DoNormalAttack()
-    {
-        isDoingNormalAttack = true;
-        lastAttackTime = Time.time;
-
-        StopMoving();
-        PlayClip(ambushAttackClip);
-
-        if (customAnim != null)
-        {
-            customAnim.PlaySlash();
-            Debug.Log("Assassin normal attack animation triggered");
-        }
-
-        yield return new WaitForSeconds(0.9f);
-
-        isDoingNormalAttack = false;
-        normalAttackRoutine = null;
     }
 
     private void PlayClip(AudioClip clip)
@@ -309,6 +305,7 @@ public class AssassinMonster : MonsterController
         isWarning = false;
         isAmbushDashing = false;
         isRetreating = false;
+        isWaitingToRetreat = false;
     }
 
     private void ResetAssassinState()
@@ -316,7 +313,6 @@ public class AssassinMonster : MonsterController
         StopSpecialState();
 
         hasStartedAmbush = false;
-        hasFinishedAmbush = false;
         hasAppliedAmbushDamage = false;
         isDoingNormalAttack = false;
 
@@ -335,17 +331,19 @@ public class AssassinMonster : MonsterController
 
     public override HitResult TakeDamage(DamageInfo info)
     {
-        // Bị đánh trúng thì bỏ hẳn pha phục kích, vào combat thường luôn
-        hasFinishedAmbush = true;
-        isWarning = false;
-        isAmbushDashing = false;
-        isRetreating = false;
-
         if (ambushRoutine != null)
         {
             StopCoroutine(ambushRoutine);
             ambushRoutine = null;
         }
+
+        if (normalAttackRoutine != null)
+        {
+            StopCoroutine(normalAttackRoutine);
+            normalAttackRoutine = null;
+        }
+
+        isDoingNormalAttack = false;
 
         if (agent != null && agent.enabled && agent.isOnNavMesh)
             agent.ResetPath();
@@ -356,7 +354,42 @@ public class AssassinMonster : MonsterController
             Debug.Log("Assassin hit animation triggered");
         }
 
-        return base.TakeDamage(info);
+        // Sửa lỗi kẹt Hit state ngay tại đây (không sửa ở class cha)
+        isHit = false;
+        isLockMovement = false;
+
+        HitResult result = base.TakeDamage(info);
+
+        // Nếu bị đánh trong khi đang lùi hoặc gầm -> Phản công ngay
+        if (targetPlayer != null)
+        {
+            float distToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
+
+            if (isWarning || isAmbushDashing || isRetreating || isWaitingToRetreat)
+            {
+                // Dừng chờ nếu đang bị đánh
+                isWaitingToRetreat = false;
+
+                // Nếu đủ gần -> Chém ngay rồi lùi tiếp
+                if (distToPlayer <= ambushAttackRange * 1.5f)
+                {
+                    Debug.Log("Assassin reaction: Counter-attack!");
+                    if (customAnim != null) customAnim.PlaySlash();
+                    PerformAmbushHit(targetPlayer);
+                    StartRetreat(targetPlayer);
+                }
+                else 
+                {
+                    // Nếu ở xa -> Bỏ lùi/Gầm, lao thẳng vào dash tiếp
+                    isWarning = false;
+                    isRetreating = false;
+                    isAmbushDashing = true; 
+                    hasStartedAmbush = true; // Giữ flag để Update chạy logic Dash
+                }
+            }
+        }
+
+        return result;
     }
 
     private void OnDrawGizmosSelected()
